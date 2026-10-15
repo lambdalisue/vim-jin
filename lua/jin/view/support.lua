@@ -74,6 +74,18 @@ function M.fileset(path)
   return 'file:"' .. path:gsub('[\\"]', "\\%0") .. '"'
 end
 
+---A revset string literal holding `value`, which names a bookmark, remote or
+---workspace whatever characters it has. Control characters are written as
+---escapes, so that the literal stays on one line of a buffer name.
+---@param value string
+---@return string
+function M.string(value)
+  local escaped = value:gsub('[\\"]', "\\%0"):gsub("[%z\1-\31\127]", function(c)
+    return ("\\x%02x"):format(c:byte())
+  end)
+  return '"' .. escaped .. '"'
+end
+
 ---The operation the arguments load the repository at (--at-op), if any.
 ---@param argv string[]
 ---@return string?
@@ -101,6 +113,19 @@ function M.query(ctx, argv)
     argv = with_op
   end
   return ctx.jin.jj(argv, { cwd = ctx.meta.parsed.root })
+end
+
+---Whether `rev` is the working copy, and so its files are the files
+---themselves. The working copy of an earlier operation never is.
+---@param ctx jin.ActionContext
+---@param rev string
+---@return boolean
+function M.is_working_copy(ctx, rev)
+  if M.at_op(ctx.meta.parsed.argv) then
+    return false
+  end
+  local result = M.query(ctx, { "log", "--no-graph", "-r", "(" .. rev .. ") & @", "-T", '"x"' })
+  return result ~= nil and result.code == 0 and result.stdout ~= ""
 end
 
 ---Lead to the parents or children of `rev`: `open_one` opens the only one,
@@ -183,7 +208,7 @@ end
 ---@param name string
 ---@param argv string[]
 ---@param opener string
----@param line? integer
+---@param line? integer|string
 ---@return integer bufnr
 function M.open(ctx, name, argv, opener, line)
   local op = M.at_op(ctx.meta.parsed.argv)

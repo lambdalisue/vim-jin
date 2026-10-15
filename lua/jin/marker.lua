@@ -1,5 +1,5 @@
 -- Marks where each entry of jj's templated output starts, so that every line
--- can be mapped back to the change (or operation, ...) it shows.
+-- can be mapped back to the change (or operation, bookmark, ...) it shows.
 
 local M = {}
 
@@ -13,8 +13,9 @@ local OPEN, CLOSE = "\30", "\31"
 function M.wrap(fields, template)
   local encoded = {}
   for i, field in ipairs(fields) do
-    -- A value can hold any character, the separators too; JSON keeps every
-    -- value whole and unambiguous.
+    -- jj prints a bookmark or workspace name quoted when it has spaces or
+    -- quotes, and a raw name can hold any character, the separators too;
+    -- JSON keeps every value whole and unambiguous.
     encoded[i] = "json(stringify(" .. field .. "))"
   end
   return '"\\x1e" ++ '

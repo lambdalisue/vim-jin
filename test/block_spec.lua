@@ -78,6 +78,7 @@ describe("the blocks of a view", function()
       "jin:///repo;view=log#",
       "jin:///repo;view=evolog#",
       "jin:///repo;view=oplog#",
+      "jin:///repo;view=conflicts#",
     }) do
       assert.same({ 1, 3 }, starts(name, two, true), name)
     end
@@ -120,6 +121,9 @@ describe("the blocks of a view", function()
 
   it("are none in a view of one thing a line", function()
     assert.is_nil(starts("jin:///repo;view=status#", "Working copy changes:\nM a.txt\n", true))
+    assert.is_nil(starts("jin:///repo;view=bookmark#", m("main", "") .. "main: kkk\n", true))
+    assert.is_nil(starts("jin:///repo;view=workspace#", m("default") .. "default: kkk\n", true))
+    assert.is_nil(starts("jin:///repo;view=resolve#", "a.lua    2-sided conflict\n"))
   end)
 end)
 
@@ -190,8 +194,7 @@ describe("jin.view.move_block", function()
 
   it("stays in a view of no blocks, and before the buffer has been read", function()
     local host, jin = setup()
-    local bufnr =
-      read(host, jin, "jin:///repo;view=status#", "Working copy changes:\nM a.txt\n", true)
+    local bufnr = read(host, jin, "jin:///repo;view=bookmark#", m("main", "") .. "main: k\n", true)
     view.move_block(host, bufnr, true, 1)
     local unread = host.load("jin:///repo;view=log#-r @")
     view.move_block(host, unread, true, 1)

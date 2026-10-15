@@ -597,6 +597,20 @@ describe("the status view", function()
     assert.same({}, host.messages)
   end)
 
+  it("opens a conflicted file at its first conflict", function()
+    local host, jin = setup()
+    local bufnr = read(
+      host,
+      jin,
+      NAME,
+      "Warning: There are unresolved conflicts at these paths:\nc.txt    2-sided conflict\n",
+      true
+    )
+    host.contents["/repo/c.txt"] = { "a", "<<<<<<< conflict 1 of 1" }
+    action.run(jin, host, bufnr, "open", 2, 2)
+    assert.equal(2, host.cursors[host.buffer_bufnr("/repo/c.txt")])
+  end)
+
   it("opens nothing, quietly, on a line that names neither a path nor a change", function()
     local host, jin = setup()
     local bufnr = read(host, jin, NAME, SUMMARY, true)

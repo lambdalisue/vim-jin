@@ -27,7 +27,7 @@ function! s:complete_view(arglead, cmdline, cursorpos) abort
         \ [a:arglead, a:cmdline, a:cursorpos])
 endfunction
 
-for s:name in ['JinLog', 'JinShow', 'JinDiff', 'JinFile', 'JinOpLog', 'JinEvolog', 'JinStatus', 'JinAnnotate']
+for s:name in ['JinLog', 'JinShow', 'JinDiff', 'JinFile', 'JinOpLog', 'JinEvolog', 'JinStatus', 'JinAnnotate', 'JinBookmark', 'JinWorkspace', 'JinConflicts']
   execute printf(
         \ 'command! -bang -nargs=* -complete=customlist,%s %s'
         \ . ' call luaeval(''require("jin.host.entry").view(_A[1], _A[2], _A[3], _A[4])'','
@@ -35,6 +35,10 @@ for s:name in ['JinLog', 'JinShow', 'JinDiff', 'JinFile', 'JinOpLog', 'JinEvolog
         \ expand('<SID>') . 'complete_view', s:name, s:name)
 endfor
 unlet s:name
+
+command! -bar JinCd call luaeval('require("jin.host.entry").cd(_A)', 'cd')
+command! -bar JinLcd call luaeval('require("jin.host.entry").cd(_A)', 'lcd')
+command! -bar JinTcd call luaeval('require("jin.host.entry").cd(_A)', 'tcd')
 
 function! s:highlight() abort
   highlight default link JinCursorEntry CursorLine

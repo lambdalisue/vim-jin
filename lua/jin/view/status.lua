@@ -3,6 +3,7 @@
 local action = require("jin.action")
 local status = require("jin.status")
 local support = require("jin.view.support")
+local view = require("jin.view")
 
 ---@param ctx jin.ActionContext
 ---@return jin.StatusPath
@@ -16,8 +17,21 @@ end
 
 local actions = {}
 
+---Open the file of `found` in the working copy, a conflicted one at its
+---first conflict.
+---@param ctx jin.ActionContext
+---@param found jin.StatusPath
+---@param opener string
+local function open_file(ctx, found, opener)
+  local bufnr = ctx.host.open(ctx.meta.parsed.root .. "/" .. found.path, { opener = opener })
+  local lnum = found.status == "conflict" and view.line_of(ctx.host.lines(bufnr), status.CONFLICT)
+  if lnum then
+    ctx.host.cursor(bufnr, lnum)
+  end
+end
+
 action.openers(actions, "edit", "open the file of the working copy", function(ctx, opener)
-  ctx.host.open(ctx.meta.parsed.root .. "/" .. path_of(ctx).path, { opener = opener })
+  open_file(ctx, path_of(ctx), opener)
 end)
 
 -- open and inspect are what <CR> and its kin do on any line: a line that
@@ -31,7 +45,7 @@ action.openers(
     local found = ctx.meta.data.paths[ctx.first]
     local revision = ctx.meta.data.revisions[ctx.first]
     if found then
-      ctx.host.open(ctx.meta.parsed.root .. "/" .. found.path, { opener = opener })
+      open_file(ctx, found, opener)
     elseif revision then
       support.open(ctx, "show", { revision }, opener)
     end

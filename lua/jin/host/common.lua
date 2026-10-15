@@ -177,6 +177,14 @@ function M.define_actions(bufnr, names, defaults, list, to_list)
   vim.fn.setbufvar(bufnr, "jin_actions", to_list(names))
 end
 
+---The lines of `bufnr`.
+---@param bufnr integer
+---@param list fun(value: any): any[]
+---@return string[]
+function M.lines(bufnr, list)
+  return list(vim.fn.getbufline(bufnr, 1, "$"))
+end
+
 ---Whether the user splits diffs vertically ('diffopt' has "vertical").
 ---@return boolean
 function M.vertical()
@@ -204,6 +212,10 @@ function M.input(prompt, completion)
     return nil
   end
   return answer
+end
+
+function M.cd(scope, path)
+  M.ex(scope .. " " .. vim.fn.fnameescape(path))
 end
 
 function M.yank(text)

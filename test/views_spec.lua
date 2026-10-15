@@ -157,6 +157,31 @@ describe("the lines of the entry under the cursor", function()
     end
   end)
 
+  it("is the line under the cursor in views of one thing a line", function()
+    for _, case in ipairs({
+      {
+        "jin:///repo;view=bookmark#",
+        m("main", "") .. "main: kkk\n" .. m("dev", "") .. "dev: zzz\n",
+        true,
+      },
+      {
+        "jin:///repo;view=workspace#",
+        m("default") .. "default: kkk\n" .. m("other") .. "other: zzz\n",
+        true,
+      },
+      {
+        "jin:///repo;view=resolve#-r kkk",
+        "a.lua    2-sided conflict\nb.lua    2-sided conflict\n",
+      },
+    }) do
+      local host, jin = setup()
+      local bufnr = read(host, jin, case[1], case[2], case[3])
+      host.cursors[bufnr] = 2
+      view.cursor_moved(host, bufnr)
+      assert.same({ 2, 2 }, host.highlighted[bufnr], case[1])
+    end
+  end)
+
   it("are not highlighted in views of one change", function()
     local host, jin = setup()
     local bufnr = read(host, jin, "jin:///repo;view=show#@", m("a", "1") .. "x\ny\n", true)

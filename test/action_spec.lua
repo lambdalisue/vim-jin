@@ -220,6 +220,10 @@ describe("jin.action.keys", function()
     "evolog",
     "status",
     "annotate",
+    "bookmark",
+    "workspace",
+    "conflicts",
+    "resolve",
   }
 
   ---The action `lhs` is mapped to in `mode` ("n" unless given), or nil.
@@ -255,6 +259,10 @@ describe("jin.action.keys", function()
       evolog = "interdiff",
       status = "inspect",
       annotate = "show",
+      bookmark = "log",
+      workspace = "tcd",
+      conflicts = "files",
+      resolve = "edit",
     }
     for _, name in ipairs(VIEWS) do
       assert.equal(primary[name], lookup(action.keys(view.get(name), false), "<CR>"), name)
@@ -269,6 +277,8 @@ describe("jin.action.keys", function()
       opshow = "diff",
       evolog = "show",
       status = "open",
+      bookmark = "show",
+      workspace = "log",
     }
     for _, name in ipairs(VIEWS) do
       local keys = action.keys(view.get(name), false)
@@ -298,6 +308,8 @@ describe("jin.action.keys", function()
     function()
       assert.equal("show:split", lookup(action.keys(view.get("log"), false), "<C-w><CR>"))
       assert.equal("show:vsplit", lookup(action.keys(view.get("log"), true), "<C-w><CR>"))
+      -- What is no view opens in no new window.
+      assert.is_nil(lookup(action.keys(view.get("workspace"), false), "<C-w><CR>"))
     end
   )
 
@@ -311,6 +323,8 @@ describe("jin.action.keys", function()
           log = true,
           evolog = true,
           annotate = true,
+          files = true,
+          resolve = true,
         }
         if unmapped[key[2]] and key[1] ~= "<CR>" and key[1] ~= "<S-CR>" and key[1] ~= "<C-CR>" then
           wrong[#wrong + 1] = name .. ": " .. key[1] .. " " .. key[2]
@@ -333,7 +347,7 @@ describe("jin.action.keys", function()
   end)
 
   it("yanks commit IDs with YY, and those of the lines selected with Y in visual mode", function()
-    for _, name in ipairs({ "log", "show", "evolog", "annotate" }) do
+    for _, name in ipairs({ "log", "show", "evolog", "annotate", "conflicts" }) do
       local keys = action.keys(view.get(name), false)
       assert.same(
         { "yank:commit", "yank:commit" },
@@ -436,6 +450,7 @@ describe("jin.action.keys", function()
       "oplog",
       "evolog",
       "annotate",
+      "conflicts",
     }, with)
   end)
 end)

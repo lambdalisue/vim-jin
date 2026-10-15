@@ -62,6 +62,12 @@ function M.block(bufnr, forward, count)
   report(require("jin.view").move_block, host, bufnr, forward == 1, count)
 end
 
+---:JinCd, :JinLcd and :JinTcd.
+---@param scope "cd"|"lcd"|"tcd"
+function M.cd(scope)
+  report(require("jin.command.cd").run, jin, host, scope)
+end
+
 ---Free what is kept for a jin:// buffer being unloaded (BufUnload).
 ---@param bufnr integer
 function M.forget_buffer(bufnr)

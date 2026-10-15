@@ -2,6 +2,10 @@
 
 local M = {}
 
+---The first line of a conflict jj materializes in a file, as a Lua pattern:
+---seven or more <, as jj uses more when the file holds a run of seven.
+M.CONFLICT = "^<<<<<<<+ "
+
 ---Expand jj's rename notation, `dir/{old => new}.ext`, into both paths.
 ---@param text string
 ---@return string new
@@ -15,11 +19,11 @@ local function renamed(text)
 end
 
 ---The path of a line listing a path left in conflict (`path  2-sided
----conflict`), as jj status prints it. jj pads the path to a column, but
----follows one longer than the column with a single space.
+---conflict`), as jj status and jj resolve --list print it. jj pads the path to
+---a column, but follows one longer than the column with a single space.
 ---@param line string
 ---@return string?
-local function conflicted(line)
+function M.conflicted(line)
   return line:match("^(.*%S)%s+%d+%-sided conflict")
 end
 
@@ -50,7 +54,7 @@ function M.parse(lines)
         section = nil
       end
     elseif section == "conflicts" then
-      local path = conflicted(line)
+      local path = M.conflicted(line)
       if path then
         paths[lnum] = { status = "conflict", path = path }
       else

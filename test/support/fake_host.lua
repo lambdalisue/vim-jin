@@ -178,6 +178,12 @@ function M.new(opts)
     host.yanked[#host.yanked + 1] = text
   end
 
+  host.cds = {}
+
+  function host.cd(scope, path)
+    host.cds[#host.cds + 1] = { scope = scope, path = path }
+  end
+
   host.cursors = {}
 
   function host.cursor(bufnr, lnum)
@@ -227,6 +233,13 @@ function M.new(opts)
       end
     end
     return nil
+  end
+
+  -- Per buffer name, the lines a file opened with `open` holds.
+  host.contents = {}
+
+  function host.lines(bufnr)
+    return host.contents[host.buffer_name(bufnr) or ""] or {}
   end
 
   ---Pretend the editor has `name` loaded as a buffer, and return its number.

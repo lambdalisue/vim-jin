@@ -12,6 +12,7 @@ local M = {
   buffer_name = common.buffer_name,
   input = common.input,
   yank = common.yank,
+  cd = common.cd,
   vertical = common.vertical,
 }
 
@@ -218,6 +219,10 @@ end
 
 function M.line(bufnr)
   return common.line(bufnr, M.list)
+end
+
+function M.lines(bufnr)
+  return common.lines(bufnr, M.list)
 end
 
 -- Text properties highlight only the text, while the line highlight of a

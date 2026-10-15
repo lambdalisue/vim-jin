@@ -60,6 +60,27 @@ M.COMMANDS = {
     jj = { "file", "annotate" },
     options = view.OPTIONS,
   },
+  JinBookmark = {
+    name = "JinBookmark",
+    shortest = 5,
+    view = "bookmark",
+    jj = { "bookmark", "list" },
+    options = view.OPTIONS,
+  },
+  JinWorkspace = {
+    name = "JinWorkspace",
+    shortest = 4,
+    view = "workspace",
+    jj = { "workspace", "list" },
+    options = view.OPTIONS,
+  },
+  JinConflicts = {
+    name = "JinConflicts",
+    shortest = 5,
+    view = "conflicts",
+    jj = { "log" },
+    options = view.OPTIONS,
+  },
 }
 
 ---Open the view of the Ex command `name` for its arguments as typed.

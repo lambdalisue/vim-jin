@@ -49,6 +49,8 @@
 ---@field input fun(prompt: string, completion: string): string?
 ---Put `text` in the register the user asked for (v:register).
 ---@field yank fun(text: string)
+---Change the current directory with `scope`: "cd", "lcd" or "tcd".
+---@field cd fun(scope: "cd"|"lcd"|"tcd", path: string)
 ---Whether the user splits windows for diffs vertically.
 ---@field vertical fun(): boolean
 ---Move the cursor of the window showing `bufnr` to line `lnum`.
@@ -56,6 +58,8 @@
 ---Move the cursor of the current window, when it shows `bufnr`, to line
 ---`lnum` as a motion would, leaving where it was in the jumplist.
 ---@field jump fun(bufnr: integer, lnum: integer)
+---The lines of `bufnr`.
+---@field lines fun(bufnr: integer): string[]
 ---The line of the cursor in the window showing `bufnr`, nil when none does.
 ---@field line fun(bufnr: integer): integer?
 ---Highlight lines `first`..`last` of `bufnr` whole, as JinCursorEntry, in

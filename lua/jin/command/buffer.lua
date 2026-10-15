@@ -5,7 +5,7 @@ local view = require("jin.view")
 local M = {}
 
 ---@type jin.CompletedCommand
-M.COMMAND = { name = "JinBuffer", shortest = 4, options = view.OPTIONS }
+M.COMMAND = { name = "JinBuffer", shortest = 5, options = view.OPTIONS }
 
 ---@alias jin.BufferOptions jin.ViewOptions
 

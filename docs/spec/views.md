@@ -19,13 +19,14 @@ Views read jj's own formats: the log through the user's configured
 templates, diffs in jj's color-words format. vim-jin adds markers to the
 templates to tell which change each line belongs to; they never show.
 
-In the log, the evolog and the operation log, where a
+In the log, the evolog, the operation log and the conflicts, where a
 change, a version or an operation takes several lines, all the lines of the
 one under the cursor are highlighted, across the window, with
 `JinCursorEntry`, which links to `CursorLine` unless defined otherwise.
 Lines of the graph alone, such as `~` below the last change shown, are not
-part of it. In the status, where each line stands for one thing, the line
-under the cursor is highlighted the same way.
+part of it. In the status, the bookmarks, the workspaces and the conflicted
+paths, where each line stands for one thing, the line under the cursor is
+highlighted the same way.
 
 In the annotation, every line written by the change of the line under the
 cursor is highlighted, across the window, with `JinCursorChange`, which
@@ -82,8 +83,22 @@ the window.
   file alone. When the template does not end each line with its content, or
   jj fails, jj's output shows whole instead.
 
+`:JinBookmark [args]`
+: `jj bookmark list` with `[args]`, in the user's bookmark list template.
+
+`:JinWorkspace [args]`
+: `jj workspace list` with `[args]`, in the user's workspace list template.
+
+`:JinConflicts [args]`
+: The log of the changes that hold conflicts (`jj log -r 'conflicts()'`),
+  narrowed further by `[args]`.
+
 `:JinFile` and `:JinAnnotate` need the path of a file in `[args]` (`%`
 names the current one); without it they say so and open nothing.
+
+`:JinCd`, `:JinLcd`, `:JinTcd` are not views: they change the current
+directory (globally, for the window, or for the tab page) to the root of the
+current buffer's workspace.
 
 ## Actions
 
@@ -115,6 +130,9 @@ A line that names nothing an action needs, such as a header, or one shared
 by two changes when a template prints no newline, offers nothing to act on.
 A key pressed there does nothing and says nothing; an action chosen by name
 with `a` says why it cannot run.
+
+A bookmark or workspace is acted on by its name as it is, even when the name
+holds spaces or quotes and jj shows it quoted.
 
 ### Log
 
@@ -218,7 +236,8 @@ operation added or removed stands for that version of the change:
   nothing, and says nothing.
 
 `edit`
-: Open the file of the line, as it is in the working copy.
+: Open the file of the line, as it is in the working copy, a conflicted
+  one with the cursor on its first conflict.
 
 `diff`
 : Show the diff of the path of the line.
@@ -245,6 +264,44 @@ operation added or removed stands for that version of the change:
 `log:file`
 : The file view's `log`.
 
+
+### Bookmark
+
+`log`
+: Show the log up to the bookmark of the line, local or remote.
+
+`show`
+: Show the change the bookmark points to.
+
+`yank:bookmark`
+: Yank the bookmark names, a remote one as `name@remote`.
+
+A bookmark is named exactly, even when its name holds characters jj would
+take for a pattern. A bookmark that points to no change, such as a remote
+one not pushed yet, says so instead of showing anything.
+
+### Workspace
+
+`cd`, `lcd`, `tcd`
+: Change the current directory to the root of the workspace of the line,
+  and say which workspace, as the key pressed names neither the scope nor
+  the place.
+
+`log`, `show`
+: Show the log up to the workspace's working copy, or that change.
+
+### Conflicts
+
+The actions of the log, and:
+
+`files`
+: List the conflicted paths of the change (`jj resolve --list`). On a
+  path of that list, `edit` opens the file with its conflict, as
+  `:JinFile` of the change, or the file itself when the change is the
+  working copy, with the cursor on its first conflict; `diff` shows the
+  diff of the path in the change.
+
+
 ## Default key mappings
 
 Each view maps keys to its actions and motions unless
@@ -268,7 +325,8 @@ the keys of the actions it has.
 - `<S-CR>` and `<C-CR>` serve what the view is opened for next most often,
   such as the diff of a log line or the log of the file of a file view.
   Both are mapped, as a terminal may pass on only one of them.
-- `<C-w><CR>` opens what `<CR>` opens in a new window, split vertically
+- `<C-w><CR>` opens what `<CR>` opens in a new window, where it opens a
+  view or a file, split vertically
   when `'diffopt'` holds `vertical` and horizontally otherwise.
 - `gf` goes to the file (as `:JinFile`, or the file itself as `edit` opens
   it), `gd` to the diff (the interdiff in the evolog), `gp` and `gc` to the
@@ -283,7 +341,7 @@ the keys of the actions it has.
   leaving where they came from in the jumplist. A count past the last
   block stops at it; with no block that way, the cursor stays. A block is
   a run of lines one change wrote in the annotate view; an entry in the
-  log, evolog and oplog views; a file in the diff and
+  log, conflicts, evolog and oplog views; a file in the diff and
   interdiff views; the header of each change and each file in the show
   view. The other views have no blocks and leave `]]` and `[[` to Vim.
   The keys are mapped to `<Plug>(jin-next-block)` and
@@ -307,3 +365,9 @@ every variant, such as `{name}:tab`, are reached through `a` or by mapping
 | evolog | interdiff | show | `gd` | yank:change | yank:commit |
 | status | inspect | open | `gf` `gd` | yank:path | |
 | annotate | show | | `gf` `gd` | yank:change | yank:commit |
+| bookmark | log | show | | yank:bookmark | |
+| workspace | tcd | log | | | |
+| conflicts | files | | `gd` | yank:change | yank:commit |
+| resolve | edit | | `gf` `gd` | | |
+
+`resolve` is the list of conflicted paths `files` opens.

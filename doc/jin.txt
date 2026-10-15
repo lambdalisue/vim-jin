@@ -115,7 +115,22 @@ the installed jj offers.
 	without one it is set to 1, so that a wrapped line goes on beside
 	the annotation however narrow the window.
 
+:JinBookmark [args]					*:JinBookmark*
+	`jj bookmark list`.
+
+:JinWorkspace [args]					*:JinWorkspace*
+	`jj workspace list`.
+
+:JinConflicts [args]					*:JinConflicts*
+	The log of the changes that hold conflicts.
+
 The view commands take the `++` options and [!] of |:JinBuffer|.
+
+:JinCd							*:JinCd*
+:JinLcd							*:JinLcd*
+:JinTcd							*:JinTcd*
+	Change the current directory, globally, for the window, or for the
+	tab page, to the root of the current buffer's workspace.
 
 =============================================================================
 VIEWS							*jin-views*
@@ -130,10 +145,11 @@ such as `--at-op @-`, moves on with it. Reading a view snapshots the
 working copy, as jj does, so files changed without jj show, unless every
 view of the workspace is given `--ignore-working-copy` or `--at-op`.
 
-In the log, the evolog and the operation log, all the
+In the log, the evolog, the operation log and the conflicts, all the
 lines of the change, version or operation under the cursor are
-highlighted with |hl-JinCursorEntry|; in the status, one thing to a line,
-the line under the cursor is. In the annotation, every line the change of
+highlighted with |hl-JinCursorEntry|; in the status, the bookmarks, the
+workspaces and the conflicted paths, one thing to a line, the line under
+the cursor is. In the annotation, every line the change of
 the line under the cursor wrote is highlighted with |hl-JinCursorChange|.
 
 A buffer that was left and read again on coming back to it, as with
@@ -159,12 +175,19 @@ an older version of a change is.
 A key pressed on a line that names nothing to act on does nothing; the same
 action chosen by name says why it cannot run.
 
-Log ~
+Log and conflicts ~
 	show		Show the change of the line.
 	diff		Show its diff.
 	evolog		Show the versions it went through.
 	yank:change	Yank the change IDs of the lines.
 	yank:commit	Yank their commit IDs.
+	files		(conflicts) List the conflicted paths of the change.
+
+Conflicted paths ~
+	edit		Open the file with its conflict, the cursor on the
+			first one: the file itself in the working copy, or
+			|:JinFile| of the change.
+	diff		Show the diff of the path in the change.
 
 Show, diff and interdiff ~
 	jump		Open the file of the line at that line: the working
@@ -218,6 +241,19 @@ Status ~
 	annotate	Annotate the file of the path.
 	yank:path	Yank the paths of the lines.
 
+A conflicted file opens with the cursor on its first conflict.
+
+Bookmark ~
+	log		Show the log up to the bookmark.
+	show		Show the change it points to.
+	yank:bookmark	Yank the bookmark names.
+
+Workspace ~
+	tcd		Change the tab page's directory to the workspace root.
+	cd, lcd		Likewise, globally or for the window.
+	log		Show the log up to the workspace's working copy.
+	show		Show that change.
+
 -----------------------------------------------------------------------------
 KEY MAPPINGS						*jin-mappings*
 
@@ -242,7 +278,7 @@ exceptions. A view maps only the keys of the actions it has.
 	<C-w><CR>	What <CR> opens, in a new window, split vertically
 			when 'diffopt' holds "vertical".
 	gf		The file: |:JinFile|, or the file itself in the
-			status.
+			status and the conflicted paths.
 	gd		The diff; the interdiff in the evolog.
 	gp gc		The parent, the child.
 	yy		Yank what the line stands for; `y` in visual mode.
@@ -266,7 +302,8 @@ the |jumplist|. A count past the last block stops at it; with no block that
 way, the cursor stays. A block is:
 
 - in |:JinAnnotate|, a run of lines one change wrote;
-- in |:JinLog|, |:JinEvolog| and |:JinOpLog|, an entry, all its lines;
+- in |:JinLog|, |:JinConflicts|, |:JinEvolog| and |:JinOpLog|,
+  an entry, all its lines;
 - in |:JinDiff| and the interdiff, a file;
 - in |:JinShow|, the header of each change, and each file.
 
@@ -286,7 +323,8 @@ to keys of your own:
 				*g:jin_{view}_disable_default_mappings*
 To map no key at all in a view, set this to 1, `{view}` being `log`,
 `show`, `diff`, `interdiff`, `file`, `oplog`, `opshow`, `evolog`,
-`status`, `annotate` or `buffer` (|:JinBuffer|):
+`status`, `annotate`, `bookmark`, `workspace`, `conflicts`,
+`resolve` (the conflicted paths `files` lists) or `buffer` (|:JinBuffer|):
 >vim
 	let g:jin_log_disable_default_mappings = 1
 <
