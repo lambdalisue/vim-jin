@@ -1,2 +1,4 @@
-# Test files also see the globals busted provides.
+# Test files also see the globals busted provides. Host tests run inside an
+# editor instead, and are linted with the host layer.
 std = "busted"
+exclude = ["test/host/**"]

@@ -1,0 +1,6 @@
+# The `vim` global for selene. Neovim and Vim expose different members under
+# it, so its shape is left to the host implementations.
+base: lua51
+globals:
+  vim:
+    any: true

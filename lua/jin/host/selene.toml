@@ -1,0 +1,2 @@
+# The host layer and its tests are the only code that may touch the editor.
+std = "vim"

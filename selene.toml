@@ -1,5 +1,5 @@
 # The core talks to no editor, so it sees plain Lua 5.1 and nothing else:
-# a stray `vim` global is reported as an undefined variable. The tests are
-# linted with their own config (see justfile).
+# a stray `vim` global is reported as an undefined variable. The host layer
+# and the tests are linted with their own configs (see justfile).
 std = "lua51"
-exclude = ["test/**"]
+exclude = ["lua/jin/host/**", "test/**"]

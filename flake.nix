@@ -41,6 +41,10 @@
               pkgs.lua-language-server
               (bustedOn "luajit" pkgs.luajit)
               (bustedOn "lua54" pkgs.lua5_4)
+              # The host layer is tested inside both editors, against a real jj.
+              pkgs.neovim-unwrapped
+              (pkgs.vim-full.override { guiSupport = "none"; })
+              pkgs.jujutsu
             ];
           };
         }

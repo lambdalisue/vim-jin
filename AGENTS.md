@@ -22,10 +22,10 @@ Work with Jujutsu (jj) repositories from Neovim and Vim.
   Before writing, fixing or reviewing a record, read `docs/adr/README.md`;
   before writing, fixing or reviewing a spec, read `docs/spec/README.md`.
   Follow their writing order.
-- **The core talks to no editor.** Code under `lua/jin/` runs on plain Lua:
-  no `vim` global, nothing that only LuaJIT provides. It is written for
-  Lua 5.1 and must also run on newer PUC Lua. It reaches the editor only
-  through a host layer
+- **The core talks to no editor.** Code under `lua/jin/`, outside
+  `lua/jin/host/`, runs on plain Lua: no `vim` global, nothing that only
+  LuaJIT provides. It is written for Lua 5.1 and must also run on newer PUC
+  Lua. It reaches the editor through the host layer it is given
   (`docs/adr/20261015-reach-the-editor-only-through-a-host-layer.md`).
 - **Dependencies are current.** Before adding or bumping one, look up its
   latest release in the registry. Do not copy a version from memory or from
@@ -45,7 +45,9 @@ a checkout with untracked new files, enter the shell with
 | Path | What lives there |
 | --- | --- |
 | `lua/jin/` | the core, editor-independent Lua |
+| `lua/jin/host/` | the host layer: one implementation per editor |
 | `test/` | busted tests for the core, run on LuaJIT and PUC Lua |
+| `test/host/` | host tests, run inside Neovim and Vim by `test/host/run.lua` |
 | `docs/` | concept, ADRs, specs, references |
 
 ## Language
@@ -74,7 +76,8 @@ Scoped Commits:
 
 | Scope | Covers |
 | --- | --- |
-| `core` | `lua/jin/` and its tests in `test/` |
+| `core` | `lua/jin/` and its tests in `test/`, except the host layer |
+| `host` | `lua/jin/host/` and `test/host/` |
 | `docs` | `docs/concept.md`, `README.md`, `AGENTS.md` |
 | `adr` | `docs/adr/` |
 | `spec` | `docs/spec/` |

@@ -21,15 +21,24 @@ fmt-check:
 lint:
     selene lua
     selene --config test/selene.toml test
+    selene --config lua/jin/host/selene.toml lua/jin/host test/host
     lua-language-server --check . --checklevel=Warning
 
 # Run every test.
-test: test-core
+test: test-core test-nvim test-vim
 
 # Run the core tests on LuaJIT (Neovim) and on PUC Lua (Vim).
 test-core:
     busted-luajit
     busted-lua54
+
+# Run the host tests inside headless Neovim.
+test-nvim:
+    nvim --headless -u NONE -i NONE -n --cmd "set rtp^={{justfile_directory()}}" -c "luafile test/host/run.lua"
+
+# Run the host tests inside Vim.
+test-vim:
+    vim -Nu NONE -i NONE -n -es --cmd "set rtp^={{justfile_directory()}}" -c "luafile test/host/run.lua"
 
 # Everything CI runs.
 ci: fmt-check lint test
