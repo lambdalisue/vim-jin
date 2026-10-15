@@ -5,6 +5,12 @@ local support = require("jin.view.support")
 
 local actions = {}
 
+action.openers(actions, "annotate", "show which change wrote each line", function(ctx, opener)
+  local rev, path = support.shown_file(ctx)
+  -- jj file annotate takes a path, not a fileset, so file:"..." would not do.
+  support.open(ctx, "annotate", { "-r", rev, "--", path }, opener, ctx.first)
+end)
+
 action.openers(
   actions,
   "log",
@@ -21,5 +27,6 @@ return {
   end,
   actions = actions,
   needs_path = true,
+  primary = "annotate",
   secondary = "log",
 }

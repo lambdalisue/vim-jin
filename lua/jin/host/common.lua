@@ -259,9 +259,11 @@ function M.finish(bufnr, filetype, title, fresh)
 end
 
 ---`annotations` with a chunk of spaces ending each line's, so that every
----one is as wide as the widest and one space parts it from the line.
+---one is as wide as the widest and one space parts it from the line, and
+---how many cells each takes so.
 ---@param annotations { text: string, group?: string }[][]
 ---@return { text: string, group?: string }[][]
+---@return integer
 function M.pad_annotations(annotations)
   local widths, widest = {}, 0
   for lnum, chunks in ipairs(annotations) do
@@ -281,7 +283,43 @@ function M.pad_annotations(annotations)
     out[#out + 1] = { text = (" "):rep(widest - widths[lnum] + 1) }
     padded[lnum] = out
   end
-  return padded
+  return padded, widest + 1
+end
+
+---Make the lines of `bufnr` that wrap go on after its annotation, `width`
+---cells wide (or as wide as it was last told), in every window showing it:
+---'breakindent' on, and the shift of 'breakindentopt' that wide, its other
+---items kept. Set locally, the options hold for the window while it shows
+---the buffer; a window showing another buffer has that buffer's.
+---Without a min of the user's, the one of the editor, 20, would cut the
+---shift in a narrow window, and the lines would go on below the
+---annotation; 1 keeps them beside it.
+---@param bufnr integer
+---@param list fun(value: any): any[]
+---@param width? integer
+function M.wrap_after_annotation(bufnr, list, width)
+  if width then
+    vim.fn.setbufvar(bufnr, "jin_annotation_width", width)
+  end
+  width = tonumber(vim.fn.getbufvar(bufnr, "jin_annotation_width", 0)) or 0
+  if width <= 0 then
+    return
+  end
+  for _, winid in ipairs(list(vim.fn.win_findbuf(bufnr))) do
+    local items, min = {}, false
+    for item in tostring(vim.fn.getwinvar(winid, "&breakindentopt")):gmatch("[^,]+") do
+      if not item:match("^shift:") then
+        items[#items + 1] = item
+        min = min or item:match("^min:") ~= nil
+      end
+    end
+    if not min then
+      items[#items + 1] = "min:1"
+    end
+    items[#items + 1] = "shift:" .. width
+    vim.fn.setwinvar(winid, "&breakindent", 1)
+    vim.fn.setwinvar(winid, "&breakindentopt", table.concat(items, ","))
+  end
 end
 
 ---The first window showing `bufnr`, if any.

@@ -218,6 +218,8 @@ describe("jin.action.keys", function()
     "oplog",
     "opshow",
     "evolog",
+    "status",
+    "annotate",
   }
 
   ---The action `lhs` is mapped to in `mode` ("n" unless given), or nil.
@@ -244,12 +246,15 @@ describe("jin.action.keys", function()
   it("maps <CR> to what the line is most likely there for", function()
     local primary = {
       log = "show",
+      file = "annotate",
       show = "jump",
       diff = "jump",
       interdiff = "jump",
       oplog = "show",
       opshow = "show",
       evolog = "interdiff",
+      status = "inspect",
+      annotate = "show",
     }
     for _, name in ipairs(VIEWS) do
       assert.equal(primary[name], lookup(action.keys(view.get(name), false), "<CR>"), name)
@@ -263,6 +268,7 @@ describe("jin.action.keys", function()
       oplog = "log",
       opshow = "diff",
       evolog = "show",
+      status = "open",
     }
     for _, name in ipairs(VIEWS) do
       local keys = action.keys(view.get(name), false)
@@ -274,12 +280,18 @@ describe("jin.action.keys", function()
     end
   end)
 
-  it("goes to the diff with gd, and the parent and the child with gp and gc", function()
-    assert.equal("diff", lookup(action.keys(view.get("log"), false), "gd"))
-    local show = action.keys(view.get("show"), false)
-    assert.same({ "parent", "child" }, { lookup(show, "gp"), lookup(show, "gc") })
-    assert.equal("interdiff", lookup(action.keys(view.get("evolog"), false), "gd"))
-  end)
+  it(
+    "goes to the file with gf, the diff with gd, and the parent and the child with gp and gc",
+    function()
+      local keys = action.keys(view.get("annotate"), false)
+      assert.same({ "file", "diff" }, { lookup(keys, "gf"), lookup(keys, "gd") })
+      local show = action.keys(view.get("show"), false)
+      assert.same({ "parent", "child" }, { lookup(show, "gp"), lookup(show, "gc") })
+      assert.equal("interdiff", lookup(action.keys(view.get("evolog"), false), "gd"))
+      assert.equal("edit", lookup(action.keys(view.get("status"), false), "gf"))
+      assert.is_nil(lookup(action.keys(view.get("log"), false), "gf"))
+    end
+  )
 
   it(
     "opens what <CR> opens in a new window with <C-w><CR>, split the way the user splits diffs",
@@ -298,6 +310,7 @@ describe("jin.action.keys", function()
           show = true,
           log = true,
           evolog = true,
+          annotate = true,
         }
         if unmapped[key[2]] and key[1] ~= "<CR>" and key[1] ~= "<S-CR>" and key[1] ~= "<C-CR>" then
           wrong[#wrong + 1] = name .. ": " .. key[1] .. " " .. key[2]
@@ -320,7 +333,7 @@ describe("jin.action.keys", function()
   end)
 
   it("yanks commit IDs with YY, and those of the lines selected with Y in visual mode", function()
-    for _, name in ipairs({ "log", "show", "evolog" }) do
+    for _, name in ipairs({ "log", "show", "evolog", "annotate" }) do
       local keys = action.keys(view.get(name), false)
       assert.same(
         { "yank:commit", "yank:commit" },
@@ -422,6 +435,7 @@ describe("jin.action.keys", function()
       "interdiff",
       "oplog",
       "evolog",
+      "annotate",
     }, with)
   end)
 end)

@@ -1,6 +1,8 @@
 -- The blocks of a view, which ]] and [[ move between as Vim's section
 -- motions move between sections: only the view knows where its blocks are.
 
+local support = require("jin.view.support")
+
 local M = {}
 
 ---The first line of each entry, where entries span lines.
@@ -12,6 +14,22 @@ function M.entries(meta)
     if entry and entry ~= meta.entries[lnum - 1] then
       starts[#starts + 1] = lnum
     end
+  end
+  return starts
+end
+
+---The first line of each run of lines one change wrote. Every line is an
+---entry of its own, so the revisions are compared rather than the entries.
+---@param meta jin.ViewMeta
+---@return integer[]
+function M.changes(meta)
+  local starts, before = {}, nil
+  for lnum, entry in ipairs(meta.entries) do
+    local rev = entry and support.revision(entry) or nil
+    if rev and rev ~= before then
+      starts[#starts + 1] = lnum
+    end
+    before = rev
   end
   return starts
 end

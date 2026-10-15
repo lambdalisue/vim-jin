@@ -27,7 +27,7 @@ function! s:complete_view(arglead, cmdline, cursorpos) abort
         \ [a:arglead, a:cmdline, a:cursorpos])
 endfunction
 
-for s:name in ['JinLog', 'JinShow', 'JinDiff', 'JinFile', 'JinOpLog', 'JinEvolog']
+for s:name in ['JinLog', 'JinShow', 'JinDiff', 'JinFile', 'JinOpLog', 'JinEvolog', 'JinStatus', 'JinAnnotate']
   execute printf(
         \ 'command! -bang -nargs=* -complete=customlist,%s %s'
         \ . ' call luaeval(''require("jin.host.entry").view(_A[1], _A[2], _A[3], _A[4])'','
@@ -38,6 +38,7 @@ unlet s:name
 
 function! s:highlight() abort
   highlight default link JinCursorEntry CursorLine
+  highlight default link JinCursorChange CursorLine
 endfunction
 call s:highlight()
 
@@ -67,6 +68,8 @@ augroup jin_plugin
   autocmd BufLeave jin://* let b:jin_cursor = [line('.'), col('.')]
   autocmd CursorMoved jin://*
         \ call luaeval('require("jin.host.entry").cursor_moved(_A)', bufnr())
+  autocmd BufWinEnter jin://*
+        \ call luaeval('require("jin.host.entry").buffer_shown(_A)', str2nr(expand('<abuf>')))
   autocmd ColorScheme * call s:highlight()
   autocmd BufUnload jin://*
         \ call luaeval('require("jin.host.entry").forget_buffer(_A)', str2nr(expand('<abuf>')))

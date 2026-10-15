@@ -49,10 +49,10 @@ it is in the working copy or, for any other revision, through `:JinFile`.
 
 To follow what was done to the repository, by you or by an agent,
 `:JinOpLog` lists every operation (and opens the log as it stood after
-one), and `:JinEvolog` the versions a change went through (and the
-interdiff between them). Views keep up with jj run elsewhere, too: entering
-one, or coming back to the editor, reads it again when the repository moved
-on.
+one), `:JinEvolog` the versions a change went through (and the interdiff
+between them), and `:JinStatus` and `:JinAnnotate` the rest. Views keep up
+with jj run elsewhere, too: entering one, or coming back to the editor,
+reads it again when the repository moved on.
 
 The keys of every view follow the same few rules, and none of them changes what
 the key means in Vim: a key keeps its meaning, as `yy` still yanks and `]]`
@@ -63,12 +63,12 @@ exceptions:
 
 | Key | Does |
 | --- | --- |
-| `<CR>` | what the view is opened for: show a change, jump to a file, ... |
+| `<CR>` | what the view is opened for: show a change, jump to a file, annotate a file, ... |
 | `<S-CR>` / `<C-CR>` | what it is opened for next most often |
 | `<C-w><CR>` | what `<CR>` opens, in a new window split the way `'diffopt'` splits diffs |
-| `gd` / `gp` / `gc` | go to the diff / the parent / the child |
+| `gf` / `gd` / `gp` / `gc` | go to the file / the diff / the parent / the child |
 | `yy` / `YY` | yank change IDs (or what the line stands for) / commit IDs |
-| `]]` / `[[` | go to the next / previous block: change or file |
+| `]]` / `[[` | go to the next / previous block: change, file, or lines one change wrote |
 | `a`, `.`, `?` | choose an action by name (every one without a key), repeat it, list them all |
 
 Your own mappings of `<Plug>(jin-action-{name})` win over these. See

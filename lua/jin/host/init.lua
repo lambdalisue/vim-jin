@@ -61,6 +61,9 @@
 ---Highlight lines `first`..`last` of `bufnr` whole, as JinCursorEntry, in
 ---place of those highlighted before; with no lines, highlight none.
 ---@field highlight_lines fun(bufnr: integer, first?: integer, last?: integer)
+---Highlight `lnums` of `bufnr` whole, as JinCursorChange, in place of
+---those highlighted before.
+---@field highlight_change fun(bufnr: integer, lnums: integer[])
 ---Turn a list handed over by the editor into a Lua table.
 ---@field list fun(value: any): any[]
 ---Turn a Lua table into a list to hand back to the editor.

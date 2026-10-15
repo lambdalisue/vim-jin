@@ -139,10 +139,20 @@ return {
     end,
   },
   {
+    "]] goes to the next run of lines another change wrote in an annotation",
+    function()
+      workspace()
+      h.ex("JinAnnotate f.lua")
+      settle()
+      h.eq(3, after(1, "]]"))
+      h.eq(1, after(3, "[["))
+    end,
+  },
+  {
     "]] and [[ keep Vim's meaning in a view of no blocks",
     function()
       workspace()
-      h.ex("JinFile f.lua")
+      h.ex("JinStatus")
       settle()
       h.eq("", vim.fn.maparg("]]", "n"))
       h.eq("", vim.fn.maparg("<Plug>(jin-next-block)", "n"))

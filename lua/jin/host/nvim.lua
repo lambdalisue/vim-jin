@@ -47,7 +47,7 @@ function M.render(bufnr, content)
       hl_group = mark.group,
     })
   end
-  local padded = common.pad_annotations(content.annotations or {})
+  local padded, width = common.pad_annotations(content.annotations or {})
   for lnum, chunks in ipairs(padded) do
     local virt_text = {}
     for i, chunk in ipairs(chunks) do
@@ -64,6 +64,9 @@ function M.render(bufnr, content)
   common.finish(bufnr, filetype, content.title, content.fresh)
   if content.folds then
     common.folds(bufnr, content.folds, M.list, closed or nil)
+  end
+  if #padded > 0 then
+    common.wrap_after_annotation(bufnr, M.list, width)
   end
   restore()
 end
@@ -142,6 +145,17 @@ function M.highlight_lines(bufnr, first, last)
   for lnum = first or 1, last or 0 do
     vim.api.nvim_buf_set_extmark(bufnr, cursor_entry, lnum - 1, 0, {
       line_hl_group = "JinCursorEntry",
+    })
+  end
+end
+
+local cursor_change = vim.api.nvim_create_namespace("jin-cursor-change")
+
+function M.highlight_change(bufnr, lnums)
+  vim.api.nvim_buf_clear_namespace(bufnr, cursor_change, 0, -1)
+  for _, lnum in ipairs(lnums) do
+    vim.api.nvim_buf_set_extmark(bufnr, cursor_change, lnum - 1, 0, {
+      line_hl_group = "JinCursorChange",
     })
   end
 end

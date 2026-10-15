@@ -13,7 +13,7 @@ M.COMMANDS = {
   JinLog = { name = "JinLog", shortest = 4, view = "log", jj = { "log" }, options = view.OPTIONS },
   JinShow = {
     name = "JinShow",
-    shortest = 4,
+    shortest = 5,
     view = "show",
     jj = { "show" },
     options = view.OPTIONS,
@@ -44,6 +44,20 @@ M.COMMANDS = {
     shortest = 4,
     view = "evolog",
     jj = { "evolog" },
+    options = view.OPTIONS,
+  },
+  JinStatus = {
+    name = "JinStatus",
+    shortest = 5,
+    view = "status",
+    jj = { "status" },
+    options = view.OPTIONS,
+  },
+  JinAnnotate = {
+    name = "JinAnnotate",
+    shortest = 4,
+    view = "annotate",
+    jj = { "file", "annotate" },
     options = view.OPTIONS,
   },
 }

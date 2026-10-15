@@ -130,6 +130,8 @@ end
 ---The key going to what each action opens, by the action, as gf goes to a
 ---file.
 local GOES = {
+  file = "gf",
+  edit = "gf",
   diff = "gd",
   interdiff = "gd",
   parent = "gp",

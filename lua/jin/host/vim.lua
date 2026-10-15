@@ -73,7 +73,7 @@ function M.render(bufnr, content)
   if content.annotations and vim.fn.empty(vim.fn.prop_type_get(ANNOTATION)) == 1 then
     vim.fn.prop_type_add(ANNOTATION, vim.dict({}))
   end
-  local padded = common.pad_annotations(content.annotations or {})
+  local padded, width = common.pad_annotations(content.annotations or {})
   for lnum, chunks in ipairs(padded) do
     -- Virtual texts at one column show in the order they were added.
     for _, chunk in ipairs(chunks) do
@@ -92,6 +92,9 @@ function M.render(bufnr, content)
   common.finish(bufnr, filetype, content.title, content.fresh)
   if content.folds then
     common.folds(bufnr, content.folds, M.list, closed or nil)
+  end
+  if #padded > 0 then
+    common.wrap_after_annotation(bufnr, M.list, width)
   end
   restore()
 end
@@ -249,6 +252,10 @@ function M.highlight_lines(bufnr, first, last)
     lnums[#lnums + 1] = lnum
   end
   sign_lines(bufnr, "JinCursorEntry", lnums)
+end
+
+function M.highlight_change(bufnr, lnums)
+  sign_lines(bufnr, "JinCursorChange", lnums)
 end
 
 return M

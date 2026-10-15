@@ -23,8 +23,8 @@ function M.logged(key, default)
 end
 
 ---The template jj prints a commit with inside the output of other commands,
----such as jj op show, marked with CHANGE_FIELDS and handed to jj as its
----setting.
+---such as jj status and jj op show, marked with CHANGE_FIELDS and handed to
+---jj as its setting.
 M.SUMMARY_TEMPLATE = {
   key = "commit_summary",
   default = "format_commit_summary_with_refs(self, format_commit_ref_names(bookmarks))",
@@ -153,7 +153,7 @@ function M.revision_arg(argv)
   return rev
 end
 
----The revision and the path a file view shows.
+---The revision and the path a file or annotate view shows.
 ---@param ctx jin.ActionContext
 ---@return string rev
 ---@return string path
@@ -166,8 +166,8 @@ function M.shown_file(ctx)
   return M.revision_arg(argv), path
 end
 
----Show the log of the changes that touched the file of a file view, up to
----the revision shown.
+---Show the log of the changes that touched the file of a file or annotate
+---view, up to the revision shown.
 ---@param ctx jin.ActionContext
 ---@param opener string
 function M.file_log(ctx, opener)

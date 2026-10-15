@@ -74,6 +74,13 @@ function M.cursor_moved(bufnr)
   report(require("jin.view").cursor_moved, host, bufnr)
 end
 
+---Make the lines of a jin:// buffer shown in a window wrap after its
+---annotation there, as wide as it was last read (BufWinEnter).
+---@param bufnr integer
+function M.buffer_shown(bufnr)
+  report(require("jin.host.common").wrap_after_annotation, bufnr, host.list)
+end
+
 ---Read views again when jj changed the repository outside the editor: those
 ---of `bufnr`'s workspace (BufEnter of a jin:// buffer), or every one when
 ---`bufnr` is 0 (FocusGained). It runs unasked, so it never reports a failure.

@@ -84,7 +84,7 @@ end
 
 return {
   {
-    "the actions leading to evologs, relatives and logs add no operation",
+    "the actions leading to evologs, relatives and annotations add no operation",
     function()
       local dir = workspace()
       local merge = conflict()
@@ -106,7 +106,8 @@ return {
       end
       each("JinLog -r " .. merge, of_merge, { "evolog" })
       each("JinShow " .. merge, first, { "parent", "child" })
-      each("JinFile -r " .. merge .. " f", first, { "log" })
+      each("JinFile -r " .. merge .. " f", first, { "annotate", "log" })
+      each("JinAnnotate -r fork_point(" .. merge .. "-) f", first, { "log" })
       h.eq(before, operations(dir))
     end,
   },

@@ -33,6 +33,13 @@ local function m(...)
   return "\30" .. table.concat(fields, " ") .. "\31"
 end
 
+---A marker of annotate, carrying the content of the line.
+local function mc(change, commit, content, divergent)
+  return "\30"
+    .. ('"%s" "%s" "%s" "%s\\n"'):format(change, commit, divergent and "divergent" or "-", content)
+    .. "\31"
+end
+
 ---The first lines of the blocks of the buffer `name` reads as `stdout`.
 local function starts(name, stdout, with_template)
   local host, jin = setup()
@@ -43,6 +50,28 @@ local function starts(name, stdout, with_template)
 end
 
 describe("the blocks of a view", function()
+  it("are the runs of lines one change wrote, in an annotation", function()
+    local output = mc("kkk", "c1", "a")
+      .. "kkk a\n"
+      .. mc("kkk", "c1", "b")
+      .. "kkk b\n"
+      .. mc("zzz", "c9", "c")
+      .. "zzz c\n"
+      .. mc("kkk", "c1", "d")
+      .. "kkk d\n"
+    assert.same({ 1, 3, 4 }, starts("jin:///repo;view=annotate#a.lua", output, true))
+  end)
+
+  it("tell the commits of a divergent change apart, in an annotation", function()
+    local output = mc("zzz", "c9", "a", true)
+      .. "zzz a\n"
+      .. mc("zzz", "c8", "b", true)
+      .. "zzz b\n"
+      .. mc("zzz", "c8", "c", true)
+      .. "zzz c\n"
+    assert.same({ 1, 2 }, starts("jin:///repo;view=annotate#a.lua", output, true))
+  end)
+
   it("are the entries, each over its lines, in the views listing them", function()
     local two = "@  " .. m("aaa", "1") .. "x\n│  a\n○  " .. m("bbb", "2") .. "y\n│  b\n"
     for _, name in ipairs({
@@ -87,6 +116,10 @@ describe("the blocks of a view", function()
       .. "Modified regular file c.txt:\n"
       .. "   1    1: c\n"
     assert.same({ 1, 4, 6, 8, 9 }, starts("jin:///repo;view=show#aaa | bbb", output, true))
+  end)
+
+  it("are none in a view of one thing a line", function()
+    assert.is_nil(starts("jin:///repo;view=status#", "Working copy changes:\nM a.txt\n", true))
   end)
 end)
 
@@ -157,7 +190,8 @@ describe("jin.view.move_block", function()
 
   it("stays in a view of no blocks, and before the buffer has been read", function()
     local host, jin = setup()
-    local bufnr = read(host, jin, "jin:///repo;view=file#a.txt", "x\n")
+    local bufnr =
+      read(host, jin, "jin:///repo;view=status#", "Working copy changes:\nM a.txt\n", true)
     view.move_block(host, bufnr, true, 1)
     local unread = host.load("jin:///repo;view=log#-r @")
     view.move_block(host, unread, true, 1)
@@ -183,6 +217,6 @@ describe("jin.view.block.keys", function()
   end)
 
   it("maps none in a view of no blocks", function()
-    assert.same({}, block.keys(view.get("file")))
+    assert.same({}, block.keys(view.get("status")))
   end)
 end)

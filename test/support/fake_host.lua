@@ -211,6 +211,14 @@ function M.new(opts)
     host.highlighted[bufnr] = first and { first, last } or false
   end
 
+  -- Per buffer, the lines highlighted as written by the change under the
+  -- cursor.
+  host.change_highlighted = {}
+
+  function host.highlight_change(bufnr, lnums)
+    host.change_highlighted[bufnr] = lnums
+  end
+
   ---The number of the loaded buffer named `name`.
   function host.buffer_bufnr(name)
     for _, buf in ipairs(host.loaded) do

@@ -95,6 +95,26 @@ the installed jj offers.
 :JinEvolog [args]					*:JinEvolog*
 	`jj evolog`: the versions a change went through, newest first.
 
+:JinStatus [args]					*:JinStatus*
+	`jj status`: the changes of the working copy and the paths left in
+	conflict.
+
+:JinAnnotate [args]					*:JinAnnotate*
+	`jj file annotate`: the file itself, highlighted with its filetype,
+	with which change wrote each line shown before the line. Searching
+	and yanking see the file alone. It needs the path of a file, such
+	as `%`.
+
+	A line too long for the window wraps after the annotation: while
+	the window shows the view, 'breakindent' is on there and the
+	"shift" of 'breakindentopt' is as wide as the annotation, the other
+	items you set kept. Once the window shows another buffer, it has
+	that buffer's values again. 'showbreak' shows after the shift, or
+	before it with "sbr". A "min" you set still holds, so in a window
+	too narrow for it a wrapped line goes on below the annotation;
+	without one it is set to 1, so that a wrapped line goes on beside
+	the annotation however narrow the window.
+
 The view commands take the `++` options and [!] of |:JinBuffer|.
 
 =============================================================================
@@ -112,7 +132,9 @@ view of the workspace is given `--ignore-working-copy` or `--at-op`.
 
 In the log, the evolog and the operation log, all the
 lines of the change, version or operation under the cursor are
-highlighted with |hl-JinCursorEntry|.
+highlighted with |hl-JinCursorEntry|; in the status, one thing to a line,
+the line under the cursor is. In the annotation, every line the change of
+the line under the cursor wrote is highlighted with |hl-JinCursorChange|.
 
 A buffer that was left and read again on coming back to it, as with
 |CTRL-O|, puts the cursor back where it was.
@@ -155,7 +177,17 @@ Show, diff and interdiff ~
 	yank:commit	(show) Yank the commit ID.
 
 File ~
+	annotate	Annotate the file, on the same line.
 	log		Show the log of the changes that touched the file.
+
+Annotate ~
+	show		Show the change that wrote the line.
+	diff		Show its diff.
+	log		Show the log up to that change.
+	file		Show the file without the annotation.
+	log:file	Show the log of the changes that touched the file.
+	yank:change	Yank the change IDs of the lines.
+	yank:commit	Yank their commit IDs.
 
 Operation log ~
 	show		Show what the operation changed, the changes it
@@ -176,6 +208,16 @@ Evolog ~
 	yank:change	Yank the change IDs of the lines.
 	yank:commit	Yank their commit IDs.
 
+Status ~
+	inspect		Show the diff of the path of the line, or the change
+			of the working copy or of a parent on their lines.
+	open		Open the file of the line, or show the change of the
+			working copy or of a parent on their lines.
+	edit		Open the file of the line.
+	diff		Show the diff of the path.
+	annotate	Annotate the file of the path.
+	yank:path	Yank the paths of the lines.
+
 -----------------------------------------------------------------------------
 KEY MAPPINGS						*jin-mappings*
 
@@ -192,12 +234,15 @@ exceptions. A view maps only the keys of the actions it has.
 	.		repeat
 	?		help
 	<CR>		What the view is opened for: show in the log, jump in
-			a diff, interdiff in the evolog, and so on.
+			a diff, annotate in a file view, interdiff in the
+			evolog, inspect in the status, and so on.
 	<S-CR> <C-CR>	What it is opened for next most often, such as diff
 			in the log or log in a file view. Both are mapped,
 			as a terminal may pass on only one of them.
 	<C-w><CR>	What <CR> opens, in a new window, split vertically
 			when 'diffopt' holds "vertical".
+	gf		The file: |:JinFile|, or the file itself in the
+			status.
 	gd		The diff; the interdiff in the evolog.
 	gp gc		The parent, the child.
 	yy		Yank what the line stands for; `y` in visual mode.
@@ -220,6 +265,7 @@ operator-pending mode too (`V]]`, `y]]`), leaving where they came from in
 the |jumplist|. A count past the last block stops at it; with no block that
 way, the cursor stays. A block is:
 
+- in |:JinAnnotate|, a run of lines one change wrote;
 - in |:JinLog|, |:JinEvolog| and |:JinOpLog|, an entry, all its lines;
 - in |:JinDiff| and the interdiff, a file;
 - in |:JinShow|, the header of each change, and each file.
@@ -239,8 +285,8 @@ to keys of your own:
 <
 				*g:jin_{view}_disable_default_mappings*
 To map no key at all in a view, set this to 1, `{view}` being `log`,
-`show`, `diff`, `interdiff`, `file`, `oplog`, `opshow`, `evolog` or
-`buffer` (|:JinBuffer|):
+`show`, `diff`, `interdiff`, `file`, `oplog`, `opshow`, `evolog`,
+`status`, `annotate` or `buffer` (|:JinBuffer|):
 >vim
 	let g:jin_log_disable_default_mappings = 1
 <
@@ -250,7 +296,13 @@ HIGHLIGHT AND VARIABLES					*jin-highlight*
 
 							*hl-JinCursorEntry*
 JinCursorEntry		The lines of the change, version or operation under
-			the cursor. Links to |hl-CursorLine| by default.
+			the cursor, or the line under it in a view of one
+			thing a line. Links to |hl-CursorLine| by default.
+
+							*hl-JinCursorChange*
+JinCursorChange		In |:JinAnnotate|, every line written by the change
+			of the line under the cursor. Links to |hl-CursorLine|
+			by default.
 
 							*b:jin_title*
 b:jin_title		A short title of a vim-jin buffer, such as

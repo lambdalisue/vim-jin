@@ -189,10 +189,18 @@ return {
     end,
   },
   {
-    "JinFile leads to the log of its file",
+    "JinFile leads to the annotation of the file and its log",
     function()
-      workspace()
+      local dir = workspace()
       h.ex("JinFile -r @ f.lua")
+      settle()
+      local file = vim.fn.bufnr()
+      act("annotate", 2)
+      h.eq("jin://" .. dir .. ";view=annotate#-r @ -- f.lua", vim.fn.bufname())
+      h.eventually(function()
+        return view.meta(host, vim.fn.bufnr()) ~= nil and vim.fn.line(".") == 2
+      end, "the annotation is not on line 2")
+      h.ex("buffer " .. file)
       settle()
       act("log", 1)
       settle()
@@ -263,7 +271,7 @@ return {
       settle()
       h.eq("lua", vim.fn.getbufvar(vim.fn.bufnr(), "&filetype"))
       local keys = { a = "choice", ["."] = "repeat", ["?"] = "help" }
-      keys["<S-CR>"] = "log"
+      keys["<CR>"] = "annotate"
       for lhs, name in pairs(keys) do
         h.eq("<Plug>(jin-action-" .. name .. ")", vim.fn.maparg(lhs, "n"))
         h.eq(1, vim.fn.eval(("maparg('%s', 'n', 0, 1).buffer"):format(lhs)))
@@ -285,7 +293,7 @@ return {
       settle()
       vim.fn.execute("unlet g:jin_file_disable_default_mappings")
       h.eq("", vim.fn.maparg("?", "n"))
-      h.truthy(vim.fn.maparg("<Plug>(jin-action-log)", "n") ~= "", "log is not mapped")
+      h.truthy(vim.fn.maparg("<Plug>(jin-action-annotate)", "n") ~= "", "annotate is not mapped")
     end,
   },
   {
@@ -332,6 +340,30 @@ return {
       end
       h.eq({ lnum - 1, lnum }, lines)
       h.eq("CursorLine", vim.fn.synIDattr(vim.fn.synIDtrans(vim.fn.hlID("JinCursorEntry")), "name"))
+    end,
+  },
+  {
+    "JinStatus highlights the line under the cursor, each line being one thing",
+    function()
+      workspace()
+      h.ex("JinStatus")
+      settle()
+      h.truthy(#h.lines() >= 2, "the status has a line to move to")
+      h.ex("call cursor(2, 1) | doautocmd CursorMoved")
+      local bufnr = vim.fn.bufnr()
+      local lines = {}
+      if vim.api then
+        local ns = vim.api.nvim_create_namespace("jin-cursor-entry")
+        for _, mark in ipairs(vim.api.nvim_buf_get_extmarks(bufnr, ns, 0, -1, {})) do
+          lines[#lines + 1] = mark[2] + 1
+        end
+      else
+        local placed = vim.fn.sign_getplaced(bufnr, vim.dict({ group = "JinCursorEntry" }))
+        for sign in placed[0].signs() do
+          lines[#lines + 1] = sign.lnum
+        end
+      end
+      h.eq({ 2 }, lines)
     end,
   },
   {
@@ -430,7 +462,7 @@ return {
         return view.meta(host, bufnr) ~= nil
       end, "the buffer was never read")
       h.ex("buffer " .. bufnr)
-      h.eq("<Plug>(jin-action-log)", vim.fn.maparg("<S-CR>", "n"))
+      h.eq("<Plug>(jin-action-annotate)", vim.fn.maparg("<CR>", "n"))
     end,
   },
   {

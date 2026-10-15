@@ -76,4 +76,28 @@ return {
       settle()
     end,
   },
+  {
+    "JinStatus opens the file of a changed path",
+    function()
+      local dir = workspace()
+      h.ex("JinStatus")
+      settle()
+      act("edit", find("^A f%.lua"))
+      h.eq(dir .. "/f.lua", vim.fn.expand("%:p"))
+    end,
+  },
+  {
+    "JinAnnotate leads from a line to the change that wrote it",
+    function()
+      local dir = workspace()
+      h.ex("JinAnnotate f.lua")
+      local meta = settle()
+      local change = meta.entries[1][1]
+      h.truthy(change and #change == 32, "no change ID on the first line")
+      act("show", 1)
+      h.eq("jin://" .. dir .. ";view=show#" .. change, vim.fn.bufname())
+      settle()
+      find("final")
+    end,
+  },
 }

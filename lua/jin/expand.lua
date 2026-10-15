@@ -7,14 +7,15 @@ local jj = require("jin.jj")
 
 local M = {}
 
----The options of `jj file show` that take a value.
+---The options of `jj file show` and `jj file annotate` that take a value.
 local VALUED = { ["-T"] = "template", ["--template"] = "template" }
 for spelling, name in pairs(args.REVISIONS) do
   VALUED[spelling] = name
 end
 
----The path a `jj file show` argument list names: its last argument that is
----neither an option nor an option's value, or the last one after `--`.
+---The path a `jj file show` (or `jj file annotate`) argument list names: its
+---last argument that is neither an option nor an option's value, or the
+---last one after `--`.
 ---@param argv string[]
 ---@return string?
 function M.file_path(argv)

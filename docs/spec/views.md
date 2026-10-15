@@ -24,7 +24,24 @@ change, a version or an operation takes several lines, all the lines of the
 one under the cursor are highlighted, across the window, with
 `JinCursorEntry`, which links to `CursorLine` unless defined otherwise.
 Lines of the graph alone, such as `~` below the last change shown, are not
-part of it.
+part of it. In the status, where each line stands for one thing, the line
+under the cursor is highlighted the same way.
+
+In the annotation, every line written by the change of the line under the
+cursor is highlighted, across the window, with `JinCursorChange`, which
+links to `CursorLine` unless defined otherwise; a divergent change counts
+as the one commit that wrote the line. Moving the cursor runs no jj.
+
+In the annotation, a line too long for the window wraps after the
+annotation: while a window shows the view, its `'breakindent'` is on and
+the shift of its `'breakindentopt'` is as wide as the annotation, the other
+items of that option kept, and once the window shows another buffer it has
+that buffer's again. `'showbreak'` shows after the shift, or before it with
+`sbr`. A `min` set in `'breakindentopt'` still holds, so that in a window
+too narrow for it the shift is cut and a wrapped line goes on below the
+annotation; without one, the view sets it to 1, in place of the editor's
+20, so that a wrapped line goes on beside the annotation however narrow
+the window.
 
 ## Commands
 
@@ -53,8 +70,20 @@ part of it.
 : `jj evolog` with `[args]`: the versions a change went through, newest
   first, in the user's evolog template.
 
-`:JinFile` needs the path of a file in `[args]` (`%` names the current
-one); without it it says so and opens nothing.
+`:JinStatus [args]`
+: `jj status` with `[args]`: the changes of the working copy and the paths
+  left in conflict.
+
+`:JinAnnotate [args]`
+: `jj file annotate` with `[args]`, in the user's annotate template. The
+  buffer holds the file itself, highlighted with the filetype of its path,
+  and before each line shows, apart from its text, what the template prints
+  before the line's content, in jj's colors. Searching and yanking see the
+  file alone. When the template does not end each line with its content, or
+  jj fails, jj's output shows whole instead.
+
+`:JinFile` and `:JinAnnotate` need the path of a file in `[args]` (`%`
+names the current one); without it they say so and open nothing.
 
 ## Actions
 
@@ -132,6 +161,10 @@ The show view also has:
 
 ### File
 
+`annotate`
+: Show the file as it is in the revision shown with which change wrote each
+  line of it, on the same line.
+
 `log`
 : Show the log of the changes that touched the file, up to the revision
   shown.
@@ -172,6 +205,46 @@ operation added or removed stands for that version of the change:
 
 `yank:change`, `yank:commit` as in the log.
 
+### Status
+
+`inspect`
+: Show the diff of the path of the line, or the change of the working copy
+  or of a parent on their lines. On any other line it does nothing, and
+  says nothing.
+
+`open`
+: Open the file of the line, as `edit` does, or show the change of the
+  working copy or of a parent on their lines. On any other line it does
+  nothing, and says nothing.
+
+`edit`
+: Open the file of the line, as it is in the working copy.
+
+`diff`
+: Show the diff of the path of the line.
+
+`annotate`
+: Show which change wrote each line of the path.
+
+`yank:path`
+: Yank the paths of the lines.
+
+### Annotate
+
+`show`, `diff`
+: Show the change that wrote the line, or its diff.
+
+`log`
+: Show the log up to the change that wrote the line.
+
+`yank:change`, `yank:commit` as in the log.
+
+`file`
+: Show the file without the annotation, on the same line.
+
+`log:file`
+: The file view's `log`.
+
 ## Default key mappings
 
 Each view maps keys to its actions and motions unless
@@ -190,13 +263,15 @@ the keys of the actions it has.
 - `a` chooses an action by name, `.` repeats it and `?` lists the actions.
 - `<CR>` goes to what the line names, as it does in the quickfix window,
   serving what the view is opened for: showing the change of a log line,
-  opening the file of a diff line, the interdiff of an evolog line.
+  opening the file of a diff line, annotating the file of a file view, the
+  interdiff of an evolog line, the diff of a status line.
 - `<S-CR>` and `<C-CR>` serve what the view is opened for next most often,
   such as the diff of a log line or the log of the file of a file view.
   Both are mapped, as a terminal may pass on only one of them.
 - `<C-w><CR>` opens what `<CR>` opens in a new window, split vertically
   when `'diffopt'` holds `vertical` and horizontally otherwise.
-- `gd` goes to the diff (the interdiff in the evolog), `gp` and `gc` to the
+- `gf` goes to the file (as `:JinFile`, or the file itself as `edit` opens
+  it), `gd` to the diff (the interdiff in the evolog), `gp` and `gc` to the
   parent and the child.
 - `yy` yanks what the line stands for, and `y` in visual mode what the lines
   selected stand for.
@@ -207,7 +282,8 @@ the keys of the actions it has.
   sections: with a count, in visual and operator-pending mode too, and
   leaving where they came from in the jumplist. A count past the last
   block stops at it; with no block that way, the cursor stays. A block is
-  an entry in the log, evolog and oplog views; a file in the diff and
+  a run of lines one change wrote in the annotate view; an entry in the
+  log, evolog and oplog views; a file in the diff and
   interdiff views; the header of each change and each file in the show
   view. The other views have no blocks and leave `]]` and `[[` to Vim.
   The keys are mapped to `<Plug>(jin-next-block)` and
@@ -225,7 +301,9 @@ every variant, such as `{name}:tab`, are reached through `a` or by mapping
 | show | jump | | `gp` `gc` | yank:change | yank:commit |
 | diff | jump | | | | |
 | interdiff | jump | | | | |
-| file | | log | | | |
+| file | annotate | log | | | |
 | oplog | show | log | | yank:operation | |
 | opshow | show | diff | `gd` | yank:change | yank:commit |
 | evolog | interdiff | show | `gd` | yank:change | yank:commit |
+| status | inspect | open | `gf` `gd` | yank:path | |
+| annotate | show | | `gf` `gd` | yank:change | yank:commit |

@@ -24,6 +24,8 @@ local VIEWS = {
   oplog = true,
   opshow = true,
   evolog = true,
+  status = true,
+  annotate = true,
 }
 
 ---How a view reads jj and makes sense of what it prints.
@@ -40,7 +42,9 @@ local VIEWS = {
 ---@field yank? string the action of yy, and of y in visual mode
 ---@field detect? fun(meta: jin.ViewMeta): string? a path to take the filetype from, in place of `filetype`
 ---@field needs_path? boolean refuse to open without the path of a file in the arguments
+---@field line_items? boolean each line stands for one thing, so the line under the cursor is highlighted as an entry would be
 ---@field entries_span_lines? boolean an entry, such as a change of the log, takes several lines, all highlighted while the cursor is on one
+---@field scattered_changes? boolean the lines a change wrote lie apart, as in an annotation, and are all highlighted while the cursor is on one
 ---@field blocks? fun(meta: jin.ViewMeta): integer[] the first lines of the blocks ]] and [[ move between, in order, as jin.view.block finds them
 
 ---What a read left behind for actions to use.
@@ -63,8 +67,9 @@ local VIEWS = {
 ---@field params? table<string, string|true> further view-specific parameters
 ---@field line? integer the line to put the cursor on once the buffer shows
 
----Per host, per buffer: the generation of the latest read and its result.
----@type table<jin.Host, table<integer, { generation: integer, meta?: jin.ViewMeta, line?: integer }>>
+---Per host, per buffer: the generation of the latest read and its result,
+---and what it shows highlighted.
+---@type table<jin.Host, table<integer, { generation: integer, meta?: jin.ViewMeta, line?: integer, change?: { meta: jin.ViewMeta, rev: string } }>>
 local states = setmetatable({}, { __mode = "k" })
 
 ---@param host jin.Host
@@ -442,12 +447,56 @@ local function graph_only(line)
   return not line:find("%S")
 end
 
+---Highlight every line written by the change of the line under the cursor
+---of `bufnr`, in a view where those lines lie apart.
+---@param host jin.Host
+---@param bufnr integer
+---@param meta jin.ViewMeta
+local function highlight_change(host, bufnr, meta)
+  -- Required here: the views' support requires this module.
+  local revision = require("jin.view.support").revision
+  local lnum = host.line(bufnr)
+  local entry = lnum and meta.entries[lnum]
+  local rev = entry and revision(entry) or false
+  local s = state(host, bufnr)
+  local shown = s.change
+  -- Moving within the lines of one change is the common case: go through
+  -- the whole buffer again only when the change, or the read, is another.
+  if shown and shown.meta == meta and shown.rev == rev then
+    return
+  end
+  if not rev and not shown then
+    return
+  end
+  local lnums = {}
+  if rev then
+    for l, e in ipairs(meta.entries) do
+      if e and revision(e) == rev then
+        lnums[#lnums + 1] = l
+      end
+    end
+  end
+  host.highlight_change(bufnr, lnums)
+  s.change = rev and { meta = meta, rev = rev } or nil
+end
+
 ---Highlight the lines of the entry under the cursor of `bufnr`, in a view
 ---whose entries span lines.
 ---@param host jin.Host
 ---@param bufnr integer
 function M.cursor_moved(host, bufnr)
   local meta = M.meta(host, bufnr)
+  if meta and M.get(meta.view).scattered_changes then
+    highlight_change(host, bufnr, meta)
+    return
+  end
+  if meta and M.get(meta.view).line_items then
+    local lnum = host.line(bufnr)
+    if lnum then
+      host.highlight_lines(bufnr, lnum, lnum)
+    end
+    return
+  end
   if not meta or not M.get(meta.view).entries_span_lines then
     return
   end

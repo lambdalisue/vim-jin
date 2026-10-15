@@ -391,7 +391,7 @@ describe("the title of a vim-jin buffer", function()
 
   it("names the jj command shown, without the workspace", function()
     assert.equal("jj log -r @", title(NAME))
-    assert.equal("jj diff", title("jin:///repo;view=diff#"))
+    assert.equal("jj status", title("jin:///repo;view=status#"))
     assert.equal("jj log --no-graph", title("jin:///repo#log --no-graph"))
   end)
 
