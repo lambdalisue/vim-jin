@@ -1,0 +1,6 @@
+return {
+  _all = {
+    ROOT = { "test" },
+    lpath = "lua/?.lua;lua/?/init.lua;test/?.lua",
+  },
+}

@@ -1,0 +1,2 @@
+# Test files also see the globals busted provides.
+std = "busted"
