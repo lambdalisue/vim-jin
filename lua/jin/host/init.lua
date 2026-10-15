@@ -32,6 +32,35 @@
 ---@field buffers fun(): { bufnr: integer, name: string }[]
 ---The name of `bufnr` while it is loaded, nil otherwise.
 ---@field buffer_name fun(bufnr: integer): string?
+---Map <Plug>(jin-action-{name}) on `bufnr` for each name, in normal and
+---visual mode, calling back into vim-jin with the lines acted on. With
+---`defaults`, also map each of its keys to <Plug>(jin-action-{action}) in
+---normal mode or in the mode a key names (third item, such as "x"), unless
+---g:jin_{view}_disable_default_mappings is set or the buffer already maps
+---the key itself. Map <Plug>(jin-{motion}) as well, in normal, visual and
+---operator-pending mode, for each motion `defaults.motions` names (second
+---item, such as "next-block"), calling back into vim-jin with the count
+---typed, and map its keys to it as those of the actions are.
+---@field define_actions fun(bufnr: integer, names: string[], defaults?: { view: string, keys: { [1]: string, [2]: string, [3]?: string }[], motions?: { [1]: string, [2]: string, [3]: string }[] })
+---The mappings local to the current buffer.
+---@field keymaps fun(): { lhs: string, rhs: string, mode: string }[]
+---Ask for a line of text, completed as `completion` says; nil when nothing
+---was entered.
+---@field input fun(prompt: string, completion: string): string?
+---Put `text` in the register the user asked for (v:register).
+---@field yank fun(text: string)
+---Whether the user splits windows for diffs vertically.
+---@field vertical fun(): boolean
+---Move the cursor of the window showing `bufnr` to line `lnum`.
+---@field cursor fun(bufnr: integer, lnum: integer)
+---Move the cursor of the current window, when it shows `bufnr`, to line
+---`lnum` as a motion would, leaving where it was in the jumplist.
+---@field jump fun(bufnr: integer, lnum: integer)
+---The line of the cursor in the window showing `bufnr`, nil when none does.
+---@field line fun(bufnr: integer): integer?
+---Highlight lines `first`..`last` of `bufnr` whole, as JinCursorEntry, in
+---place of those highlighted before; with no lines, highlight none.
+---@field highlight_lines fun(bufnr: integer, first?: integer, last?: integer)
 ---Turn a list handed over by the editor into a Lua table.
 ---@field list fun(value: any): any[]
 ---Turn a Lua table into a list to hand back to the editor.
@@ -41,9 +70,11 @@
 ---@field lines string[]
 ---@field highlights { line: integer, col: integer, end_col: integer, group: string }[] 1-based byte columns, end_col exclusive
 ---@field groups table<string, jin.AnsiStyle> the highlight groups to define
----@field filetype string
+---@field filetype? string
+---@field detect? string a path to take the filetype from, when `filetype` is nil
 ---@field title? string a short name for the buffer, kept in b:jin_title
 ---@field fresh? boolean the first content since the buffer was loaded, which its filetype has to be set up for anew
+---@field folds? { [1]: integer, [2]: integer }[] line ranges to fold, left open
 
 ---@class jin.RunResult
 ---@field code integer

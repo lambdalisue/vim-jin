@@ -137,6 +137,66 @@ function M.escape(arg)
   return escaped
 end
 
+---jj's global options that take a value, by spelling, and the name each
+---stands for.
+local GLOBAL_VALUED = {
+  ["-R"] = "repository",
+  ["--repository"] = "repository",
+  ["--at-op"] = "at-op",
+  ["--at-operation"] = "at-op",
+  ["--config"] = "config",
+  ["--config-file"] = "config-file",
+  ["--color"] = "color",
+}
+
+---The spellings of the -r option of the commands that take revisions.
+M.REVISIONS = { ["-r"] = "revisions", ["--revisions"] = "revisions", ["--revision"] = "revisions" }
+
+---@class jin.ArgItem
+---@field name? string the name of an option that takes a value
+---@field value? string its value
+---@field words string[] the arguments it was written as
+
+---Walk jj's arguments up to `--`, telling the options that take a value
+---(those of `valued`, by spelling, and jj's global ones) from every other
+---argument. An option's value may be the next argument, follow `=` after a
+---long option, or follow a short option directly (`-rx`).
+---@param argv string[]
+---@param valued? table<string, string> spelling to name
+---@return jin.ArgItem[] items
+---@return string[] rest `--` and what follows it
+function M.options(argv, valued)
+  valued = valued or {}
+  local function name_of(spelling)
+    return valued[spelling] or GLOBAL_VALUED[spelling]
+  end
+  local items, rest = {}, {}
+  local i = 1
+  while i <= #argv do
+    local a = argv[i]
+    if a == "--" then
+      for j = i, #argv do
+        rest[#rest + 1] = argv[j]
+      end
+      break
+    end
+    local long, long_value = a:match("^(%-%-[^=]+)=(.*)$")
+    local short, short_value = a:match("^(%-[^-])(.+)$")
+    if long and name_of(long) then
+      items[#items + 1] = { name = name_of(long), value = long_value, words = { a } }
+    elseif short and name_of(short) then
+      items[#items + 1] = { name = name_of(short), value = short_value, words = { a } }
+    elseif name_of(a) and argv[i + 1] then
+      items[#items + 1] = { name = name_of(a), value = argv[i + 1], words = { a, argv[i + 1] } }
+      i = i + 1
+    else
+      items[#items + 1] = { words = { a } }
+    end
+    i = i + 1
+  end
+  return items, rest
+end
+
 ---Raise an error for the first option not in `known`.
 ---@param opts table<string, string|true>
 ---@param known table<string, true>

@@ -1,0 +1,10 @@
+local support = require("jin.view.support")
+
+describe("jin.view.support.fileset", function()
+  it("keeps a plain path, and quotes one jj would read as an expression", function()
+    assert.equal("src/a-b_c.lua", support.fileset("src/a-b_c.lua"))
+    assert.equal([[file:"my file.txt"]], support.fileset("my file.txt"))
+    assert.equal([[file:"a\"b\\c"]], support.fileset([[a"b\c]]))
+    assert.equal([[file:"-n"]], support.fileset("-n"))
+  end)
+end)

@@ -10,6 +10,9 @@ local M = {
   open = common.open,
   buffers = common.buffers,
   buffer_name = common.buffer_name,
+  input = common.input,
+  yank = common.yank,
+  vertical = common.vertical,
 }
 
 local ns = vim.api.nvim_create_namespace("jin")
@@ -22,6 +25,7 @@ end
 
 function M.render(bufnr, content)
   local restore = common.keep_views(bufnr, M.list, content.fresh)
+  local closed = content.folds and common.closed_folds(bufnr, M.list)
   vim.bo[bufnr].modifiable = true
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, content.lines)
   vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
@@ -43,7 +47,13 @@ function M.render(bufnr, content)
       hl_group = mark.group,
     })
   end
-  common.finish(bufnr, content.filetype, content.title, content.fresh)
+  local filetype = content.filetype
+    or (content.detect and common.detect_filetype(bufnr, content.detect, M.list))
+    or "jin-file"
+  common.finish(bufnr, filetype, content.title, content.fresh)
+  if content.folds then
+    common.folds(bufnr, content.folds, M.list, closed or nil)
+  end
   restore()
 end
 
@@ -92,6 +102,37 @@ end
 
 function M.list(value)
   return value
+end
+
+function M.define_actions(bufnr, names, defaults)
+  common.define_actions(bufnr, names, defaults, M.list, M.to_list)
+end
+
+function M.keymaps()
+  return common.keymaps(M.list)
+end
+
+function M.cursor(bufnr, lnum)
+  common.cursor(bufnr, lnum, M.list)
+end
+
+function M.jump(bufnr, lnum)
+  common.jump(bufnr, lnum)
+end
+
+function M.line(bufnr)
+  return common.line(bufnr, M.list)
+end
+
+local cursor_entry = vim.api.nvim_create_namespace("jin-cursor-entry")
+
+function M.highlight_lines(bufnr, first, last)
+  vim.api.nvim_buf_clear_namespace(bufnr, cursor_entry, 0, -1)
+  for lnum = first or 1, last or 0 do
+    vim.api.nvim_buf_set_extmark(bufnr, cursor_entry, lnum - 1, 0, {
+      line_hl_group = "JinCursorEntry",
+    })
+  end
 end
 
 function M.to_list(items)

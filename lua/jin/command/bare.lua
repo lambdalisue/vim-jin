@@ -89,6 +89,7 @@ local COMPLETE_TIMEOUT = 3000
 ---@field name string
 ---@field shortest integer the length of its shortest abbreviation
 ---@field options table<string, true|"flag"|"value"> its ++ options; a "value" one takes `=value`
+---@field jj? string[] jj words its arguments follow, such as { "log" } for :JinLog
 
 ---@type jin.CompletedCommand
 M.COMMAND = { name = "Jin", shortest = 2, options = OPTIONS }
@@ -248,6 +249,9 @@ function M.complete(host, arglead, cmdline, cursorpos, command)
   end
 
   local jj_words = {}
+  for _, word in ipairs(command.jj or {}) do
+    jj_words[#jj_words + 1] = word
+  end
   for i = first, #typed do
     jj_words[#jj_words + 1] = typed[i]
   end

@@ -152,6 +152,75 @@ function M.new(opts)
     return nil
   end
 
+  -- Actions: what was mapped per buffer, the buffer's own key mappings, the
+  -- answers `input` gives in order, and what was yanked.
+  host.defined = {}
+  host.maps = {}
+  host.answers = {}
+  host.yanked = {}
+
+  host.keys = {}
+
+  function host.define_actions(bufnr, names, keys)
+    host.defined[bufnr] = names
+    host.keys[bufnr] = keys
+  end
+
+  function host.keymaps()
+    return host.maps
+  end
+
+  function host.input(_, _)
+    return table.remove(host.answers, 1)
+  end
+
+  function host.yank(text)
+    host.yanked[#host.yanked + 1] = text
+  end
+
+  host.cursors = {}
+
+  function host.cursor(bufnr, lnum)
+    host.cursors[bufnr] = lnum
+  end
+
+  -- The jumps asked for, in order, each moving the cursor as well.
+  host.jumps = {}
+
+  function host.jump(bufnr, lnum)
+    host.jumps[#host.jumps + 1] = { bufnr = bufnr, lnum = lnum }
+    host.cursors[bufnr] = lnum
+  end
+
+  function host.line(bufnr)
+    return host.cursors[bufnr] or 1
+  end
+
+  -- Whether the user splits diffs vertically.
+  host.vertical_split = false
+
+  function host.vertical()
+    return host.vertical_split
+  end
+
+  -- Per buffer, the lines highlighted as { first, last }, or false once
+  -- cleared.
+  host.highlighted = {}
+
+  function host.highlight_lines(bufnr, first, last)
+    host.highlighted[bufnr] = first and { first, last } or false
+  end
+
+  ---The number of the loaded buffer named `name`.
+  function host.buffer_bufnr(name)
+    for _, buf in ipairs(host.loaded) do
+      if buf.name == name then
+        return buf.bufnr
+      end
+    end
+    return nil
+  end
+
   ---Pretend the editor has `name` loaded as a buffer, and return its number.
   function host.load(name)
     local bufnr = #host.loaded + 1

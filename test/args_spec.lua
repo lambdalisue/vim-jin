@@ -145,3 +145,42 @@ describe("jin.args.escape", function()
     end
   end)
 end)
+
+describe("jin.args.options", function()
+  local REVS = { ["-r"] = "revisions", ["--revisions"] = "revisions" }
+
+  it("reads an option's value in each of its spellings", function()
+    local items = args.options({ "-r", "a", "-rb", "--revisions", "c", "--revisions=d" }, REVS)
+    local values = {}
+    for _, item in ipairs(items) do
+      assert.equal("revisions", item.name)
+      values[#values + 1] = item.value
+    end
+    assert.same({ "a", "b", "c", "d" }, values)
+  end)
+
+  it("keeps the words each item was written with", function()
+    local items = args.options({ "-r", "a", "--no-graph", "-rb" }, REVS)
+    assert.same({ "-r", "a" }, items[1].words)
+    assert.same({ name = nil, value = nil, words = { "--no-graph" } }, items[2])
+    assert.same({ "-rb" }, items[3].words)
+  end)
+
+  it("knows the values of jj's global options without being told", function()
+    local items = args.options({ "--at-op", "-r", "-R", "-rx", "--config=-r", "y" }, REVS)
+    assert.same({ "at-op", "-r" }, { items[1].name, items[1].value })
+    assert.same({ "repository", "-rx" }, { items[2].name, items[2].value })
+    assert.same({ "config", "-r" }, { items[3].name, items[3].value })
+    assert.same({ words = { "y" } }, items[4])
+  end)
+
+  it("stops at --, handing it back with what follows", function()
+    local items, rest = args.options({ "a", "--", "-r", "b" }, REVS)
+    assert.same({ { words = { "a" } } }, items)
+    assert.same({ "--", "-r", "b" }, rest)
+  end)
+
+  it("takes an option missing its value as a plain argument", function()
+    assert.same({ { words = { "-r" } } }, args.options({ "-r" }, REVS))
+  end)
+end)

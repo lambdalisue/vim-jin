@@ -142,6 +142,26 @@ return {
     end,
   },
   {
+    "maps the actions on the buffer once it has been read",
+    function()
+      workspace()
+      h.ex("JinBuffer version")
+      h.eventually(function()
+        return vim.fn.maparg("<Plug>(jin-action-help)", "n") ~= ""
+      end, "help is not mapped")
+      h.truthy(
+        vim.fn.maparg("<Plug>(jin-action-help)", "x") ~= "",
+        "help is not mapped in visual mode"
+      )
+      h.ex("messages clear")
+      h.ex([[execute "normal \<Plug>(jin-action-help)"]])
+      h.truthy(
+        vim.fn.execute("messages"):find("choose an action by name", 1, true),
+        vim.fn.execute("messages")
+      )
+    end,
+  },
+  {
     "completes its own ++ options and jj's arguments",
     function()
       workspace()

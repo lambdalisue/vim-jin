@@ -41,6 +41,13 @@ Does what `:JinBuffer` does with `argv`, and returns the buffer number. The
 `botright`, `opts.reload = true` stands for the `!`, and `opts.cwd` picks
 the workspace as for the other functions.
 
+## `jin.view(name, argv, opts?)`
+
+Does what the view command of `name` does with `argv` (`"log"` for
+`:JinLog`, and so on; see `views.md`), and returns the buffer number.
+`opts` is as for `jin.buffer()`, plus `opts.line`, the line to put the
+cursor on once the view has been read.
+
 ## `jin.root(path?)`
 
 Returns the root of the workspace holding `path`, or of the current buffer

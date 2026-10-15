@@ -188,6 +188,22 @@ return {
     end,
   },
   {
+    "keymaps leaves out a mapping to a Lua function, which has no right-hand side",
+    function()
+      h.ex("enew!")
+      h.ex("nnoremap <buffer> zq <Plug>(jin-action-help)")
+      if vim.api then
+        vim.keymap.set("n", "zw", function() end, { buffer = true })
+      end
+      local found = {}
+      for _, map in ipairs(host.keymaps()) do
+        h.truthy(map.rhs, "a mapping without a right-hand side: " .. tostring(map.lhs))
+        found[map.lhs] = map.rhs
+      end
+      h.eq("<Plug>(jin-action-help)", found.zq)
+    end,
+  },
+  {
     "list turns an editor list into a Lua table",
     function()
       h.eq({ "a", "b" }, host.list(vim.fn.split("a b")))

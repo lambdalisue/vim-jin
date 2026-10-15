@@ -10,6 +10,9 @@ local M = {
   open = common.open,
   buffers = common.buffers,
   buffer_name = common.buffer_name,
+  input = common.input,
+  yank = common.yank,
+  vertical = common.vertical,
 }
 
 ---@param index integer
@@ -45,6 +48,7 @@ end
 
 function M.render(bufnr, content)
   local restore = common.keep_views(bufnr, M.list, content.fresh)
+  local closed = content.folds and common.closed_folds(bufnr, M.list)
   local lines = #content.lines > 0 and content.lines or { "" }
   local old = vim.fn.len(vim.fn.getbufline(bufnr, 1, "$"))
   vim.fn.setbufvar(bufnr, "&modifiable", 1)
@@ -63,7 +67,13 @@ function M.render(bufnr, content)
       vim.dict({ end_col = mark.end_col, type = mark.group, bufnr = bufnr })
     )
   end
-  common.finish(bufnr, content.filetype, content.title, content.fresh)
+  local filetype = content.filetype
+    or (content.detect and common.detect_filetype(bufnr, content.detect, M.list))
+    or "jin-file"
+  common.finish(bufnr, filetype, content.title, content.fresh)
+  if content.folds then
+    common.folds(bufnr, content.folds, M.list, closed or nil)
+  end
   restore()
 end
 
@@ -166,6 +176,60 @@ end
 
 function M.to_list(items)
   return vim.list(items)
+end
+
+function M.define_actions(bufnr, names, defaults)
+  common.define_actions(bufnr, names, defaults, M.list, M.to_list)
+end
+
+function M.keymaps()
+  return common.keymaps(M.list)
+end
+
+function M.cursor(bufnr, lnum)
+  common.cursor(bufnr, lnum, M.list)
+end
+
+function M.jump(bufnr, lnum)
+  common.jump(bufnr, lnum)
+end
+
+function M.line(bufnr)
+  return common.line(bufnr, M.list)
+end
+
+-- Text properties highlight only the text, while the line highlight of a
+-- sign spans the window, as the cursor line does. Each highlight is a sign
+-- group, with a sign of the same name.
+
+---Highlight `lnums` of `bufnr` whole as `group`, in place of the lines it
+---highlighted before.
+---@param bufnr integer
+---@param group string
+---@param lnums integer[]
+local function sign_lines(bufnr, group, lnums)
+  vim.fn.sign_unplace(group, vim.dict({ buffer = bufnr }))
+  if #lnums == 0 then
+    return
+  end
+  if vim.fn.empty(vim.fn.sign_getdefined(group)) == 1 then
+    vim.fn.sign_define(group, vim.dict({ linehl = group }))
+  end
+  -- A sign shows the sign column even with no text to put there.
+  for _, winid in ipairs(M.list(vim.fn.win_findbuf(bufnr))) do
+    vim.fn.win_execute(winid, "setlocal signcolumn=no")
+  end
+  for _, lnum in ipairs(lnums) do
+    vim.fn.sign_place(0, group, group, bufnr, vim.dict({ lnum = lnum, priority = 10 }))
+  end
+end
+
+function M.highlight_lines(bufnr, first, last)
+  local lnums = {}
+  for lnum = first or 1, last or 0 do
+    lnums[#lnums + 1] = lnum
+  end
+  sign_lines(bufnr, "JinCursorEntry", lnums)
 end
 
 return M

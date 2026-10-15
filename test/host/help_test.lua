@@ -23,6 +23,15 @@ return {
       for _, tag in ipairs({
         ":Jin",
         ":JinBuffer",
+        ":JinLog",
+        ":JinShow",
+        ":JinDiff",
+        ":JinFile",
+        "jin-mappings",
+        "jin-blocks",
+        "<Plug>(jin-next-block)",
+        "jin-actions",
+        "hl-JinCursorEntry",
         "b:jin_title",
         "jin.jj()",
       }) do

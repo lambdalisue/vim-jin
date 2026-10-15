@@ -138,6 +138,14 @@ describe("jin.command.bare.complete", function()
       assert.same({}, buffer_complete("Jin lo"))
     end)
 
+    it("asks jj about the words a view command stands for, before those typed", function()
+      local host = fake_host.new()
+      host.results = { ok("") }
+      local command = { name = "JinLog", shortest = 4, options = {}, jj = { "log" } }
+      bare.complete(host, "", "JinLog -r ", 10, command)
+      assert.same({ "log", "-r", "" }, jj_words(host))
+    end)
+
     it("leaves a ++ word after the first jj argument to jj", function()
       local host = fake_host.new()
       host.results = { ok("") }

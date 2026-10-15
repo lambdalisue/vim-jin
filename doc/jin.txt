@@ -6,18 +6,23 @@ CONTENTS						*jin-contents*
 INTRODUCTION			|jin-introduction|
 REQUIREMENTS			|jin-requirements|
 COMMANDS			|jin-commands|
-VARIABLES			|jin-variables|
+VIEWS				|jin-views|
+  ACTIONS			|jin-actions|
+  KEY MAPPINGS			|jin-mappings|
+HIGHLIGHT AND VARIABLES		|jin-highlight|
 EVENTS				|jin-events|
 LUA API				|jin-lua|
 
 =============================================================================
 INTRODUCTION						*jin-introduction*
 
-vim-jin runs jj and shows what jj prints in buffers. It is meant for
-watching and following a repository while you, or an agent, work on it.
+vim-jin runs jj, shows what jj prints in buffers, and lets you act on the
+lines of those buffers. It is meant for watching and following a repository
+while you, or an agent, work on it.
 
 	:Jin new
 	:Jin ++wait describe -m "feat: add parser"
+	:JinLog -r 'trunk()..@'
 
 Every vim-jin buffer is read-only and tied to no file; its name starts with
 "jin://" and records everything needed to read it again.
@@ -40,7 +45,7 @@ No variable, glob or `~` is expanded.
 
 							*jin-%*
 A bare `%` stands for the file of the current buffer, relative to its
-workspace root.
+workspace root; in a |:JinFile| buffer, for the file it shows.
 
 Every command runs jj in the workspace of the current buffer, falling back
 to the workspace of the current directory, or, outside any workspace, in the
@@ -69,8 +74,155 @@ the installed jj offers.
 	++monochrome		Ask jj for output without colors.
 	++filetype={filetype}	Set the filetype of the buffer.
 
+:JinLog [args]						*:JinLog*
+	`jj log`, in your log template. jj's own word wrapping is turned
+	off so that the text and the changes stay aligned; set 'wrap' to
+	wrap.
+
+:JinShow [args]						*:JinShow*
+	`jj show`, with the diff in color-words format.
+
+:JinDiff [args]						*:JinDiff*
+	`jj diff` in color-words format, each file folded (opened).
+
+:JinFile [args]						*:JinFile*
+	`jj file show`, highlighted with the filetype of the file. It needs
+	the path of a file, such as `%`.
+
+The view commands take the `++` options and [!] of |:JinBuffer|.
+
 =============================================================================
-VARIABLES						*jin-variables*
+VIEWS							*jin-views*
+
+The buffers of the view commands are views: their lines know what they
+stand for, so actions on a line lead somewhere. A view follows the
+repository: it reads jj again after every |:Jin| or |jin.command()|, and,
+when jj changed the repository outside the editor, in another terminal or
+by an agent, on entering it or when the editor regains focus. A view at a
+given operation (`--at-op`) stays as it is; one relative to the latest,
+such as `--at-op @-`, moves on with it. Reading a view snapshots the
+working copy, as jj does, so files changed without jj show, unless every
+view of the workspace is given `--ignore-working-copy` or `--at-op`.
+
+In the log, all the lines of the change under the cursor are highlighted
+with |hl-JinCursorEntry|.
+
+A buffer that was left and read again on coming back to it, as with
+|CTRL-O|, puts the cursor back where it was.
+
+-----------------------------------------------------------------------------
+ACTIONS							*jin-actions*
+
+Each action of a view is mapped as `<Plug>(jin-action-{name})` in normal
+mode, on the cursor line, and in visual mode, on the selected lines. Every
+view has these:
+
+	choice		Ask for an action by name, with completion.
+	repeat		Run the action last chosen with choice again.
+	help		List the actions with the keys mapped to them.
+
+An action that opens a view comes with `{name}:split`, `{name}:vsplit` and
+`{name}:tab`, which open it in a new window. A view opened from a change
+names it by its change ID, so that it follows the change through rewrites,
+or by its commit ID when the change is divergent or the commit is hidden, as
+an older version of a change is.
+
+A key pressed on a line that names nothing to act on does nothing; the same
+action chosen by name says why it cannot run.
+
+Log ~
+	show		Show the change of the line.
+	diff		Show its diff.
+	yank:change	Yank the change IDs of the lines.
+	yank:commit	Yank their commit IDs.
+
+Show and diff ~
+	jump		Open the file of the line at that line: the working
+			copy file itself, or |:JinFile| of another revision.
+	jump:old	Open it on the old side.
+	jump:new	Open it on the new side.
+	parent		(show) Show the parent of the change.
+	child		(show) Show its child.
+	yank:change	(show) Yank the change ID.
+	yank:commit	(show) Yank the commit ID.
+
+File ~
+	log		Show the log of the changes that touched the file.
+
+-----------------------------------------------------------------------------
+KEY MAPPINGS						*jin-mappings*
+
+Each view maps a few keys, by these rules, and none of them changes what
+the key means in Vim. A key either keeps its meaning while the view tells
+what it applies to, as |yy| still yanks, |]]| still goes
+to the next section and <CR> goes to what the line names as it does in the |quickfix-window|, or it is a
+key that edits text, which a read-only buffer has no use for, given the
+change closest to what it does to text. Vim's motions and marks keep
+working, and |=| stays Vim's operator. `a`, `.` and `?` are the deliberate
+exceptions. A view maps only the keys of the actions it has.
+
+	a		choice
+	.		repeat
+	?		help
+	<CR>		What the view is opened for: show in the log, jump in
+			a diff, and so on.
+	<S-CR> <C-CR>	What it is opened for next most often, such as diff
+			in the log or log in a file view. Both are mapped,
+			as a terminal may pass on only one of them.
+	<C-w><CR>	What <CR> opens, in a new window, split vertically
+			when 'diffopt' holds "vertical".
+	gd		The diff.
+	gp gc		The parent, the child.
+	yy		Yank what the line stands for; `y` in visual mode.
+	YY		Yank commit IDs; `Y` in visual mode.
+	]] [[		Go to the first line of the next, or the previous,
+			block; see |jin-blocks|.
+
+Keys that start others, as `g` and CTRL-W do, wait 'timeoutlen' for
+the rest. The openers without a key and the variants have no key: reach
+them with `a`, or map their <Plug>.
+
+`?` shows the keys of the view at hand.
+
+					*jin-blocks*
+					*<Plug>(jin-next-block)*
+					*<Plug>(jin-prev-block)*
+In a view that has blocks, `]]` and `[[` go between them as Vim's own
+section motions go between sections (|]]|): with a count, in visual and
+operator-pending mode too (`V]]`, `y]]`), leaving where they came from in
+the |jumplist|. A count past the last block stops at it; with no block that
+way, the cursor stays. A block is:
+
+- in |:JinLog|, an entry, all its lines;
+- in |:JinDiff|, a file;
+- in |:JinShow|, the header of each change, and each file.
+
+The other views have no blocks and leave `]]` and `[[` to Vim. The keys
+are mapped to `<Plug>(jin-next-block)` and `<Plug>(jin-prev-block)`, which
+are there even when |g:jin_{view}_disable_default_mappings| is set:
+>vim
+	autocmd FileType jin-log nmap <buffer> <C-n> <Plug>(jin-next-block)
+<
+
+A key the buffer already maps itself, as your own |ftplugin| may for the
+filetype of a view, is left as it is. Map any `<Plug>(jin-action-{name})`
+to keys of your own:
+>vim
+	autocmd FileType jin-log nmap <buffer> <Leader>e <Plug>(jin-action-diff)
+<
+				*g:jin_{view}_disable_default_mappings*
+To map no key at all in a view, set this to 1, `{view}` being `log`,
+`show`, `diff`, `file` or `buffer` (|:JinBuffer|):
+>vim
+	let g:jin_log_disable_default_mappings = 1
+<
+
+=============================================================================
+HIGHLIGHT AND VARIABLES					*jin-highlight*
+
+							*hl-JinCursorEntry*
+JinCursorEntry		The lines of the change under the cursor. Links to
+			|hl-CursorLine| by default.
 
 							*b:jin_title*
 b:jin_title		A short title of a vim-jin buffer, such as
@@ -107,6 +259,12 @@ jin.command({argv} [, {opts} [, {on_exit}]])
 jin.buffer({argv} [, {opts}])
 	Do what |:JinBuffer| does and return the buffer number. `opts` takes
 	`opener`, `monochrome`, `filetype`, `mods` and `reload` (the [!]).
+
+						*jin.view()*
+jin.view({name}, {argv} [, {opts}])
+	Do what the view command of {name} does, `"log"` for |:JinLog| and
+	so on, and return the buffer number. `opts` is as for
+	|jin.buffer()|, plus `line`, the line to put the cursor on.
 
 						*jin.root()*
 jin.root([{path}])

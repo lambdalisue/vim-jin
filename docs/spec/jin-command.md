@@ -18,8 +18,9 @@ from a terminal means the same in `:Jin`:
 - Outside quotes a backslash escapes the next character.
 
 A bare `%`, written without quotes or a backslash, stands for the file of
-the current buffer, relative to its workspace root. The same holds for the
-arguments of `:JinBuffer`.
+the current buffer, relative to its workspace root; in a `:JinFile` buffer,
+for the file it shows. The same holds for the arguments of `:JinBuffer` and
+the view commands.
 
 An unterminated quote is reported as an error and jj does not run. `|` is
 not a command separator for `:Jin`, so a revset such as `root()|@` reaches

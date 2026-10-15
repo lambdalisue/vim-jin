@@ -79,7 +79,7 @@ end
 ---@return jin.RunResult?
 function M.run(host, argv, opts, on_exit)
   -- Flags rather than --config: jj drops every --config before the
-  -- subcommand once one follows it.
+  -- subcommand once one follows it, as a view's own settings do.
   local cmd = { "jj", "--color", opts.color and "always" or "never", "--no-pager" }
   for _, a in ipairs(argv) do
     cmd[#cmd + 1] = a

@@ -19,6 +19,10 @@ local M = {}
 ---for `argv`, refreshed whenever `User JinCommandPost` fires, and return its
 ---number.
 ---@field buffer fun(argv: string[], opts?: jin.BufferOptions): integer
+---The Lua counterpart of the view commands such as `:JinLog`: open the view
+---`name` ("log", "show", "diff", "file", ...) for the jj arguments `argv`,
+---and return its buffer number.
+---@field view fun(name: string, argv: string[], opts?: jin.ViewOptions): integer
 
 ---Build the public API on the host `get_host` returns. The host is asked for
 ---on each call, so building the API needs no editor.
@@ -41,6 +45,10 @@ function M.new(get_host)
 
   function api.buffer(argv, opts)
     return require("jin.command.buffer").open(api, get_host(), argv, opts or {})
+  end
+
+  function api.view(name, argv, opts)
+    return require("jin.view").open(api, get_host(), name, argv, opts or {})
   end
 
   return api --[[@as jin.Api]]
