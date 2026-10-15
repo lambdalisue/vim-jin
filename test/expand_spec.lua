@@ -21,6 +21,13 @@ describe("jin.expand.path", function()
     assert.equal("/tmp/a.txt", expand.path(host))
   end)
 
+  it("refuses in a vim-jin buffer", function()
+    local host = fake_host.new({ bufname = "jin:///repo#log" })
+    assert.has_error(function()
+      expand.path(host)
+    end, "jin: % stands for no file in this buffer")
+  end)
+
   it("refuses in a buffer without a name", function()
     local host = fake_host.new()
     assert.has_error(function()

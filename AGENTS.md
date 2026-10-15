@@ -52,6 +52,7 @@ a checkout with untracked new files, enter the shell with
 | `lua/jin/init.lua` | the public Lua API; binds the core to the running editor's host |
 | `lua/jin/host/` | the host layer: one implementation per editor |
 | `plugin/` | the Ex commands, shared by both editors |
+| `ftplugin/` | the local settings of each vim-jin filetype |
 | `test/` | busted tests for the core, run on LuaJIT and PUC Lua |
 | `test/host/` | host tests, run inside Neovim and Vim by `test/host/run.lua` |
 | `docs/` | concept, ADRs, specs, references |
@@ -84,7 +85,7 @@ Scoped Commits:
 | Scope | Covers |
 | --- | --- |
 | `core` | `lua/jin/` and its tests in `test/`, except the host layer |
-| `host` | `lua/jin/host/`, `plugin/` and `test/host/` |
+| `host` | `lua/jin/host/`, `plugin/`, `ftplugin/` and `test/host/` |
 | `docs` | `docs/concept.md`, `doc/`, `README.md`, `AGENTS.md` |
 | `adr` | `docs/adr/` |
 | `spec` | `docs/spec/` |

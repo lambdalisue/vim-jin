@@ -123,6 +123,21 @@ describe("jin.command.bare.complete", function()
       assert.same({}, host.runs)
     end)
 
+    it("completes another command's arguments with that command's own options", function()
+      local host = fake_host.new()
+      local command =
+        { name = "JinBuffer", shortest = 4, options = { opener = "value", mono = "flag" } }
+      local function buffer_complete(cmdline)
+        return bare.complete(host, cmdline:match("(%S*)$"), cmdline, #cmdline, command)
+      end
+      assert.same({ "++mono", "++opener=" }, buffer_complete("JinBuffer ++"))
+      assert.same({ "++opener=" }, buffer_complete("JinB ++o"))
+      host.results = { ok("log\n") }
+      assert.same({ "log" }, buffer_complete("JinBuffer ++mono lo"))
+      assert.same({ "lo" }, jj_words(host))
+      assert.same({}, buffer_complete("Jin lo"))
+    end)
+
     it("leaves a ++ word after the first jj argument to jj", function()
       local host = fake_host.new()
       host.results = { ok("") }

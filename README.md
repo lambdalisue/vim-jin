@@ -26,6 +26,23 @@ covers everything below.
 `:Jin {args}` runs `jj {args}` in the workspace of the current buffer and
 echoes what jj printed. See [docs/spec/jin-command.md](docs/spec/jin-command.md).
 
+`:JinBuffer {args}` shows what `jj {args}` prints in a buffer instead, in
+jj's own colors, and keeps it current as `:Jin` changes the repository:
+
+```vim
+:JinBuffer log
+:JinBuffer ++opener=vsplit show @-
+```
+
+See [docs/spec/jin-buffer.md](docs/spec/jin-buffer.md).
+
+vim-jin buffers are named after the workspace they show, which makes for a
+long name; `b:jin_title` holds a short one, such as `jj log -r @-`:
+
+```vim
+set statusline=%{get(b:,'jin_title',expand('%'))}
+```
+
 The same is available from Lua, for your own mappings and plugins:
 
 ```lua
@@ -37,6 +54,9 @@ jin.command({ "describe", "-m", "feat: add parser" })
 -- Read jj's output without side effects.
 local result = jin.jj({ "log", "--no-graph", "-r", "@", "-T", "change_id" })
 print(result.stdout)
+
+-- What :JinBuffer does.
+jin.buffer({ "log" }, { opener = "vsplit" })
 ```
 
 See [docs/spec/lua-api.md](docs/spec/lua-api.md).

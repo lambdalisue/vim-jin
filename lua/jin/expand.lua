@@ -10,6 +10,9 @@ local M = {}
 ---@return string
 function M.path(host)
   local name = host.bufname()
+  if name:find("^jin://") then
+    error("jin: % stands for no file in this buffer", 0)
+  end
   if name == "" then
     error("jin: % stands for no file, as the buffer has no name", 0)
   end

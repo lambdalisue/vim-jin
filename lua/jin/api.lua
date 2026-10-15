@@ -15,6 +15,10 @@ local M = {}
 ---Return the root of the jj workspace that holds `path`, or of the current
 ---buffer or directory when `path` is nil; nil outside any workspace.
 ---@field root fun(path?: string): string?
+---The Lua counterpart of `:JinBuffer`: open a buffer showing what jj prints
+---for `argv`, refreshed whenever `User JinCommandPost` fires, and return its
+---number.
+---@field buffer fun(argv: string[], opts?: jin.BufferOptions): integer
 
 ---Build the public API on the host `get_host` returns. The host is asked for
 ---on each call, so building the API needs no editor.
@@ -33,6 +37,10 @@ function M.new(get_host)
 
   function api.root(path)
     return require("jin.jj").root(get_host(), path)
+  end
+
+  function api.buffer(argv, opts)
+    return require("jin.command.buffer").open(api, get_host(), argv, opts or {})
   end
 
   return api --[[@as jin.Api]]

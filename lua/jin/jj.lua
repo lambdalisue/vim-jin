@@ -27,7 +27,11 @@ end
 local function candidates(host)
   local dirs = {}
   local bufname = host.bufname()
-  if bufname ~= "" then
+  -- A vim-jin buffer is no file; its name records the workspace it shows.
+  local shown = bufname:find("^jin://") and require("jin.bufname").parse(bufname)
+  if shown then
+    dirs[#dirs + 1] = shown.root
+  elseif bufname ~= "" then
     dirs[#dirs + 1] = directory_of(host, host.realpath(bufname))
     dirs[#dirs + 1] = directory_of(host, bufname)
   end

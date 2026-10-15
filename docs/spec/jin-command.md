@@ -18,7 +18,8 @@ from a terminal means the same in `:Jin`:
 - Outside quotes a backslash escapes the next character.
 
 A bare `%`, written without quotes or a backslash, stands for the file of
-the current buffer, relative to its workspace root.
+the current buffer, relative to its workspace root. The same holds for the
+arguments of `:JinBuffer`.
 
 An unterminated quote is reported as an error and jj does not run. `|` is
 not a command separator for `:Jin`, so a revset such as `root()|@` reaches
@@ -47,7 +48,8 @@ completion.
 ## Where it runs
 
 jj runs in the workspace of the current buffer, falling back to the
-workspace of the current directory. Outside any workspace it runs in the
+workspace of the current directory. A `:JinBuffer` buffer counts as being in
+the workspace it shows. Outside any workspace it runs in the
 current directory, so commands that need no workspace, such as
 `jj git init`, work too.
 

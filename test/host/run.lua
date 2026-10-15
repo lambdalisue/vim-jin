@@ -11,7 +11,10 @@ local function out(line)
   io.write(line, "\n")
 end
 
+-- Each case starts from one empty buffer, so what a case left open (such as
+-- a jin:// buffer, which decides the workspace) does not leak into the next.
 local function run_case(fn)
+  ex("silent! %bwipeout!")
   ex("let v:errmsg = ''")
   local cwd = vim.fn.getcwd()
   local passed, err = xpcall(fn, debug.traceback)

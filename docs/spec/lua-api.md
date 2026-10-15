@@ -33,6 +33,14 @@ It returns at once unless `opts.wait` is true. `on_exit`, if given, receives
 the result after the echo. `argv` is handed to jj as is: `++` options exist
 only on the `:Jin` command line, and `opts` takes their place here.
 
+## `jin.buffer(argv, opts?)`
+
+Does what `:JinBuffer` does with `argv`, and returns the buffer number. The
+`++` options of `:JinBuffer` are fields of `opts` here: `opener`,
+`monochrome` and `filetype`. `opts.mods` takes modifiers such as
+`botright`, `opts.reload = true` stands for the `!`, and `opts.cwd` picks
+the workspace as for the other functions.
+
 ## `jin.root(path?)`
 
 Returns the root of the workspace holding `path`, or of the current buffer

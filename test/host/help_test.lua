@@ -22,6 +22,8 @@ return {
       local found = tags()
       for _, tag in ipairs({
         ":Jin",
+        ":JinBuffer",
+        "b:jin_title",
         "jin.jj()",
       }) do
         h.truthy(found[tag], "no tag " .. tag)

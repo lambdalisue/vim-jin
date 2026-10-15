@@ -7,7 +7,65 @@ local M = {
   bufname = common.bufname,
   realpath = common.realpath,
   is_dir = common.is_dir,
+  open = common.open,
+  buffers = common.buffers,
+  buffer_name = common.buffer_name,
 }
+
+---@param index integer
+---@return string?
+local function terminal_color(index)
+  local colors = M.list(vim.eval("get(g:, 'terminal_ansi_colors', [])"))
+  return colors[index + 1]
+end
+
+---@param name string
+---@param style jin.AnsiStyle
+local function define(name, style)
+  local hl = common.highlight(style, terminal_color)
+  local attrs = #hl.attrs > 0 and table.concat(hl.attrs, ",") or "NONE"
+  local parts = { "highlight", name, "cterm=" .. attrs, "gui=" .. attrs }
+  if hl.ctermfg then
+    parts[#parts + 1] = "ctermfg=" .. hl.ctermfg
+  end
+  if hl.ctermbg then
+    parts[#parts + 1] = "ctermbg=" .. hl.ctermbg
+  end
+  if hl.guifg then
+    parts[#parts + 1] = "guifg=" .. hl.guifg
+  end
+  if hl.guibg then
+    parts[#parts + 1] = "guibg=" .. hl.guibg
+  end
+  vim.command(table.concat(parts, " "))
+  if vim.fn.empty(vim.fn.prop_type_get(name)) == 1 then
+    vim.fn.prop_type_add(name, vim.dict({ highlight = name }))
+  end
+end
+
+function M.render(bufnr, content)
+  local restore = common.keep_views(bufnr, M.list, content.fresh)
+  local lines = #content.lines > 0 and content.lines or { "" }
+  local old = vim.fn.len(vim.fn.getbufline(bufnr, 1, "$"))
+  vim.fn.setbufvar(bufnr, "&modifiable", 1)
+  vim.fn.setbufline(bufnr, 1, vim.list(lines))
+  if old > #lines then
+    vim.fn.deletebufline(bufnr, #lines + 1, "$")
+  end
+  vim.fn.prop_clear(1, #lines, vim.dict({ bufnr = bufnr }))
+  for name, style in pairs(content.groups) do
+    define(name, style)
+  end
+  for _, mark in ipairs(content.highlights) do
+    vim.fn.prop_add(
+      mark.line,
+      mark.col,
+      vim.dict({ end_col = mark.end_col, type = mark.group, bufnr = bufnr })
+    )
+  end
+  common.finish(bufnr, content.filetype, content.title, content.fresh)
+  restore()
+end
 
 function M.run(argv, opts, on_exit)
   local stdout, stderr = {}, {}

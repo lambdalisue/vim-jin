@@ -45,6 +45,16 @@ describe("jin.jj.run", function()
     assert.equal("/repo", host.runs[1].cwd)
   end)
 
+  it("runs in the workspace a vim-jin buffer shows", function()
+    local host = fake_host.new({
+      cwd = "/other",
+      bufname = "jin:///repo;monochrome#log -r @",
+      dirs = { "/repo", "/repo/.jj", "/other/.jj" },
+    })
+    jj.run(host, { "describe" }, {}, function() end)
+    assert.equal("/repo", host.runs[1].cwd)
+  end)
+
   it("falls back to the workspace of the current directory", function()
     local host =
       fake_host.new({ cwd = "/repo/sub", bufname = "/tmp/x.txt", dirs = { "/repo/.jj" } })

@@ -117,6 +117,48 @@ function M.new(opts)
     return value
   end
 
+  -- Buffers: what `open` was asked to open, and what each was rendered with.
+  host.opened = {}
+  host.rendered = {}
+  host.loaded = {}
+
+  function host.open(name, open_opts)
+    host.opened[#host.opened + 1] =
+      { name = name, opener = open_opts.opener, mods = open_opts.mods }
+    for _, buf in ipairs(host.loaded) do
+      if buf.name == name then
+        return buf.bufnr
+      end
+    end
+    local bufnr = #host.loaded + 1
+    host.loaded[#host.loaded + 1] = { bufnr = bufnr, name = name }
+    return bufnr
+  end
+
+  function host.render(bufnr, content)
+    host.rendered[bufnr] = content
+  end
+
+  function host.buffers()
+    return host.loaded
+  end
+
+  function host.buffer_name(bufnr)
+    for _, buf in ipairs(host.loaded) do
+      if buf.bufnr == bufnr then
+        return buf.name
+      end
+    end
+    return nil
+  end
+
+  ---Pretend the editor has `name` loaded as a buffer, and return its number.
+  function host.load(name)
+    local bufnr = #host.loaded + 1
+    host.loaded[#host.loaded + 1] = { bufnr = bufnr, name = name }
+    return bufnr
+  end
+
   return host
 end
 

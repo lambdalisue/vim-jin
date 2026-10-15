@@ -6,17 +6,21 @@ CONTENTS						*jin-contents*
 INTRODUCTION			|jin-introduction|
 REQUIREMENTS			|jin-requirements|
 COMMANDS			|jin-commands|
+VARIABLES			|jin-variables|
 EVENTS				|jin-events|
 LUA API				|jin-lua|
 
 =============================================================================
 INTRODUCTION						*jin-introduction*
 
-vim-jin runs jj and shows what jj prints. It is meant for
+vim-jin runs jj and shows what jj prints in buffers. It is meant for
 watching and following a repository while you, or an agent, work on it.
 
 	:Jin new
 	:Jin ++wait describe -m "feat: add parser"
+
+Every vim-jin buffer is read-only and tied to no file; its name starts with
+"jin://" and records everything needed to read it again.
 
 =============================================================================
 REQUIREMENTS						*jin-requirements*
@@ -51,6 +55,30 @@ the installed jj offers.
 
 	++wait		Return only after jj has finished.
 
+							*:JinBuffer*
+:JinBuffer[!] [++option...] [{args}]
+	Open a buffer showing what `jj {args}` prints, in jj's own colors.
+	The buffer opens at once and fills when jj answers. Opening one
+	already open switches to it; with [!] it reads jj again first.
+	`:edit` reads jj again too.
+
+	++opener={opener}	Open the buffer with {opener} (`split`,
+				`vsplit`, `tabedit`, ...) instead of
+				|:edit|. Modifiers such as |:botright|
+				apply as well.
+	++monochrome		Ask jj for output without colors.
+	++filetype={filetype}	Set the filetype of the buffer.
+
+=============================================================================
+VARIABLES						*jin-variables*
+
+							*b:jin_title*
+b:jin_title		A short title of a vim-jin buffer, such as
+			"jj log -r @-", for a statusline or a tabline in place
+			of its long name:
+>vim
+	set statusline=%{get(b:,'jin_title',expand('%'))}
+<
 =============================================================================
 EVENTS							*jin-events*
 
@@ -74,6 +102,11 @@ jin.jj({argv} [, {opts} [, {on_exit}]])
 						*jin.command()*
 jin.command({argv} [, {opts} [, {on_exit}]])
 	Do what |:Jin| does. `opts.wait` stands for `++wait`.
+
+						*jin.buffer()*
+jin.buffer({argv} [, {opts}])
+	Do what |:JinBuffer| does and return the buffer number. `opts` takes
+	`opener`, `monochrome`, `filetype`, `mods` and `reload` (the [!]).
 
 						*jin.root()*
 jin.root([{path}])

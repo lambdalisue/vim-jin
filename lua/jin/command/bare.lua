@@ -84,12 +84,22 @@ end
 -- Completion blocks the command line, so a jj that hangs must not.
 local COMPLETE_TIMEOUT = 3000
 
+---An Ex command whose arguments go to jj after its own ++ options.
+---@class jin.CompletedCommand
+---@field name string
+---@field shortest integer the length of its shortest abbreviation
+---@field options table<string, true|"flag"|"value"> its ++ options; a "value" one takes `=value`
+
+---@type jin.CompletedCommand
+M.COMMAND = { name = "Jin", shortest = 2, options = OPTIONS }
+
 ---@param prefix string
+---@param options table<string, true|"flag"|"value">
 ---@return string[]
-local function complete_options(prefix)
+local function complete_options(prefix, options)
   local names = {}
-  for name in pairs(OPTIONS) do
-    local option = "++" .. name
+  for name, kind in pairs(options) do
+    local option = "++" .. name .. (kind == "value" and "=" or "")
     if option:sub(1, #prefix) == prefix then
       names[#names + 1] = option
     end
@@ -199,18 +209,21 @@ local function ask(host, cwd, words)
   return values
 end
 
----Offer what jj's own completion offers for the word under the cursor.
+---Offer what jj's own completion offers for the word under the cursor, in
+---the arguments of `command` (`:Jin` by default).
 ---@param host jin.Host
 ---@param arglead string
 ---@param cmdline string
 ---@param cursorpos integer
+---@param command? jin.CompletedCommand
 ---@return string[]
-function M.complete(host, arglead, cmdline, cursorpos)
+function M.complete(host, arglead, cmdline, cursorpos, command)
+  command = command or M.COMMAND
   local line = cmdline:sub(1, cursorpos)
   local words = args.split_partial(line)
   local typed = {}
   for i, word in ipairs(words) do
-    if word == "Jin" or word == "Ji" then
+    if #word >= command.shortest and command.name:sub(1, #word) == word then
       for j = i + 1, #words do
         typed[#typed + 1] = words[j]
       end
@@ -231,7 +244,7 @@ function M.complete(host, arglead, cmdline, cursorpos)
     first = first + 1
   end
   if first == #typed and typed[first]:match("^%+") then
-    return complete_options(typed[first])
+    return complete_options(typed[first], command.options)
   end
 
   local jj_words = {}

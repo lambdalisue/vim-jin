@@ -21,10 +21,29 @@
 ---@field now fun(): number
 ---@field defer fun(ms: integer, fn: fun()): any
 ---@field cancel fun(timer: any)
+---Open the buffer `name` with `opener` (`edit` by default) and modifiers
+---such as `botright`, and return its number.
+---@field open fun(name: string, opts: { opener?: string, mods?: string }): integer
+---Replace the lines of `bufnr`, highlight `highlights` with the `groups` it
+---defines, and make the buffer a read-only scratch buffer of `filetype`.
+---Windows showing the buffer keep their view.
+---@field render fun(bufnr: integer, content: jin.Content)
+---The loaded buffers and their names.
+---@field buffers fun(): { bufnr: integer, name: string }[]
+---The name of `bufnr` while it is loaded, nil otherwise.
+---@field buffer_name fun(bufnr: integer): string?
 ---Turn a list handed over by the editor into a Lua table.
 ---@field list fun(value: any): any[]
 ---Turn a Lua table into a list to hand back to the editor.
 ---@field to_list fun(items: any[]): any
+
+---@class jin.Content
+---@field lines string[]
+---@field highlights { line: integer, col: integer, end_col: integer, group: string }[] 1-based byte columns, end_col exclusive
+---@field groups table<string, jin.AnsiStyle> the highlight groups to define
+---@field filetype string
+---@field title? string a short name for the buffer, kept in b:jin_title
+---@field fresh? boolean the first content since the buffer was loaded, which its filetype has to be set up for anew
 
 ---@class jin.RunResult
 ---@field code integer
