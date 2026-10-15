@@ -34,6 +34,7 @@ Work with Jujutsu (jj) repositories from Neovim and Vim.
 ## Quality gate
 
 Run `just ci` inside the development shell before reporting a change as done.
+CI runs the same recipe.
 
 jj does not add new files to the Git index, and Nix only sees files in it. In
 a checkout with untracked new files, enter the shell with
@@ -78,6 +79,7 @@ Scoped Commits:
 | `adr` | `docs/adr/` |
 | `spec` | `docs/spec/` |
 | `tooling` | `justfile`, formatter, linter, type checker and test runner configs |
+| `ci` | `.github/` |
 | `nix` | `flake.nix`, `flake.lock` |
 | `deps` | dependency updates |
 
