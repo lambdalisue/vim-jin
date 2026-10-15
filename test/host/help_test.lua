@@ -17,10 +17,11 @@ end
 
 return {
   {
-    "the help builds its tags",
+    "the help builds its tags and has one for every command",
     function()
       local found = tags()
       for _, tag in ipairs({
+        ":Jin",
         "jin.jj()",
       }) do
         h.truthy(found[tag], "no tag " .. tag)

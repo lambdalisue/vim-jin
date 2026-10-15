@@ -18,7 +18,7 @@ describe("jin.jj.run", function()
     assert.equal("always", host.runs[1].argv[3])
   end)
 
-  it("runs in the workspace of the current buffer", function()
+  it("runs in the workspace of the current buffer, like :Jin", function()
     local host = fake_host.new({ cwd = "/other", bufname = "/repo/a.txt", dirs = { "/repo/.jj" } })
     jj.run(host, { "status" }, {}, function() end)
     assert.equal("/repo", host.runs[1].cwd)

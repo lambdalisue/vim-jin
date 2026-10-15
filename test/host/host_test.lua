@@ -156,6 +156,17 @@ return {
     end,
   },
   {
+    "now measures the time that passes in milliseconds",
+    function()
+      local start = host.now()
+      host.wait(100, function()
+        return false
+      end)
+      local elapsed = host.now() - start
+      h.truthy(elapsed >= 90 and elapsed < 2000, "elapsed " .. tostring(elapsed))
+    end,
+  },
+  {
     "defer runs the function later unless cancelled",
     function()
       local fired, cancelled = false, false
@@ -180,6 +191,13 @@ return {
     "list turns an editor list into a Lua table",
     function()
       h.eq({ "a", "b" }, host.list(vim.fn.split("a b")))
+    end,
+  },
+  {
+    "to_list hands a Lua table back as an editor list",
+    function()
+      h.eq(2, vim.fn.len(host.to_list({ "a", "b" })))
+      h.eq({ "a", "b" }, host.list(host.to_list({ "a", "b" })))
     end,
   },
 }

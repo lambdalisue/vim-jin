@@ -91,6 +91,25 @@ describe("jin.args.split", function()
   end)
 end)
 
+describe("jin.args.split with expand", function()
+  local function expand()
+    return "a b.txt"
+  end
+
+  it("replaces a bare % with what expand returns", function()
+    assert.same({ "file", "show", "a b.txt" }, args.split("file show %", expand))
+    assert.same({ "a b.txt", "-r" }, args.split("% -r", expand))
+  end)
+
+  it("leaves a quoted or escaped %, and % inside a word, as it is", function()
+    assert.same({ "%", "%", "%", "a%b" }, args.split([['%' "%" \% a%b]], expand))
+  end)
+
+  it("leaves % as it is without expand", function()
+    assert.same({ "%" }, args.split("%"))
+  end)
+end)
+
 describe("jin.args.split_partial", function()
   it("splits like split when every quote is closed", function()
     local words, open = args.split_partial([[-m "a b" c]])

@@ -17,10 +17,14 @@
 ---@field is_dir fun(path: string): boolean
 ---Fire the User autocmd `event` if any is defined.
 ---@field doautocmd fun(event: string)
+---A monotonic clock in milliseconds, for measuring how much time passed.
+---@field now fun(): number
 ---@field defer fun(ms: integer, fn: fun()): any
 ---@field cancel fun(timer: any)
 ---Turn a list handed over by the editor into a Lua table.
 ---@field list fun(value: any): any[]
+---Turn a Lua table into a list to hand back to the editor.
+---@field to_list fun(items: any[]): any
 
 ---@class jin.RunResult
 ---@field code integer

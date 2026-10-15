@@ -27,6 +27,10 @@ Work with Jujutsu (jj) repositories from Neovim and Vim.
   LuaJIT provides. It is written for Lua 5.1 and must also run on newer PUC
   Lua. It reaches the editor through the host layer it is given
   (`docs/adr/20261015-reach-the-editor-only-through-a-host-layer.md`).
+- **Features run jj through the public API.** A feature calls
+  `require("jin").jj()` or `.command()`, the API other plugins use, never the
+  internal modules behind it
+  (`docs/adr/20261015-build-every-feature-on-the-public-lua-api.md`).
 - **Dependencies are current.** Before adding or bumping one, look up its
   latest release in the registry. Do not copy a version from memory or from
   another repository.
@@ -47,6 +51,7 @@ a checkout with untracked new files, enter the shell with
 | `lua/jin/` | the core, editor-independent Lua |
 | `lua/jin/init.lua` | the public Lua API; binds the core to the running editor's host |
 | `lua/jin/host/` | the host layer: one implementation per editor |
+| `plugin/` | the Ex commands, shared by both editors |
 | `test/` | busted tests for the core, run on LuaJIT and PUC Lua |
 | `test/host/` | host tests, run inside Neovim and Vim by `test/host/run.lua` |
 | `docs/` | concept, ADRs, specs, references |
@@ -79,7 +84,7 @@ Scoped Commits:
 | Scope | Covers |
 | --- | --- |
 | `core` | `lua/jin/` and its tests in `test/`, except the host layer |
-| `host` | `lua/jin/host/` and `test/host/` |
+| `host` | `lua/jin/host/`, `plugin/` and `test/host/` |
 | `docs` | `docs/concept.md`, `doc/`, `README.md`, `AGENTS.md` |
 | `adr` | `docs/adr/` |
 | `spec` | `docs/spec/` |

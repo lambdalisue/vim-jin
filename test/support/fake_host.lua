@@ -19,7 +19,15 @@ function M.new(opts)
     timers = {},
     -- What `wait` makes each pending process return, in order.
     results = {},
+    -- What `now` returns, in milliseconds; tests move it forward.
+    clock = 0,
+    -- The editor state given to `new`; tests may change it in between.
+    state = opts,
   }
+
+  function host.now()
+    return host.clock
+  end
 
   function host.run(argv, run_opts, on_exit)
     host.runs[#host.runs + 1] = {
@@ -69,8 +77,14 @@ function M.new(opts)
     return (opts.links or {})[path] or path
   end
 
+  -- How often the filesystem was asked about a directory.
+  host.dir_lookups = 0
+  -- The directories that exist, to make or remove one during a test.
+  host.dirs = dirs
+
   -- Like the filesystem, `.` and `..` in the path are followed.
   function host.is_dir(path)
+    host.dir_lookups = host.dir_lookups + 1
     return dirs[require("jin.workspace").absolute(path, "/")] == true
   end
 

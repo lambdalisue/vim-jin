@@ -8,9 +8,9 @@ local M = {}
 ---returns at once and calls `on_exit` with the result; without, it blocks
 ---until jj finishes and returns the result.
 ---@field jj (fun(argv: string[], opts?: jin.JjOptions): jin.RunResult)|fun(argv: string[], opts: jin.JjOptions?, on_exit: fun(result: jin.RunResult))
----Run jj with `argv`, echo what it printed, then fire `User JinCommandPost`.
----Use it for commands that change the repository, so that everything
----showing it refreshes.
+---The Lua counterpart of `:Jin`: run jj with `argv`, echo what it printed,
+---then fire `User JinCommandPost`. Use it for commands that change the
+---repository, so that everything showing it refreshes.
 ---@field command fun(argv: string[], opts?: jin.CommandOptions, on_exit?: fun(result: jin.RunResult))
 ---Return the root of the jj workspace that holds `path`, or of the current
 ---buffer or directory when `path` is nil; nil outside any workspace.

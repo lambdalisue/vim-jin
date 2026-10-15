@@ -6,10 +6,10 @@ the editor until one of its functions is called.
 
 ## Where jj runs
 
-Every function runs jj in a workspace found from `opts.cwd` when given, or
-else from the current buffer and then the current directory. Outside any
-workspace jj runs in that directory itself. A relative `opts.cwd` or `path`
-is taken from the current directory.
+Every function runs jj in a workspace found the way `:Jin` finds it: from
+`opts.cwd` when given, or else from the current buffer and then the current
+directory. Outside any workspace jj runs in that directory itself. A
+relative `opts.cwd` or `path` is taken from the current directory.
 
 ## `jin.jj(argv, opts?, on_exit?)`
 
@@ -25,12 +25,13 @@ the main loop. Without, it blocks until jj finishes and returns the result.
 
 ## `jin.command(argv, opts?, on_exit?)`
 
-Runs jj with `argv`, echoes what it printed, and then fires
-`User JinCommandPost`. Use it for commands that change the repository, so
-that everything showing the repository refreshes.
+Does what `:Jin` does with `argv`: runs jj, echoes what it printed, and then
+fires `User JinCommandPost`. Use it for commands that change the
+repository, so that everything showing the repository refreshes.
 
 It returns at once unless `opts.wait` is true. `on_exit`, if given, receives
-the result after the echo.
+the result after the echo. `argv` is handed to jj as is: `++` options exist
+only on the `:Jin` command line, and `opts` takes their place here.
 
 ## `jin.root(path?)`
 

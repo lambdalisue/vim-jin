@@ -37,6 +37,10 @@ function M.doautocmd(event)
   end
 end
 
+function M.now()
+  return vim.uv.hrtime() / 1e6
+end
+
 function M.defer(ms, fn)
   return vim.defer_fn(fn, ms)
 end
@@ -50,6 +54,10 @@ end
 
 function M.list(value)
   return value
+end
+
+function M.to_list(items)
+  return items
 end
 
 return M

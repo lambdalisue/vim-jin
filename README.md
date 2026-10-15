@@ -9,6 +9,12 @@ to run on Vim built with `+lua` as well.
 
 **Early development. Anything may change without notice.**
 
+```vim
+:Jin new
+:Jin ++wait describe -m "feat: add parser"
+:Jin log -r 'root() | @'
+```
+
 ## Install
 
 Install it with any plugin manager. It needs jj on `PATH`, and either Neovim
@@ -17,12 +23,15 @@ covers everything below.
 
 ## Usage
 
-vim-jin is driven from Lua, for your own mappings and plugins:
+`:Jin {args}` runs `jj {args}` in the workspace of the current buffer and
+echoes what jj printed. See [docs/spec/jin-command.md](docs/spec/jin-command.md).
+
+The same is available from Lua, for your own mappings and plugins:
 
 ```lua
 local jin = require("jin")
 
--- Run, echo, then fire User JinCommandPost.
+-- What :Jin does: run, echo, then fire User JinCommandPost.
 jin.command({ "describe", "-m", "feat: add parser" })
 
 -- Read jj's output without side effects.

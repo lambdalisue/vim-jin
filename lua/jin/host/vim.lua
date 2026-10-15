@@ -81,6 +81,10 @@ function M.doautocmd(event)
   end
 end
 
+function M.now()
+  return vim.fn.reltimefloat(vim.fn.reltime()) * 1000
+end
+
 function M.defer(ms, fn)
   return vim.fn.timer_start(ms, function()
     fn()
@@ -100,6 +104,10 @@ function M.list(value)
     items[#items + 1] = item
   end
   return items
+end
+
+function M.to_list(items)
+  return vim.list(items)
 end
 
 return M

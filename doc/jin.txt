@@ -5,6 +5,7 @@ CONTENTS						*jin-contents*
 
 INTRODUCTION			|jin-introduction|
 REQUIREMENTS			|jin-requirements|
+COMMANDS			|jin-commands|
 EVENTS				|jin-events|
 LUA API				|jin-lua|
 
@@ -14,6 +15,9 @@ INTRODUCTION						*jin-introduction*
 vim-jin runs jj and shows what jj prints. It is meant for
 watching and following a repository while you, or an agent, work on it.
 
+	:Jin new
+	:Jin ++wait describe -m "feat: add parser"
+
 =============================================================================
 REQUIREMENTS						*jin-requirements*
 
@@ -21,19 +25,44 @@ REQUIREMENTS						*jin-requirements*
 - Neovim 0.10 or later, or Vim 9.0.0067 or later built with |+lua|.
 
 =============================================================================
+COMMANDS						*jin-commands*
+
+Arguments are split the way a POSIX shell splits them, so a command copied
+from a terminal means the same here: white space separates them, single
+quotes take everything literally, double quotes everything but an escaped
+`"` or `\`, and outside quotes a backslash escapes the next character. `|`
+does not end the command, so a revset such as `root()|@` reaches jj intact.
+No variable, glob or `~` is expanded.
+
+							*jin-%*
+A bare `%` stands for the file of the current buffer, relative to its
+workspace root.
+
+Every command runs jj in the workspace of the current buffer, falling back
+to the workspace of the current directory, or, outside any workspace, in the
+current directory itself. All of them complete their arguments with what
+the installed jj offers.
+
+							*:Jin*
+:Jin [++option...] [{args}]
+	Run `jj {args}` and echo what it printed, in |hl-ErrorMsg| when it
+	fails. jj runs in the background, and |User_JinCommandPost| fires
+	once it has finished.
+
+	++wait		Return only after jj has finished.
+
+=============================================================================
 EVENTS							*jin-events*
 
 						*User_JinCommandPost*
-JinCommandPost		After |jin.command()| has run jj, successfully or
-			not.
+JinCommandPost		After |:Jin| or |jin.command()| has run jj,
+			successfully or not.
 
 =============================================================================
 LUA API							*jin-lua*
 
 `require("jin")` works in Neovim and in Vim built with |+lua|. Each function
-runs jj in the workspace of `opts.cwd` when given, or else in the workspace
-of the current buffer, falling back to the workspace of the current
-directory, or, outside any workspace, in the current directory itself.
+runs jj in the workspace of `opts.cwd` when given, or else as |:Jin| would.
 
 						*jin.jj()*
 jin.jj({argv} [, {opts} [, {on_exit}]])
@@ -44,9 +73,7 @@ jin.jj({argv} [, {opts} [, {on_exit}]])
 
 						*jin.command()*
 jin.command({argv} [, {opts} [, {on_exit}]])
-	Run jj and echo what it printed, in |hl-ErrorMsg| when it fails.
-	jj runs in the background, and |User_JinCommandPost| fires once it
-	has finished. With `opts.wait`, return only after jj has finished.
+	Do what |:Jin| does. `opts.wait` stands for `++wait`.
 
 						*jin.root()*
 jin.root([{path}])

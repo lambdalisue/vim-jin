@@ -18,6 +18,50 @@ local function ok(stdout, stderr)
   return { code = 0, stdout = stdout or "", stderr = stderr or "" }
 end
 
+describe("jin.command.bare.command", function()
+  it("splits the typed line with shell-like quoting before running jj", function()
+    local host = fake_host.new()
+    bare.command(host, [[describe -m "feat: add parser" -r 'a|b']])
+    assert.same(plain("describe", "-m", "feat: add parser", "-r", "a|b"), host.runs[1].argv)
+  end)
+
+  it("rejects an unterminated quote without running jj", function()
+    local host = fake_host.new()
+    assert.has_error(function()
+      bare.command(host, [[describe -m "wip]])
+    end, "jin: unterminated quote")
+    assert.same({}, host.runs)
+  end)
+
+  it("leaves the leading ++ options out of what jj receives", function()
+    local host = fake_host.new()
+    host.results = { ok() }
+    bare.command(host, "++wait status")
+    assert.same(plain("status"), host.runs[1].argv)
+  end)
+
+  it("waits for jj with ++wait", function()
+    local host = fake_host.new()
+    host.results = { ok("done\n") }
+    bare.command(host, "++wait status")
+    assert.is_true(host.runs[1].finished)
+  end)
+
+  it("runs bare jj for an empty line", function()
+    local host = fake_host.new()
+    bare.command(host, "")
+    assert.same(plain(), host.runs[1].argv)
+  end)
+
+  it("rejects an unknown ++ option without running jj", function()
+    local host = fake_host.new()
+    assert.has_error(function()
+      bare.command(host, "++wiat status")
+    end, "jin: unknown option ++wiat")
+    assert.same({}, host.runs)
+  end)
+end)
+
 describe("jin.command.bare.run", function()
   describe("what it runs", function()
     it("runs jj with the arguments unchanged, after flags that keep output plain", function()
