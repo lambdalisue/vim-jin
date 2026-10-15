@@ -47,6 +47,8 @@ describe("the blocks of a view", function()
     local two = "@  " .. m("aaa", "1") .. "x\n│  a\n○  " .. m("bbb", "2") .. "y\n│  b\n"
     for _, name in ipairs({
       "jin:///repo;view=log#",
+      "jin:///repo;view=evolog#",
+      "jin:///repo;view=oplog#",
     }) do
       assert.same({ 1, 3 }, starts(name, two, true), name)
     end
@@ -69,8 +71,9 @@ describe("the blocks of a view", function()
     "",
   }, "\n")
 
-  it("are the files, in a diff", function()
+  it("are the files, in a diff and an interdiff", function()
     assert.same({ 1, 3 }, starts("jin:///repo;view=diff#", DIFF))
+    assert.same({ 1, 3 }, starts("jin:///repo;view=interdiff#--from a --to b", DIFF))
   end)
 
   it("are the header of each change and its files, in a show", function()

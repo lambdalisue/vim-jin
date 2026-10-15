@@ -13,6 +13,10 @@ action.openers(actions, "diff", "show the diff of the change", function(ctx, ope
   support.open(ctx, "diff", { "-r", support.revision(action.entry(ctx)) }, opener)
 end)
 
+action.openers(actions, "evolog", "show the versions the change went through", function(ctx, opener)
+  support.open(ctx, "evolog", { "-r", support.revision(action.entry(ctx)) }, opener)
+end)
+
 support.yank_actions(actions)
 
 ---@type jin.View

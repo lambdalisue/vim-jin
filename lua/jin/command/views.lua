@@ -32,6 +32,20 @@ M.COMMANDS = {
     jj = { "file", "show" },
     options = view.OPTIONS,
   },
+  JinOpLog = {
+    name = "JinOpLog",
+    shortest = 4,
+    view = "oplog",
+    jj = { "op", "log" },
+    options = view.OPTIONS,
+  },
+  JinEvolog = {
+    name = "JinEvolog",
+    shortest = 4,
+    view = "evolog",
+    jj = { "evolog" },
+    options = view.OPTIONS,
+  },
 }
 
 ---Open the view of the Ex command `name` for its arguments as typed.

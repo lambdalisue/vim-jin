@@ -63,6 +63,12 @@ function M.parse(lines)
       current = { status = h.status, path = h.path, from = h.from, first = lnum, last = lnum }
       files[#files + 1] = current
       mapped[lnum] = { path = h.path, from = h.from }
+    elseif current and line:match("^%a.*:$") then
+      -- A section of no file, such as the description jj interdiff
+      -- compares, ends the file before it; its lines lead nowhere. A line
+      -- of the file starts with its number, or with spaces before it.
+      current.last = lnum - 1
+      current = nil
     elseif current then
       local old, new = line:match("^%s*(%d+)%s+(%d+): ")
       if not old then

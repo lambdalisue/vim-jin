@@ -55,7 +55,7 @@ return {
     "the views that pass jj settings of their own keep jj's colors",
     function()
       workspace()
-      for _, command in ipairs({ "JinLog" }) do
+      for _, command in ipairs({ "JinLog", "JinOpLog", "JinEvolog" }) do
         h.ex(command)
         settle()
         h.truthy(#h.highlights(vim.fn.bufnr()) > 0, command .. " shows no colors")
@@ -158,6 +158,19 @@ return {
       end, "the old file is not shown")
       h.eq("lua", vim.fn.getbufvar(vim.fn.bufnr(), "&filetype"))
       h.eq(0, vim.fn.getbufvar(vim.fn.bufnr(), "&modifiable"))
+    end,
+  },
+  {
+    "JinLog leads from a change to its evolog",
+    function()
+      local dir = workspace()
+      h.ex("JinLog -r @-")
+      local meta = settle()
+      local lnum = find("first change")
+      act("evolog", lnum)
+      h.eq("jin://" .. dir .. ";view=evolog#-r " .. meta.entries[lnum][1], vim.fn.bufname())
+      settle()
+      find("first change")
     end,
   },
   {
@@ -351,7 +364,7 @@ return {
       local lnum = find("first change")
       h.truthy(lnum > 1, "the change is on the first line")
       vim.fn.cursor(lnum, 1)
-      h.ex("JinShow")
+      h.ex("JinOpLog")
       settle()
       vim.v.errmsg = ""
       h.ex('execute "normal! \\<C-o>"')
@@ -362,17 +375,23 @@ return {
     end,
   },
   {
-    "JinLog left with <CR> and come back to with <C-o> raises no error",
+    "JinEvolog left with <CR> and come back to with <C-o> raises no error",
     function()
       workspace()
-      h.ex("JinLog")
+      for i = 1, 4 do
+        h.eq(0, jin.jj({ "describe", "-m", "version " .. i }).code)
+      end
+      h.ex("JinEvolog")
       settle()
-      local lnum = find("first change")
-      h.truthy(lnum > 1, "the change is on the first line")
+      local lnum = find("version 2")
+      h.truthy(lnum > 1, "version 2 is on the first line")
       vim.fn.cursor(lnum, 1)
       h.ex('execute "normal \\<CR>"')
       settle()
-      h.truthy(vim.fn.bufname():find("view=show", 1, true), "no show: " .. vim.fn.bufname())
+      h.truthy(
+        vim.fn.bufname():find("view=interdiff", 1, true),
+        "no interdiff: " .. vim.fn.bufname()
+      )
       vim.v.errmsg = ""
       h.ex('execute "normal! \\<C-o>"')
       h.eq("", vim.v.errmsg)

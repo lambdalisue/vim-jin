@@ -397,7 +397,7 @@ describe("the title of a vim-jin buffer", function()
 
   it("shortens long IDs and quotes words with spaces", function()
     local op = ("0123456789abcdef"):rep(8)
-    assert.equal("jj show 0123456789ab", title("jin:///repo;view=show#" .. op))
+    assert.equal("jj op show 0123456789ab", title("jin:///repo;view=opshow#" .. op))
     assert.equal(
       [[jj file show -r @ 'my file.txt']],
       title([[jin:///repo;view=file#-r @ my\ file.txt]])

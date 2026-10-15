@@ -15,6 +15,9 @@ local M = {
   vertical = common.vertical,
 }
 
+-- The text property type of an uncolored part of an annotation.
+local ANNOTATION = "JinAnnotation"
+
 ---@param index integer
 ---@return string?
 local function terminal_color(index)
@@ -66,6 +69,22 @@ function M.render(bufnr, content)
       mark.col,
       vim.dict({ end_col = mark.end_col, type = mark.group, bufnr = bufnr })
     )
+  end
+  if content.annotations and vim.fn.empty(vim.fn.prop_type_get(ANNOTATION)) == 1 then
+    vim.fn.prop_type_add(ANNOTATION, vim.dict({}))
+  end
+  local padded = common.pad_annotations(content.annotations or {})
+  for lnum, chunks in ipairs(padded) do
+    -- Virtual texts at one column show in the order they were added.
+    for _, chunk in ipairs(chunks) do
+      if chunk.text ~= "" then
+        vim.fn.prop_add(
+          lnum,
+          1,
+          vim.dict({ type = chunk.group or ANNOTATION, text = chunk.text, bufnr = bufnr })
+        )
+      end
+    end
   end
   local filetype = content.filetype
     or (content.detect and common.detect_filetype(bufnr, content.detect, M.list))

@@ -131,6 +131,7 @@ end
 ---file.
 local GOES = {
   diff = "gd",
+  interdiff = "gd",
   parent = "gp",
   child = "gc",
 }

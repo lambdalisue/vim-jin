@@ -27,6 +27,8 @@ return {
         ":JinShow",
         ":JinDiff",
         ":JinFile",
+        ":JinOpLog",
+        ":JinEvolog",
         "jin-mappings",
         "jin-blocks",
         "<Plug>(jin-next-block)",

@@ -8,7 +8,7 @@ local actions = {}
 
 -- Each line belongs to the commit whose output it is part of, so the diff of
 -- that commit compares its parents with it. The commit ID names the version
--- shown, which may be an older one of the change.
+-- shown, which may be an older one of the change (as evolog opens).
 support.jump_actions(actions, function(ctx)
   local entry = action.entry(ctx)
   local rev = entry[2]

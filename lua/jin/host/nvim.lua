@@ -47,6 +47,17 @@ function M.render(bufnr, content)
       hl_group = mark.group,
     })
   end
+  local padded = common.pad_annotations(content.annotations or {})
+  for lnum, chunks in ipairs(padded) do
+    local virt_text = {}
+    for i, chunk in ipairs(chunks) do
+      virt_text[i] = { chunk.text, chunk.group }
+    end
+    vim.api.nvim_buf_set_extmark(bufnr, ns, lnum - 1, 0, {
+      virt_text = virt_text,
+      virt_text_pos = "inline",
+    })
+  end
   local filetype = content.filetype
     or (content.detect and common.detect_filetype(bufnr, content.detect, M.list))
     or "jin-file"

@@ -89,6 +89,19 @@ describe("the log view", function()
     assert.same({ "a\nb", "2" }, host.yanked)
   end)
 
+  it("leads from a change to its evolog", function()
+    local host, jin = setup()
+    local bufnr =
+      read(host, jin, LOG, m("kkk", "c1") .. "x\n" .. m("zzz", "c2", "divergent") .. "y\n", true)
+    action.run(jin, host, bufnr, "evolog", 1, 1)
+    action.run(jin, host, bufnr, "evolog:split", 2, 2)
+    assert.equal("jin:///repo;view=evolog#-r kkk", host.opened[1].name)
+    assert.same(
+      { name = "jin:///repo;view=evolog#-r c2", opener = "split" },
+      { name = host.opened[2].name, opener = host.opened[2].opener }
+    )
+  end)
+
   local TWO = "@  " .. m("aaa", "1") .. "x\n│  a\n○  " .. m("bbb", "2") .. "y\n│  b\n"
 
   it("highlights the lines of the change under the cursor once read", function()
@@ -134,6 +147,16 @@ describe("the log view", function()
 end)
 
 describe("the lines of the entry under the cursor", function()
+  it("are highlighted in the operation log and the evolog too", function()
+    for _, name in ipairs({ "jin:///repo;view=oplog#", "jin:///repo;view=evolog#" }) do
+      local host, jin = setup()
+      local bufnr = read(host, jin, name, m("a", "1") .. "x\n" .. m("b", "2") .. "y\n", true)
+      host.cursors[bufnr] = 2
+      view.cursor_moved(host, bufnr)
+      assert.same({ 2, 2 }, host.highlighted[bufnr], name)
+    end
+  end)
+
   it("are not highlighted in views of one change", function()
     local host, jin = setup()
     local bufnr = read(host, jin, "jin:///repo;view=show#@", m("a", "1") .. "x\ny\n", true)
@@ -158,6 +181,13 @@ describe("the diff view", function()
     read(host, jin, "jin:///repo;view=diff#", DIFF_OUTPUT)
     local argv = host.runs[1].argv
     assert.same({ "diff", "--color-words" }, { argv[5], argv[6] })
+  end)
+
+  it("says, in gray beside an empty line, that no file changed", function()
+    local host, jin = setup()
+    local bufnr = read(host, jin, "jin:///repo;view=diff#", "")
+    assert.same({ "" }, host.rendered[bufnr].lines)
+    assert.equal("No file changed.", host.rendered[bufnr].annotations[1][1].text)
   end)
 
   it("folds each file", function()
@@ -244,6 +274,49 @@ describe("the diff view", function()
   end)
 end)
 
+describe("the interdiff view", function()
+  local NAME = "jin:///repo;view=interdiff#--from c2 --to c3"
+
+  it("asks jj for its color-words format and folds each file", function()
+    local host, jin = setup()
+    local bufnr = read(host, jin, NAME, DIFF_OUTPUT)
+    local argv = host.runs[1].argv
+    assert.same({ "interdiff", "--color-words" }, { argv[5], argv[6] })
+    assert.same({ { 1, 4 }, { 5, 6 } }, host.rendered[bufnr].folds)
+  end)
+
+  it("says, in gray beside an empty line, that the versions do not differ", function()
+    local host, jin = setup()
+    local bufnr = read(host, jin, NAME, "")
+    assert.same({ "" }, host.rendered[bufnr].lines)
+    local chunk = host.rendered[bufnr].annotations[1][1]
+    assert.equal("These versions differ in neither files nor description.", chunk.text)
+    assert.same({ fg = 8 }, host.rendered[bufnr].groups[chunk.group])
+  end)
+
+  it("refuses the old side, which jj rebases and no revision holds", function()
+    local host, jin = setup()
+    local bufnr = read(host, jin, NAME, DIFF_OUTPUT)
+    for _, name in ipairs({ "jump", "jump:old" }) do
+      assert.has_error(function()
+        action.run(jin, host, bufnr, name, 3, 3)
+      end, "jin: the old side of an interdiff is in no revision; jump to the new side instead")
+    end
+    assert.same({}, host.opened)
+  end)
+
+  it("jumps from a line to the file as it is in the later version", function()
+    local host, jin = setup()
+    local bufnr = read(host, jin, NAME, DIFF_OUTPUT)
+    action.run(jin, host, bufnr, "jump", 4, 4)
+    assert.equal("jin:///repo;view=file#-r c3 keep.txt", host.opened[1].name)
+    local file = assert(host.buffer_bufnr(host.opened[1].name))
+    view.read(jin, host, file, host.opened[1].name)
+    host.finish(ok("a\nB\n"))
+    assert.equal(2, host.cursors[file])
+  end)
+end)
+
 describe("views shown at an earlier operation", function()
   it("open further views at that operation too", function()
     local host, jin = setup()
@@ -272,8 +345,8 @@ describe("the show view", function()
     host.results = { ok("x") }
     action.run(jin, host, bufnr, "jump", 3, 3)
     action.run(jin, host, bufnr, "jump", 4, 4)
-    -- The commit ID, so that an older version is not confused with the
-    -- change's latest one.
+    -- The commit ID, so that an older version (as evolog opens) is not
+    -- confused with the change's latest one.
     assert.equal("jin:///repo;view=file#-r c1 keep.txt", host.opened[1].name)
     assert.equal("jin:///repo;view=file#-r c1- keep.txt", host.opened[2].name)
   end)

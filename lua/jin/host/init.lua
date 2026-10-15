@@ -75,6 +75,7 @@
 ---@field title? string a short name for the buffer, kept in b:jin_title
 ---@field fresh? boolean the first content since the buffer was loaded, which its filetype has to be set up for anew
 ---@field folds? { [1]: integer, [2]: integer }[] line ranges to fold, left open
+---@field annotations? { text: string, group?: string }[][] per line, text shown before it as virtual text, not part of the line, padded so that the lines after it start in one column
 
 ---@class jin.RunResult
 ---@field code integer

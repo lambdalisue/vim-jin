@@ -19,7 +19,8 @@ Views read jj's own formats: the log through the user's configured
 templates, diffs in jj's color-words format. vim-jin adds markers to the
 templates to tell which change each line belongs to; they never show.
 
-In the log, where a change takes several lines, all the lines of the
+In the log, the evolog and the operation log, where a
+change, a version or an operation takes several lines, all the lines of the
 one under the cursor are highlighted, across the window, with
 `JinCursorEntry`, which links to `CursorLine` unless defined otherwise.
 Lines of the graph alone, such as `~` below the last change shown, are not
@@ -38,11 +39,19 @@ part of it.
 
 `:JinDiff [args]`
 : `jj diff` with `[args]`, in color-words format. Each file is folded
-  (opened).
+  (opened). When no file changed, a gray note beside the empty buffer says
+  so.
 
 `:JinFile [args]`
 : `jj file show` with `[args]`, highlighted with the filetype of the path
   shown.
+
+`:JinOpLog [args]`
+: `jj op log` with `[args]`, in the user's operation log template.
+
+`:JinEvolog [args]`
+: `jj evolog` with `[args]`: the versions a change went through, newest
+  first, in the user's evolog template.
 
 `:JinFile` needs the path of a file in `[args]` (`%` names the current
 one); without it it says so and opens nothing.
@@ -69,9 +78,9 @@ that it follows the change through rewrites, or by its commit ID when the
 change is divergent or the commit is hidden, as an older version of a change
 is, since the change ID would lead to its latest version instead.
 
-A view showing the repository at an earlier operation (`--at-op`) opens
-further views at that operation too, and never takes today's working copy
-for the files of that time.
+A view showing the repository at an earlier operation (`--at-op`, as the
+operation log's `log` opens) opens further views at that operation too, and
+never takes today's working copy for the files of that time.
 
 A line that names nothing an action needs, such as a header, or one shared
 by two changes when a template prints no newline, offers nothing to act on.
@@ -85,6 +94,9 @@ with `a` says why it cannot run.
 
 `diff`
 : Show the diff of the change of the line.
+
+`evolog`
+: Show the versions the change of the line went through.
 
 `yank:change`, `yank:commit`
 : Yank the change IDs or commit IDs of the lines, one per line, into the
@@ -102,11 +114,12 @@ with `a` says why it cannot run.
 : Open the file on the old or the new side, whichever line the line has.
   The old side of a renamed file is its old path. A merge has no single old
   side, its parents merged together, so jumping there says so and opens
-  nothing.
+  nothing. Nor has an interdiff: its old side is the earlier version as jj
+  rebases it to compare, which no revision holds.
 
 The show view also has `yank:change` and `yank:commit`. In a show view, the
 sides are the version of the change shown on the line, by its commit ID (so
-that an older version stays that version), and its
+that an older version, as the evolog opens, stays that version), and its
 parents; the working-copy commit's new side is the working copy itself. In a
 diff view they are those the arguments compare (`-r`/`--revisions`, or
 `--from` and `--to`, by default the working copy and its parent).
@@ -122,6 +135,42 @@ The show view also has:
 `log`
 : Show the log of the changes that touched the file, up to the revision
   shown.
+
+### Operation log
+
+`show`
+: Show what the operation changed (`jj op show`).
+
+`log`
+: Show the log as it was right after the operation (`jj log --at-op`).
+  Reading it again keeps showing that moment.
+
+`yank:operation`
+: Yank the operation IDs of the lines.
+
+### Operation show
+
+What `show` opens from the operation log. Each line listing a change the
+operation added or removed stands for that version of the change:
+
+`show`, `diff`
+: Show the version on the line, or its diff, by its commit ID, as a version
+  the operation rewrote away is reached no other way.
+
+`yank:change`, `yank:commit` as in the log.
+
+### Evolog
+
+`show`
+: Show the version of the change on the line, by its commit ID.
+
+`interdiff`
+: Show how the diff of the version on the line differs from that of the
+  version before it (`jj interdiff`), in a view that folds and jumps as
+  the diff view does, the later version being the new side. When neither
+  the files nor the description differ, a gray note says so.
+
+`yank:change`, `yank:commit` as in the log.
 
 ## Default key mappings
 
@@ -141,13 +190,14 @@ the keys of the actions it has.
 - `a` chooses an action by name, `.` repeats it and `?` lists the actions.
 - `<CR>` goes to what the line names, as it does in the quickfix window,
   serving what the view is opened for: showing the change of a log line,
-  opening the file of a diff line.
+  opening the file of a diff line, the interdiff of an evolog line.
 - `<S-CR>` and `<C-CR>` serve what the view is opened for next most often,
   such as the diff of a log line or the log of the file of a file view.
   Both are mapped, as a terminal may pass on only one of them.
 - `<C-w><CR>` opens what `<CR>` opens in a new window, split vertically
   when `'diffopt'` holds `vertical` and horizontally otherwise.
-- `gd` goes to the diff, `gp` and `gc` to the parent and the child.
+- `gd` goes to the diff (the interdiff in the evolog), `gp` and `gc` to the
+  parent and the child.
 - `yy` yanks what the line stands for, and `y` in visual mode what the lines
   selected stand for.
 - `YY` yanks the commit IDs of the changes, in a view that has them, and `Y`
@@ -157,9 +207,9 @@ the keys of the actions it has.
   sections: with a count, in visual and operator-pending mode too, and
   leaving where they came from in the jumplist. A count past the last
   block stops at it; with no block that way, the cursor stays. A block is
-  an entry in the log view; a file in the diff view; the header of each
-  change and each file in the show view. The other views have no blocks
-  and leave `]]` and `[[` to Vim.
+  an entry in the log, evolog and oplog views; a file in the diff and
+  interdiff views; the header of each change and each file in the show
+  view. The other views have no blocks and leave `]]` and `[[` to Vim.
   The keys are mapped to `<Plug>(jin-next-block)` and
   `<Plug>(jin-prev-block)`, which are there for keys of the user's own
   even when the default mappings are disabled.
@@ -174,4 +224,8 @@ every variant, such as `{name}:tab`, are reached through `a` or by mapping
 | log | show | diff | `gd` | yank:change | yank:commit |
 | show | jump | | `gp` `gc` | yank:change | yank:commit |
 | diff | jump | | | | |
+| interdiff | jump | | | | |
 | file | | log | | | |
+| oplog | show | log | | yank:operation | |
+| opshow | show | diff | `gd` | yank:change | yank:commit |
+| evolog | interdiff | show | `gd` | yank:change | yank:commit |

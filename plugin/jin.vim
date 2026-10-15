@@ -27,7 +27,7 @@ function! s:complete_view(arglead, cmdline, cursorpos) abort
         \ [a:arglead, a:cmdline, a:cursorpos])
 endfunction
 
-for s:name in ['JinLog', 'JinShow', 'JinDiff', 'JinFile']
+for s:name in ['JinLog', 'JinShow', 'JinDiff', 'JinFile', 'JinOpLog', 'JinEvolog']
   execute printf(
         \ 'command! -bang -nargs=* -complete=customlist,%s %s'
         \ . ' call luaeval(''require("jin.host.entry").view(_A[1], _A[2], _A[3], _A[4])'','

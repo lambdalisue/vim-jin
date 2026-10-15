@@ -47,8 +47,12 @@ it is in the working copy or, for any other revision, through `:JinFile`.
 :JinFile -r @- %
 ```
 
-Views keep up with jj run elsewhere, too: entering one, or coming back to
-the editor, reads it again when the repository moved on.
+To follow what was done to the repository, by you or by an agent,
+`:JinOpLog` lists every operation (and opens the log as it stood after
+one), and `:JinEvolog` the versions a change went through (and the
+interdiff between them). Views keep up with jj run elsewhere, too: entering
+one, or coming back to the editor, reads it again when the repository moved
+on.
 
 The keys of every view follow the same few rules, and none of them changes what
 the key means in Vim: a key keeps its meaning, as `yy` still yanks and `]]`

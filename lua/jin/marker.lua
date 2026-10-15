@@ -1,5 +1,5 @@
 -- Marks where each entry of jj's templated output starts, so that every line
--- can be mapped back to the change it shows.
+-- can be mapped back to the change (or operation, ...) it shows.
 
 local M = {}
 
@@ -22,6 +22,31 @@ function M.wrap(fields, template)
     .. ' ++ "\\x1f" ++ ('
     .. template
     .. ")"
+end
+
+-- The characters a TOML basic string spells with an escape of their own.
+local TOML_ESCAPES = {
+  ["\b"] = "\\b",
+  ["\t"] = "\\t",
+  ["\n"] = "\\n",
+  ["\f"] = "\\f",
+  ["\r"] = "\\r",
+  ['"'] = '\\"',
+  ["\\"] = "\\\\",
+}
+
+---The --config setting of templates.`key` to `template` wrapped as `wrap`
+---wraps it, for a command that prints the template within its own output.
+---jj reads the value as TOML, so the template goes in as a TOML string.
+---@param key string
+---@param fields string[]
+---@param template string
+---@return string
+function M.setting(key, fields, template)
+  local wrapped = M.wrap(fields, template):gsub('[%c\\"]', function(c)
+    return TOML_ESCAPES[c] or ("\\u%04x"):format(c:byte())
+  end)
+  return ('templates.%s="%s"'):format(key, wrapped)
 end
 
 ---The UTF-8 encoding of the code point `cp`.

@@ -22,6 +22,30 @@ function M.logged(key, default)
   return { key = key, default = default, fields = M.CHANGE_FIELDS }
 end
 
+---The template jj prints a commit with inside the output of other commands,
+---such as jj op show, marked with CHANGE_FIELDS and handed to jj as its
+---setting.
+M.SUMMARY_TEMPLATE = {
+  key = "commit_summary",
+  default = "format_commit_summary_with_refs(self, format_commit_ref_names(bookmarks))",
+  fields = M.CHANGE_FIELDS,
+  config = true,
+}
+
+---The entries of the lines a commit summary starts on, by line. The lines
+---after one belong to no summary, though the markers carry its entry on.
+---@param meta jin.ViewMeta
+---@return table<integer, string[]>
+function M.summaries(meta)
+  local found = {}
+  for lnum, entry in pairs(meta.entries) do
+    if entry and entry ~= meta.entries[lnum - 1] then
+      found[lnum] = entry
+    end
+  end
+  return found
+end
+
 ---The revision an entry made of CHANGE_FIELDS stands for. The change ID
 ---follows the change through rewrites, so a view opened with it stays
 ---current; a divergent change ID names several commits, and that of a
@@ -191,6 +215,23 @@ function M.decorate_diff(meta)
   meta.data.folds = folds
 end
 
+---A decorate for a view of a diff alone, as `decorate_diff` does, that says
+---`note` in gray beside an empty line when jj printed nothing, so that an
+---empty buffer is not taken for one still being read or gone wrong.
+---@param note string
+---@return fun(meta: jin.ViewMeta)
+function M.decorate_diff_or(note)
+  return function(meta)
+    for _, line in ipairs(meta.lines) do
+      if line ~= "" then
+        return M.decorate_diff(meta)
+      end
+    end
+    meta.lines = { "" }
+    meta.data.annotations = { { { text = note, style = { fg = 8 } } } }
+  end
+end
+
 ---The status of the file whose section holds line `lnum` of a parsed diff.
 ---@param parsed { files: jin.DiffFile[] }
 ---@param lnum integer
@@ -211,7 +252,7 @@ end
 ---@param ctx jin.ActionContext
 ---@param opener string
 ---@param side? "old"|"new"
----@param sides { old: string, new: string }
+---@param sides { old?: string, new: string, missing?: string } a side that is in no revision is nil, and jumping there fails with `missing`
 function M.jump(ctx, opener, side, sides)
   local parsed = ctx.meta.data.diff
   local info = parsed and parsed.lines[ctx.first]
@@ -226,6 +267,9 @@ function M.jump(ctx, opener, side, sides)
   local lnum = info[side] or 1
   local path = side == "old" and info.from or info.path
   local rev = sides[side]
+  if not rev then
+    error(sides.missing or "jin: this side is in no revision", 0)
+  end
   if side == "old" and rev ~= "@" then
     -- The old side of a merge is the parents merged together, which no
     -- revision holds; jj file show would only say the revset is ambiguous.
@@ -250,7 +294,7 @@ end
 ---Add jump, jump:old and jump:new (each with its opener variants) to
 ---`actions`, taking the sides of each line from `sides_of`.
 ---@param actions table<string, jin.Action>
----@param sides_of fun(ctx: jin.ActionContext): { old: string, new: string }
+---@param sides_of fun(ctx: jin.ActionContext): { old?: string, new: string, missing?: string }
 function M.jump_actions(actions, sides_of)
   action.openers(actions, "jump", "open the file at this line", function(ctx, opener)
     M.jump(ctx, opener, nil, sides_of(ctx))

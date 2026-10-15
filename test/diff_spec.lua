@@ -21,6 +21,24 @@ local SAMPLE = {
 describe("jin.diff.parse", function()
   local parsed = diff.parse(SAMPLE)
 
+  it("ends a file at a section that is no file, such as the description", function()
+    local lines = {
+      "Modified regular file f.txt:",
+      "   1    1: old new",
+      "Modified JJ-COMMIT-DESCRIPTION:",
+      "   1    1: before after",
+    }
+    local described = diff.parse(lines)
+    assert.equal(2, described.files[1].last)
+    assert.is_nil(described.lines[3])
+    assert.is_nil(described.lines[4])
+  end)
+
+  it("keeps a line numbered 1000 or more that ends with a colon in its file", function()
+    local numbered = diff.parse({ "Modified regular file f.yml:", "1000 1000: key:" })
+    assert.same({ path = "f.yml", old = 1000, new = 1000 }, numbered.lines[2])
+  end)
+
   it("finds each file section with its status and path", function()
     local sections = {}
     for _, s in ipairs(parsed.files) do

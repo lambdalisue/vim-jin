@@ -19,14 +19,18 @@ local VIEWS = {
   log = true,
   show = true,
   diff = true,
+  interdiff = true,
   file = true,
+  oplog = true,
+  opshow = true,
+  evolog = true,
 }
 
 ---How a view reads jj and makes sense of what it prints.
 ---@class jin.View
 ---@field command string[] jj words that precede the user's arguments, such as { "log" }
 ---@field filetype string
----@field template? { key: string, default: string, fields: string[] } wrap the configured templates.<key> (or the user's -T) with markers carrying `fields`
+---@field template? { key: string, default: string, fields: string[], config?: boolean } wrap the configured templates.<key> (or the user's -T) with markers carrying `fields`; with `config`, hand it to jj as that setting rather than as -T, for a command that prints it within its own output
 ---@field config? string[] extra `--config` values, such as "ui.log-word-wrap=false"
 ---@field flags? string[] flags placed after `command`, such as "--color-words"
 ---@field decorate? fun(meta: jin.ViewMeta) compute view-specific data from the lines read
@@ -47,7 +51,7 @@ local VIEWS = {
 ---@field lines string[] the text shown
 ---@field spans jin.AnsiSpan[] the colors jj gave `lines`; a `decorate` that replaces the lines replaces them too
 ---@field entries (string[]|false)[] per line, the marker fields of the entry it belongs to
----@field data table view-specific data set by `decorate`; its `folds` are shown as jin.Content says
+---@field data table view-specific data set by `decorate`; its `folds` and `annotations` (per line, { text, style? } chunks shown before it) are shown as jin.Content says
 
 ---@class jin.ViewOptions
 ---@field cwd? string a directory in the workspace to show; by default the current buffer's or directory's
@@ -227,12 +231,26 @@ local function command_line(view, user_argv, template)
   for _, flag in ipairs(view.flags or {}) do
     argv[#argv + 1] = flag
   end
-  if template then
+  local setting
+  if template and view.template.config then
+    setting = marker.setting(view.template.key, view.template.fields, template)
+  elseif template then
     argv[#argv + 1] = "-T"
     argv[#argv + 1] = marker.wrap(view.template.fields, template)
   end
   for _, a in ipairs(user_argv) do
+    -- After the user's own settings, as the last --config of a key wins, but
+    -- before `--`, after which jj takes every word for a path.
+    if setting and a == "--" then
+      argv[#argv + 1] = "--config"
+      argv[#argv + 1] = setting
+      setting = nil
+    end
     argv[#argv + 1] = a
+  end
+  if setting then
+    argv[#argv + 1] = "--config"
+    argv[#argv + 1] = setting
   end
   return argv
 end
@@ -320,6 +338,17 @@ function M.read(jin, host, bufnr, name)
         highlights[#highlights + 1] =
           { line = span.line, col = span.col, end_col = span.end_col, group = group_of(span.style) }
       end
+      local annotations
+      if meta.data.annotations then
+        annotations = {}
+        for lnum, chunks in ipairs(meta.data.annotations) do
+          local out = {}
+          for i, chunk in ipairs(chunks) do
+            out[i] = { text = chunk.text, group = chunk.style and group_of(chunk.style) or nil }
+          end
+          annotations[lnum] = out
+        end
+      end
       local previous = s.meta
       s.meta = meta
       local filetype = parsed.params.filetype
@@ -332,6 +361,7 @@ function M.read(jin, host, bufnr, name)
         filetype = type(filetype) == "string" and filetype or (not detect and view.filetype or nil),
         detect = detect or nil,
         folds = meta.data.folds,
+        annotations = annotations,
         fresh = not previous,
       })
       -- The mappings stay while the buffer is loaded; an unload forgets the
@@ -355,7 +385,11 @@ function M.read(jin, host, bufnr, name)
     fill(parsed.argv)
     return
   end
-  local user_argv, template = take_template(parsed.argv)
+  -- A -T is the command's own when the template goes in as a setting.
+  local user_argv, template = parsed.argv, nil
+  if not view.template.config then
+    user_argv, template = take_template(parsed.argv)
+  end
   if template then
     fill(user_argv, template)
     return

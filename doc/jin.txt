@@ -89,6 +89,12 @@ the installed jj offers.
 	`jj file show`, highlighted with the filetype of the file. It needs
 	the path of a file, such as `%`.
 
+:JinOpLog [args]					*:JinOpLog*
+	`jj op log`: every operation on the repository, an agent's included.
+
+:JinEvolog [args]					*:JinEvolog*
+	`jj evolog`: the versions a change went through, newest first.
+
 The view commands take the `++` options and [!] of |:JinBuffer|.
 
 =============================================================================
@@ -104,8 +110,9 @@ such as `--at-op @-`, moves on with it. Reading a view snapshots the
 working copy, as jj does, so files changed without jj show, unless every
 view of the workspace is given `--ignore-working-copy` or `--at-op`.
 
-In the log, all the lines of the change under the cursor are highlighted
-with |hl-JinCursorEntry|.
+In the log, the evolog and the operation log, all the
+lines of the change, version or operation under the cursor are
+highlighted with |hl-JinCursorEntry|.
 
 A buffer that was left and read again on coming back to it, as with
 |CTRL-O|, puts the cursor back where it was.
@@ -133,10 +140,11 @@ action chosen by name says why it cannot run.
 Log ~
 	show		Show the change of the line.
 	diff		Show its diff.
+	evolog		Show the versions it went through.
 	yank:change	Yank the change IDs of the lines.
 	yank:commit	Yank their commit IDs.
 
-Show and diff ~
+Show, diff and interdiff ~
 	jump		Open the file of the line at that line: the working
 			copy file itself, or |:JinFile| of another revision.
 	jump:old	Open it on the old side.
@@ -148,6 +156,25 @@ Show and diff ~
 
 File ~
 	log		Show the log of the changes that touched the file.
+
+Operation log ~
+	show		Show what the operation changed, the changes it
+			touched leading on to show and diff.
+	log		Show the log as it was right after the operation.
+	yank:operation	Yank the operation IDs of the lines.
+
+Operation show ~
+	show, diff	Show the version on the line, or its diff, by its
+			commit ID, even one the operation rewrote away.
+	yank:change	Yank the change IDs of the lines.
+	yank:commit	Yank their commit IDs.
+
+Evolog ~
+	interdiff	Show how the version's diff differs from that of the
+			version before it.
+	show		Show the version.
+	yank:change	Yank the change IDs of the lines.
+	yank:commit	Yank their commit IDs.
 
 -----------------------------------------------------------------------------
 KEY MAPPINGS						*jin-mappings*
@@ -165,13 +192,13 @@ exceptions. A view maps only the keys of the actions it has.
 	.		repeat
 	?		help
 	<CR>		What the view is opened for: show in the log, jump in
-			a diff, and so on.
+			a diff, interdiff in the evolog, and so on.
 	<S-CR> <C-CR>	What it is opened for next most often, such as diff
 			in the log or log in a file view. Both are mapped,
 			as a terminal may pass on only one of them.
 	<C-w><CR>	What <CR> opens, in a new window, split vertically
 			when 'diffopt' holds "vertical".
-	gd		The diff.
+	gd		The diff; the interdiff in the evolog.
 	gp gc		The parent, the child.
 	yy		Yank what the line stands for; `y` in visual mode.
 	YY		Yank commit IDs; `Y` in visual mode.
@@ -193,8 +220,8 @@ operator-pending mode too (`V]]`, `y]]`), leaving where they came from in
 the |jumplist|. A count past the last block stops at it; with no block that
 way, the cursor stays. A block is:
 
-- in |:JinLog|, an entry, all its lines;
-- in |:JinDiff|, a file;
+- in |:JinLog|, |:JinEvolog| and |:JinOpLog|, an entry, all its lines;
+- in |:JinDiff| and the interdiff, a file;
 - in |:JinShow|, the header of each change, and each file.
 
 The other views have no blocks and leave `]]` and `[[` to Vim. The keys
@@ -208,11 +235,12 @@ A key the buffer already maps itself, as your own |ftplugin| may for the
 filetype of a view, is left as it is. Map any `<Plug>(jin-action-{name})`
 to keys of your own:
 >vim
-	autocmd FileType jin-log nmap <buffer> <Leader>e <Plug>(jin-action-diff)
+	autocmd FileType jin-log nmap <buffer> <Leader>e <Plug>(jin-action-evolog)
 <
 				*g:jin_{view}_disable_default_mappings*
 To map no key at all in a view, set this to 1, `{view}` being `log`,
-`show`, `diff`, `file` or `buffer` (|:JinBuffer|):
+`show`, `diff`, `interdiff`, `file`, `oplog`, `opshow`, `evolog` or
+`buffer` (|:JinBuffer|):
 >vim
 	let g:jin_log_disable_default_mappings = 1
 <
@@ -221,8 +249,8 @@ To map no key at all in a view, set this to 1, `{view}` being `log`,
 HIGHLIGHT AND VARIABLES					*jin-highlight*
 
 							*hl-JinCursorEntry*
-JinCursorEntry		The lines of the change under the cursor. Links to
-			|hl-CursorLine| by default.
+JinCursorEntry		The lines of the change, version or operation under
+			the cursor. Links to |hl-CursorLine| by default.
 
 							*b:jin_title*
 b:jin_title		A short title of a vim-jin buffer, such as

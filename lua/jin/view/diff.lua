@@ -14,7 +14,7 @@ return {
   command = { "diff" },
   flags = { "--color-words" },
   filetype = "jin-diff",
-  decorate = support.decorate_diff,
+  decorate = support.decorate_diff_or("No file changed."),
   blocks = require("jin.view.block").files,
   actions = actions,
   primary = "jump",

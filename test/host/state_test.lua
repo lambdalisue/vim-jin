@@ -26,6 +26,16 @@ local function settle()
   return view.meta(host, bufnr)
 end
 
+---The first line whose entry starts with `name`.
+local function entry_line(meta, name)
+  for lnum, entry in ipairs(meta.entries) do
+    if entry and entry[1] == name then
+      return lnum
+    end
+  end
+  error("no line stands for " .. name .. " in:\n" .. table.concat(h.lines(), "\n"))
+end
+
 ---How many operations and operation heads the repository at `dir` holds,
 ---read from its files: asking jj would merge diverged heads, which adds an
 ---operation.
@@ -74,7 +84,7 @@ end
 
 return {
   {
-    "the actions leading to relatives and logs add no operation",
+    "the actions leading to evologs, relatives and logs add no operation",
     function()
       local dir = workspace()
       local merge = conflict()
@@ -91,6 +101,10 @@ return {
       local function first()
         return 1
       end
+      local function of_merge(meta)
+        return entry_line(meta, merge)
+      end
+      each("JinLog -r " .. merge, of_merge, { "evolog" })
       each("JinShow " .. merge, first, { "parent", "child" })
       each("JinFile -r " .. merge .. " f", first, { "log" })
       h.eq(before, operations(dir))

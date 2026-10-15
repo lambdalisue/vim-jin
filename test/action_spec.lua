@@ -213,7 +213,11 @@ describe("jin.action.keys", function()
     "log",
     "show",
     "diff",
+    "interdiff",
     "file",
+    "oplog",
+    "opshow",
+    "evolog",
   }
 
   ---The action `lhs` is mapped to in `mode` ("n" unless given), or nil.
@@ -242,6 +246,10 @@ describe("jin.action.keys", function()
       log = "show",
       show = "jump",
       diff = "jump",
+      interdiff = "jump",
+      oplog = "show",
+      opshow = "show",
+      evolog = "interdiff",
     }
     for _, name in ipairs(VIEWS) do
       assert.equal(primary[name], lookup(action.keys(view.get(name), false), "<CR>"), name)
@@ -252,6 +260,9 @@ describe("jin.action.keys", function()
     local secondary = {
       log = "diff",
       file = "log",
+      oplog = "log",
+      opshow = "diff",
+      evolog = "show",
     }
     for _, name in ipairs(VIEWS) do
       local keys = action.keys(view.get(name), false)
@@ -267,6 +278,7 @@ describe("jin.action.keys", function()
     assert.equal("diff", lookup(action.keys(view.get("log"), false), "gd"))
     local show = action.keys(view.get("show"), false)
     assert.same({ "parent", "child" }, { lookup(show, "gp"), lookup(show, "gc") })
+    assert.equal("interdiff", lookup(action.keys(view.get("evolog"), false), "gd"))
   end)
 
   it(
@@ -285,6 +297,7 @@ describe("jin.action.keys", function()
         local unmapped = {
           show = true,
           log = true,
+          evolog = true,
         }
         if unmapped[key[2]] and key[1] ~= "<CR>" and key[1] ~= "<S-CR>" and key[1] ~= "<C-CR>" then
           wrong[#wrong + 1] = name .. ": " .. key[1] .. " " .. key[2]
@@ -298,13 +311,16 @@ describe("jin.action.keys", function()
   end)
 
   it("yanks with yy, and the lines selected with y in visual mode", function()
-    local keys = action.keys(view.get("log"), false)
-    assert.same({ "yank:change", "yank:change" }, { lookup(keys, "yy"), lookup(keys, "y", "x") })
+    local keys = action.keys(view.get("oplog"), false)
+    assert.same(
+      { "yank:operation", "yank:operation" },
+      { lookup(keys, "yy"), lookup(keys, "y", "x") }
+    )
     assert.is_nil(lookup(action.keys(view.get("diff"), false), "yy"))
   end)
 
   it("yanks commit IDs with YY, and those of the lines selected with Y in visual mode", function()
-    for _, name in ipairs({ "log", "show" }) do
+    for _, name in ipairs({ "log", "show", "evolog" }) do
       local keys = action.keys(view.get(name), false)
       assert.same(
         { "yank:commit", "yank:commit" },
@@ -312,7 +328,8 @@ describe("jin.action.keys", function()
         name
       )
     end
-    assert.is_nil(lookup(action.keys(view.get("diff"), false), "YY"))
+    assert.is_nil(lookup(action.keys(view.get("oplog"), false), "YY"))
+    assert.equal("yank:change", lookup(action.keys(view.get("evolog"), false), "yy"))
   end)
 
   -- What each default key means in Vim, which the view must leave as it is.
@@ -402,6 +419,9 @@ describe("jin.action.keys", function()
       "log",
       "show",
       "diff",
+      "interdiff",
+      "oplog",
+      "evolog",
     }, with)
   end)
 end)

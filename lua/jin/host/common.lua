@@ -258,6 +258,32 @@ function M.finish(bufnr, filetype, title, fresh)
   end
 end
 
+---`annotations` with a chunk of spaces ending each line's, so that every
+---one is as wide as the widest and one space parts it from the line.
+---@param annotations { text: string, group?: string }[][]
+---@return { text: string, group?: string }[][]
+function M.pad_annotations(annotations)
+  local widths, widest = {}, 0
+  for lnum, chunks in ipairs(annotations) do
+    local texts = {}
+    for i, chunk in ipairs(chunks) do
+      texts[i] = chunk.text
+    end
+    widths[lnum] = vim.fn.strdisplaywidth(table.concat(texts))
+    widest = math.max(widest, widths[lnum])
+  end
+  local padded = {}
+  for lnum, chunks in ipairs(annotations) do
+    local out = {}
+    for i, chunk in ipairs(chunks) do
+      out[i] = chunk
+    end
+    out[#out + 1] = { text = (" "):rep(widest - widths[lnum] + 1) }
+    padded[lnum] = out
+  end
+  return padded
+end
+
 ---The first window showing `bufnr`, if any.
 ---@param bufnr integer
 ---@param list fun(value: any): any[]
