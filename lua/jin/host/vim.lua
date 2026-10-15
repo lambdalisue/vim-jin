@@ -48,6 +48,9 @@ function M.run(argv, opts, on_exit)
     end
     job_opts.cwd = opts.cwd
   end
+  if opts.env then
+    job_opts.env = vim.dict(opts.env)
+  end
   -- The returned job cannot cross into Lua (it arrives as nil), so a command
   -- that fails to start is reported through exit_cb like any other failure.
   vim.fn.job_start(vim.list(argv), vim.dict(job_opts))

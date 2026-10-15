@@ -1,0 +1,5 @@
+describe("jin", function()
+  it("loads on plain Lua, without an editor", function()
+    assert.is_table(require("jin"))
+  end)
+end)

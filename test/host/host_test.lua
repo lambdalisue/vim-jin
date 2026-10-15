@@ -50,6 +50,16 @@ return {
     end,
   },
   {
+    "run adds env to the environment the process inherits",
+    function()
+      vim.fn.setenv("JIN_INHERITED", "kept")
+      local r = run({ "sh", "-c", 'printf \'%s %s\' "$JIN_ADDED" "$JIN_INHERITED"' }, {
+        env = { JIN_ADDED = "added" },
+      })
+      h.eq("added kept", r.stdout)
+    end,
+  },
+  {
     "run gives a process no stdin, so that reading it ends at once",
     function()
       h.eq({ code = 0, stdout = "", stderr = "" }, run({ "cat" }))

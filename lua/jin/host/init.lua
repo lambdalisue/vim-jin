@@ -3,7 +3,8 @@
 ---@class jin.Host
 ---@field name "nvim"|"vim"
 ---Run `argv` without a shell or stdin; `on_exit` receives its whole output.
----@field run fun(argv: string[], opts: { cwd?: string }, on_exit: fun(result: jin.RunResult))
+---`env` adds to the editor's environment.
+---@field run fun(argv: string[], opts: { cwd?: string, env?: table<string, string> }, on_exit: fun(result: jin.RunResult))
 ---Process events until `cond` holds or `timeout` ms pass; false on timeout.
 ---@field wait fun(timeout: integer, cond: fun(): boolean): boolean
 ---Show `text`, which may span lines, and record it in the message history.

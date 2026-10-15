@@ -1,0 +1,56 @@
+*jin.txt*	Work with Jujutsu (jj) repositories from Neovim and Vim
+
+=============================================================================
+CONTENTS						*jin-contents*
+
+INTRODUCTION			|jin-introduction|
+REQUIREMENTS			|jin-requirements|
+EVENTS				|jin-events|
+LUA API				|jin-lua|
+
+=============================================================================
+INTRODUCTION						*jin-introduction*
+
+vim-jin runs jj and shows what jj prints. It is meant for
+watching and following a repository while you, or an agent, work on it.
+
+=============================================================================
+REQUIREMENTS						*jin-requirements*
+
+- jj on $PATH.
+- Neovim 0.10 or later, or Vim 9.0.0067 or later built with |+lua|.
+
+=============================================================================
+EVENTS							*jin-events*
+
+						*User_JinCommandPost*
+JinCommandPost		After |jin.command()| has run jj, successfully or
+			not.
+
+=============================================================================
+LUA API							*jin-lua*
+
+`require("jin")` works in Neovim and in Vim built with |+lua|. Each function
+runs jj in the workspace of `opts.cwd` when given, or else in the workspace
+of the current buffer, falling back to the workspace of the current
+directory, or, outside any workspace, in the current directory itself.
+
+						*jin.jj()*
+jin.jj({argv} [, {opts} [, {on_exit}]])
+	Run jj and return `{ code, stdout, stderr }`, echoing nothing and
+	firing no event. With {on_exit}, return at once and call it with
+	the result. `opts.color` asks for ANSI colors, `opts.env` adds
+	environment variables.
+
+						*jin.command()*
+jin.command({argv} [, {opts} [, {on_exit}]])
+	Run jj and echo what it printed, in |hl-ErrorMsg| when it fails.
+	jj runs in the background, and |User_JinCommandPost| fires once it
+	has finished. With `opts.wait`, return only after jj has finished.
+
+						*jin.root()*
+jin.root([{path}])
+	The root of the workspace holding {path}, or of the current buffer
+	or directory; nil outside any workspace.
+
+ vim:tw=78:ts=8:noet:ft=help:norl:

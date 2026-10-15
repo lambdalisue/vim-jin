@@ -12,7 +12,25 @@ to run on Vim built with `+lua` as well.
 ## Install
 
 Install it with any plugin manager. It needs jj on `PATH`, and either Neovim
-0.10 or later, or Vim 9.0.0067 or later built with `+lua`.
+0.10 or later, or Vim 9.0.0067 or later built with `+lua`. `:help jin`
+covers everything below.
+
+## Usage
+
+vim-jin is driven from Lua, for your own mappings and plugins:
+
+```lua
+local jin = require("jin")
+
+-- Run, echo, then fire User JinCommandPost.
+jin.command({ "describe", "-m", "feat: add parser" })
+
+-- Read jj's output without side effects.
+local result = jin.jj({ "log", "--no-graph", "-r", "@", "-T", "change_id" })
+print(result.stdout)
+```
+
+See [docs/spec/lua-api.md](docs/spec/lua-api.md).
 
 ## Development
 

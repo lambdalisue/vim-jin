@@ -45,10 +45,12 @@ a checkout with untracked new files, enter the shell with
 | Path | What lives there |
 | --- | --- |
 | `lua/jin/` | the core, editor-independent Lua |
+| `lua/jin/init.lua` | the public Lua API; binds the core to the running editor's host |
 | `lua/jin/host/` | the host layer: one implementation per editor |
 | `test/` | busted tests for the core, run on LuaJIT and PUC Lua |
 | `test/host/` | host tests, run inside Neovim and Vim by `test/host/run.lua` |
 | `docs/` | concept, ADRs, specs, references |
+| `doc/` | the Vim help: what the specs promise, retold for users; change it with them |
 
 ## Language
 
@@ -78,7 +80,7 @@ Scoped Commits:
 | --- | --- |
 | `core` | `lua/jin/` and its tests in `test/`, except the host layer |
 | `host` | `lua/jin/host/` and `test/host/` |
-| `docs` | `docs/concept.md`, `README.md`, `AGENTS.md` |
+| `docs` | `docs/concept.md`, `doc/`, `README.md`, `AGENTS.md` |
 | `adr` | `docs/adr/` |
 | `spec` | `docs/spec/` |
 | `tooling` | `justfile`, formatter, linter, type checker and test runner configs |

@@ -10,7 +10,8 @@ local M = {
 }
 
 function M.run(argv, opts, on_exit)
-  local ok, err = pcall(vim.system, argv, { cwd = opts.cwd, text = true }, function(obj)
+  local system_opts = { cwd = opts.cwd, env = opts.env, text = true }
+  local ok, err = pcall(vim.system, argv, system_opts, function(obj)
     vim.schedule(function()
       on_exit({ code = obj.code, stdout = obj.stdout or "", stderr = obj.stderr or "" })
     end)
