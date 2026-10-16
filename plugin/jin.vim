@@ -61,6 +61,8 @@ endfunction
 
 augroup jin_plugin
   autocmd!
+  autocmd BufEnter,FocusGained * call jin#component#touch()
+  autocmd User JinCommandPost call jin#component#touch(1)
   " Not left to the reading, which ends only when jj answers: BufEnter comes
   " first, and plugins that work on files, such as language clients, attach
   " to a buffer they see with no 'buftype' there.

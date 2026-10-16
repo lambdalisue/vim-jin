@@ -10,6 +10,7 @@ VIEWS				|jin-views|
   ACTIONS			|jin-actions|
   KEY MAPPINGS			|jin-mappings|
 HIGHLIGHT AND VARIABLES		|jin-highlight|
+COMPONENTS			|jin-components|
 EVENTS				|jin-events|
 LUA API				|jin-lua|
 
@@ -350,11 +351,41 @@ b:jin_title		A short title of a vim-jin buffer, such as
 	set statusline=%{get(b:,'jin_title',expand('%'))}
 <
 =============================================================================
+COMPONENTS						*jin-components*
+
+						*jin#component#get()*
+jin#component#get({name})
+	A short string about the workspace of the current buffer, for
+	'statusline', 'tabline' or 'winbar':
+
+	change		The shortest unique prefix of the working-copy
+			change ID.
+	description	The first line of its description.
+	state		"empty", "conflict" and "divergent", as they apply.
+	bookmarks	The nearest bookmarks at or below the working copy.
+	traffic		Those tracked on a remote and not in step with it, as
+			"name@remote" with "↑n" ahead and "↓n" behind.
+	workspace	The workspaces whose working copy is this change, when
+			there are several.
+
+	It never runs jj and never fails: it returns what the last refresh
+	found, or "" before it, outside any workspace, or for an unknown
+	name. Refreshes run in the background without snapshotting the
+	working copy or adding an operation, so watching never changes what
+	an agent sees.
+>vim
+	set statusline+=%{jin#component#get('change')}
+	autocmd User JinComponentPost redrawstatus
+<
+=============================================================================
 EVENTS							*jin-events*
 
 						*User_JinCommandPost*
 JinCommandPost		After |:Jin| or |jin.command()| has run jj,
 			successfully or not.
+
+						*User_JinComponentPost*
+JinComponentPost	After a refresh changed any component.
 
 =============================================================================
 LUA API							*jin-lua*
@@ -383,6 +414,10 @@ jin.view({name}, {argv} [, {opts}])
 	Do what the view command of {name} does, `"log"` for |:JinLog| and
 	so on, and return the buffer number. `opts` is as for
 	|jin.buffer()|, plus `line`, the line to put the cursor on.
+
+						*jin.component()*
+jin.component({name})
+	The same as |jin#component#get()|.
 
 						*jin.root()*
 jin.root([{path}])

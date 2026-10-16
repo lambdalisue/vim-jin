@@ -44,6 +44,7 @@ return {
         "hl-JinCursorEntry",
         "hl-JinCursorChange",
         "b:jin_title",
+        "jin#component#get()",
         "jin.jj()",
       }) do
         h.truthy(found[tag], "no tag " .. tag)

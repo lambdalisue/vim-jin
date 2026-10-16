@@ -68,6 +68,21 @@ function M.cd(scope)
   report(require("jin.command.cd").run, jin, host, scope)
 end
 
+---A statusline component. It never fails: any error gives "".
+---@param name string
+---@return string
+function M.component(name)
+  local ok, value = pcall(require("jin.component").get, jin, host, name)
+  return ok and value or ""
+end
+
+---Refresh the components of the current workspace; with `force`, even when
+---they were just refreshed.
+---@param force integer
+function M.touch_components(force)
+  pcall(require("jin.component").touch, jin, host, force == 1)
+end
+
 ---Free what is kept for a jin:// buffer being unloaded (BufUnload).
 ---@param bufnr integer
 function M.forget_buffer(bufnr)

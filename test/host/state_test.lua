@@ -57,6 +57,15 @@ local function operations(dir)
   return { operations = count("op_store/operations"), heads = count("op_heads/heads") }
 end
 
+---The component `name` once it reads `expected`.
+local function component_becomes(name, expected)
+  h.eventually(function()
+    return vim.fn.eval("jin#component#get('" .. name .. "')") == expected
+  end, function()
+    return name .. ": " .. vim.fn.eval("jin#component#get('" .. name .. "')")
+  end)
+end
+
 ---Write `text` to the file at `path`.
 local function write(path, text)
   local f = assert(io.open(path, "w"))
@@ -149,6 +158,128 @@ local function tab_cwd()
 end
 
 return {
+  {
+    "components show the working copy without adding an operation",
+    function()
+      local dir = workspace()
+      local before = operations(dir)
+      component_becomes("description", "work in progress")
+      h.eq("topic", vim.fn.eval("jin#component#get('bookmarks')"))
+      h.truthy(vim.fn.eval("jin#component#get('change')"):match("^[k-z]+$"), "no change ID")
+      h.eq(before, operations(dir))
+    end,
+  },
+  {
+    "components read the newest operation when operations diverged, without merging them",
+    function()
+      local dir = workspace()
+      component_becomes("description", "work in progress")
+      local op = jin.jj({ "op", "log", "-n1", "--no-graph", "-T", "id.short()" }).stdout
+      h.eq(0, jin.jj({ "describe", "-m", "two" }).code)
+      local three = { "--at-op", op, "--ignore-working-copy", "describe", "-m", "three" }
+      h.eq(0, jin.jj(three).code)
+      local before = operations(dir)
+      h.eq(2, before.heads)
+      h.ex("call jin#component#touch(1)")
+      component_becomes("description", "three")
+      h.eq(before, operations(dir))
+    end,
+  },
+  {
+    "components show the state of the working-copy change",
+    function()
+      workspace()
+      component_becomes("state", "empty")
+      conflict()
+      h.ex("call jin#component#touch(1)")
+      component_becomes("state", "empty conflict")
+    end,
+  },
+  {
+    "components show a divergent working-copy change",
+    function()
+      workspace()
+      component_becomes("description", "work in progress")
+      local op = jin.jj({ "op", "log", "-n1", "--no-graph", "-T", "id.short()" }).stdout
+      h.eq(0, jin.jj({ "describe", "-m", "two" }).code)
+      h.eq(0, jin.jj({ "--at-op", op, "--ignore-working-copy", "describe", "-m", "three" }).code)
+      -- A plain jj command merges the heads, rewriting the change twice.
+      h.eq(0, jin.jj({ "status" }).code)
+      h.ex("call jin#component#touch(1)")
+      component_becomes("state", "empty divergent")
+    end,
+  },
+  {
+    "components show how far a bookmark is ahead of its remote",
+    function()
+      clone()
+      h.eq(0, jin.jj({ "new", "main", "-m", "local" }).code)
+      h.eq(0, jin.jj({ "bookmark", "set", "main", "-r", "@" }).code)
+      component_becomes("traffic", "main@origin↑1")
+      h.eq("main", vim.fn.eval("jin#component#get('bookmarks')"))
+    end,
+  },
+  {
+    "components show how far a bookmark is behind its remote",
+    function()
+      clone()
+      h.eq(0, jin.jj({ "bookmark", "set", "main", "-r", "main-", "--allow-backwards" }).code)
+      h.eq(0, jin.jj({ "new", "main" }).code)
+      component_becomes("traffic", "main@origin↓1")
+    end,
+  },
+  {
+    "components name the workspaces at the working copy once there are several",
+    function()
+      workspace()
+      component_becomes("description", "work in progress")
+      h.eq("", vim.fn.eval("jin#component#get('workspace')"))
+      h.eq(0, jin.jj({ "workspace", "add", h.tempdir() .. "/other" }).code)
+      h.ex("call jin#component#touch(1)")
+      component_becomes("workspace", "default@")
+    end,
+  },
+  {
+    "a forced refresh of an unchanged repository does not fire JinComponentPost",
+    function()
+      workspace()
+      h.ex("let g:jin_component_post = 0")
+      h.ex("autocmd User JinComponentPost let g:jin_component_post += 1")
+      component_becomes("description", "work in progress")
+      h.eq(1, vim.fn.eval("g:jin_component_post"))
+      h.ex("call jin#component#touch(1)")
+      -- Refreshes run one after another, so once the next change shows, the
+      -- forced refresh before it has finished.
+      h.eq(0, jin.jj({ "describe", "-m", "changed" }).code)
+      h.ex("call jin#component#touch(1)")
+      component_becomes("description", "changed")
+      h.ex("autocmd! User JinComponentPost")
+      h.eq(2, vim.fn.eval("g:jin_component_post"))
+    end,
+  },
+  {
+    "components fire JinComponentPost when they change",
+    function()
+      workspace()
+      h.ex("let g:jin_component_post = 0")
+      h.ex("autocmd User JinComponentPost let g:jin_component_post += 1")
+      -- Only a workspace whose components were read is refreshed.
+      vim.fn.eval("jin#component#get('change')")
+      h.ex("call jin#component#touch(1)")
+      h.eventually(function()
+        return vim.fn.eval("g:jin_component_post") >= 1
+      end, "JinComponentPost did not fire")
+      h.ex("autocmd! User JinComponentPost")
+    end,
+  },
+  {
+    "a statusline reading a component never fails, even outside a workspace",
+    function()
+      h.ex("cd " .. vim.fn.fnameescape(h.tempdir()))
+      h.eq("", vim.fn.eval("jin#component#get('change')"))
+      h.eq("", vim.fn.eval("jin#component#get('no-such-component')"))
+    end,
+  },
   {
     "JinBookmark lists bookmarks and leads to the log up to one",
     function()

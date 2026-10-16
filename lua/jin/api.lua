@@ -23,6 +23,10 @@ local M = {}
 ---`name` ("log", "show", "diff", "file", ...) for the jj arguments `argv`,
 ---and return its buffer number.
 ---@field view fun(name: string, argv: string[], opts?: jin.ViewOptions): integer
+---A statusline component of the current buffer's workspace ("change",
+---"description", "state", "bookmarks", "traffic", "workspace"): what the
+---last background refresh found, "" until then. It never runs jj itself.
+---@field component fun(name: string): string
 
 ---Build the public API on the host `get_host` returns. The host is asked for
 ---on each call, so building the API needs no editor.
@@ -49,6 +53,10 @@ function M.new(get_host)
 
   function api.view(name, argv, opts)
     return require("jin.view").open(api, get_host(), name, argv, opts or {})
+  end
+
+  function api.component(name)
+    return require("jin.component").get(api, get_host(), name)
   end
 
   return api --[[@as jin.Api]]

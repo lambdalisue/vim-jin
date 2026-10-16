@@ -75,6 +75,16 @@ exceptions:
 Your own mappings of `<Plug>(jin-action-{name})` win over these. See
 [docs/spec/views.md](docs/spec/views.md).
 
+Statusline components keep the working copy in sight without ever adding an
+operation:
+
+```vim
+set statusline+=%{jin#component#get('change')}\ %{jin#component#get('state')}
+autocmd User JinComponentPost redrawstatus
+```
+
+See [docs/spec/components.md](docs/spec/components.md).
+
 vim-jin buffers are named after the workspace they show, which makes for a
 long name; `b:jin_title` holds a short one, such as `jj log -r @-`:
 

@@ -48,6 +48,11 @@ Does what the view command of `name` does with `argv` (`"log"` for
 `opts` is as for `jin.buffer()`, plus `opts.line`, the line to put the
 cursor on once the view has been read.
 
+## `jin.component(name)`
+
+Returns the component `name` of the current buffer's workspace, as
+`jin#component#get()` does; see `components.md`.
+
 ## `jin.root(path?)`
 
 Returns the root of the workspace holding `path`, or of the current buffer

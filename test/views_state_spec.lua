@@ -4,6 +4,7 @@ local bufname = require("jin.bufname")
 local view = require("jin.view")
 local action = require("jin.action")
 local cd = require("jin.command.cd")
+local component = require("jin.component")
 
 local function ok(stdout)
   return { code = 0, stdout = stdout, stderr = "" }
@@ -316,5 +317,277 @@ describe(":JinCd", function()
     assert.has_error(function()
       cd.run(jin, host, "cd")
     end, "jin: not in a jj workspace")
+  end)
+end)
+
+describe("jin.component", function()
+  local US = string.char(31)
+  local CHANGE = table.concat({ "kk", "feat: x", "", "conflict", "", "default@ other@" }, US)
+    .. "\n"
+  local BOOKMARKS = "main\n"
+    .. table.concat({ "main@origin", "2", "0" }, US)
+    .. "\n"
+    .. table.concat({ "side@origin", "0", "0" }, US)
+    .. "\n"
+
+  ---Read a component, as a statusline would, and let the refresh it
+  ---schedules start.
+  local function start(jin, host)
+    component.get(jin, host, "change")
+    host.fire_timers()
+  end
+
+  it("schedules one refresh however often it is read before that starts", function()
+    local host, jin = setup()
+    for _ = 1, 5 do
+      component.get(jin, host, "change")
+    end
+    assert.equal(1, #host.timers)
+  end)
+
+  it("leaves a workspace alone on buffer switches until a component is read", function()
+    local host, jin = setup()
+    component.touch(jin, host, true)
+    assert.same({}, host.runs)
+    start(jin, host)
+    host.finish(ok(CHANGE))
+    host.finish(ok(BOOKMARKS))
+    component.touch(jin, host, true)
+    assert.equal(4, #host.runs)
+  end)
+
+  it("reads nothing at first, and schedules a refresh", function()
+    local host, jin = setup()
+    assert.equal("", component.get(jin, host, "change"))
+    assert.same({}, host.runs)
+    host.fire_timers()
+    assert.equal(2, #host.runs)
+  end)
+
+  it("asks jj without snapshotting the working copy or adding an operation", function()
+    local host, jin = setup()
+    start(jin, host)
+    assert.same(
+      { "--at-op=@", "--ignore-working-copy", "log" },
+      { words(host.runs[1])[1], words(host.runs[1])[2], words(host.runs[1])[3] }
+    )
+    assert.same(
+      { "--at-op=@", "--ignore-working-copy", "bookmark" },
+      { words(host.runs[2])[1], words(host.runs[2])[2], words(host.runs[2])[3] }
+    )
+    assert.equal("/repo", host.runs[1].cwd)
+  end)
+
+  it("shows what the refresh found, and fires JinComponentPost when it changed", function()
+    local host, jin = setup()
+    start(jin, host)
+    host.finish(ok(CHANGE))
+    host.finish(ok(BOOKMARKS))
+    assert.same({ "JinComponentPost" }, host.events)
+    assert.equal("kk", component.get(jin, host, "change"))
+    assert.equal("feat: x", component.get(jin, host, "description"))
+    assert.equal("conflict", component.get(jin, host, "state"))
+    assert.equal("main", component.get(jin, host, "bookmarks"))
+    assert.equal("main@origin↑2", component.get(jin, host, "traffic"))
+    assert.equal("default@ other@", component.get(jin, host, "workspace"))
+    assert.equal("", component.get(jin, host, "nope"))
+  end)
+
+  it("does not fire JinComponentPost when nothing changed", function()
+    local host, jin = setup()
+    start(jin, host)
+    host.finish(ok(CHANGE))
+    host.finish(ok(BOOKMARKS))
+    component.touch(jin, host, true)
+    host.finish(ok(CHANGE))
+    host.finish(ok(BOOKMARKS))
+    assert.same({ "JinComponentPost" }, host.events)
+  end)
+
+  it(
+    "leaves fresh values to buffer switches and jj commands, refreshing on read once old",
+    function()
+      local host, jin = setup()
+      start(jin, host)
+      host.finish(ok(CHANGE))
+      host.finish(ok(BOOKMARKS))
+      host.clock = host.clock + 5000
+      component.get(jin, host, "change")
+      host.fire_timers()
+      assert.equal(2, #host.runs)
+      host.clock = host.clock + 60000
+      component.get(jin, host, "change")
+      host.fire_timers()
+      assert.equal(4, #host.runs)
+    end
+  )
+
+  it("looks for the workspace once per buffer and directory, until a buffer switch", function()
+    local host, jin = setup()
+    component.get(jin, host, "change")
+    local first = host.dir_lookups
+    assert.truthy(first > 0)
+    component.get(jin, host, "change")
+    assert.equal(first, host.dir_lookups)
+    host.state.cwd = "/repo/sub"
+    component.get(jin, host, "change")
+    assert.truthy(host.dir_lookups > first)
+    local before_touch = host.dir_lookups
+    component.touch(jin, host)
+    assert.truthy(host.dir_lookups > before_touch)
+  end)
+
+  it("refreshes once more when jj changed the repository during a refresh", function()
+    local host, jin = setup()
+    start(jin, host)
+    component.touch(jin, host, true)
+    assert.equal(2, #host.runs)
+    host.finish(ok(CHANGE))
+    host.finish(ok(BOOKMARKS))
+    assert.equal(4, #host.runs)
+    host.finish(ok(table.concat({ "zz", "", "", "", "", "" }, US) .. "\n"))
+    host.finish(ok(""))
+    assert.equal("zz", component.get(jin, host, "change"))
+    assert.equal(4, #host.runs)
+  end)
+
+  it("refreshes once for buffer switches in quick succession, unless forced", function()
+    local host, jin = setup()
+    start(jin, host)
+    host.finish(ok(CHANGE))
+    host.finish(ok(BOOKMARKS))
+    component.touch(jin, host)
+    assert.equal(2, #host.runs)
+    component.touch(jin, host, true)
+    assert.equal(4, #host.runs)
+  end)
+
+  it("shows nothing outside any workspace, and nothing for a failed query", function()
+    local host, jin = setup({ cwd = "/tmp" })
+    assert.equal("", component.get(jin, host, "change"))
+    host.fire_timers()
+    assert.same({}, host.runs)
+    local host2, jin2 = setup()
+    start(jin2, host2)
+    host2.finish({ code = 1, stdout = "", stderr = "Error\n" })
+    host2.finish({ code = 1, stdout = "", stderr = "Error\n" })
+    assert.equal("", component.get(jin2, host2, "change"))
+  end)
+
+  it("shows nothing once a refresh fails, rather than what an earlier one found", function()
+    local host, jin = setup()
+    start(jin, host)
+    host.finish(ok(CHANGE))
+    host.finish(ok(BOOKMARKS))
+    component.touch(jin, host, true)
+    host.finish({ code = 1, stdout = "", stderr = "Error: no\n" })
+    host.finish({ code = 1, stdout = "", stderr = "Error: no\n" })
+    assert.equal(4, #host.runs)
+    assert.equal("", component.get(jin, host, "change"))
+  end)
+
+  describe("when concurrent jj commands left the operation log diverged", function()
+    local DIVERGED = {
+      code = 1,
+      stdout = "",
+      stderr = 'Error: The "@" expression resolved to more than one operation\n'
+        .. "Hint: Try specifying one of the operations by ID: 351b00d02c20, 32db5820c7cd\n",
+    }
+
+    ---Let the refresh fail on the diverged operation log.
+    local function diverge(jin, host)
+      start(jin, host)
+      host.finish(DIVERGED)
+      host.finish(DIVERGED)
+    end
+
+    it("asks each operation head when it ended, without merging them", function()
+      local host, jin = setup()
+      diverge(jin, host)
+      assert.equal(4, #host.runs)
+      for i, id in ipairs({ "351b00d02c20", "32db5820c7cd" }) do
+        local w = words(host.runs[2 + i])
+        assert.same({ "--at-op=" .. id, "--ignore-working-copy", "op", "log" }, {
+          w[1],
+          w[2],
+          w[3],
+          w[4],
+        })
+        assert.equal("/repo", host.runs[2 + i].cwd)
+      end
+    end)
+
+    it("reads the components at the head that ended last", function()
+      local host, jin = setup()
+      diverge(jin, host)
+      host.finish(ok("1792168697.607"))
+      host.finish(ok("1792168699.561"))
+      assert.equal(6, #host.runs)
+      assert.same(
+        { "--at-op=32db5820c7cd", "--ignore-working-copy", "log" },
+        { words(host.runs[5])[1], words(host.runs[5])[2], words(host.runs[5])[3] }
+      )
+      assert.same(
+        { "--at-op=32db5820c7cd", "--ignore-working-copy", "bookmark" },
+        { words(host.runs[6])[1], words(host.runs[6])[2], words(host.runs[6])[3] }
+      )
+    end)
+
+    it("shows what that head holds, firing JinComponentPost once", function()
+      local host, jin = setup()
+      diverge(jin, host)
+      host.finish(ok("1792168699.607"))
+      host.finish(ok("1792168697.561"))
+      host.finish(ok(CHANGE))
+      host.finish(ok(BOOKMARKS))
+      assert.equal("--at-op=351b00d02c20", words(host.runs[5])[1])
+      assert.equal("kk", component.get(jin, host, "change"))
+      assert.equal("main@origin↑2", component.get(jin, host, "traffic"))
+      assert.same({ "JinComponentPost" }, host.events)
+      assert.equal(6, #host.runs)
+    end)
+
+    it("shows nothing when no head says when it ended", function()
+      local host, jin = setup()
+      diverge(jin, host)
+      host.finish({ code = 1, stdout = "", stderr = "Error\n" })
+      host.finish({ code = 1, stdout = "", stderr = "Error\n" })
+      assert.equal(4, #host.runs)
+      assert.equal("", component.get(jin, host, "change"))
+    end)
+
+    it("does not look for heads again when the chosen head fails too", function()
+      local host, jin = setup()
+      diverge(jin, host)
+      host.finish(ok("1"))
+      host.finish(ok("2"))
+      host.finish(DIVERGED)
+      host.finish(DIVERGED)
+      assert.equal(6, #host.runs)
+      assert.equal("", component.get(jin, host, "change"))
+    end)
+  end)
+
+  it("does not look for heads when jj failed for another reason", function()
+    local host, jin = setup()
+    start(jin, host)
+    host.finish({ code = 1, stdout = "", stderr = "Error: There is no jj repo\n" })
+    host.finish({ code = 1, stdout = "", stderr = "Error: There is no jj repo\n" })
+    assert.equal(2, #host.runs)
+  end)
+
+  it("does not look for a workspace on buffer switches before any component is read", function()
+    local host, jin = setup()
+    component.touch(jin, host)
+    component.touch(jin, host, true)
+    assert.equal(0, host.dir_lookups)
+  end)
+
+  it("finds a workspace made after a component was read outside any", function()
+    local host, jin = setup({ cwd = "/repo", dirs = { "/repo" } })
+    assert.equal("", component.get(jin, host, "change"))
+    host.dirs["/repo/.jj"] = true
+    component.touch(jin, host, true)
+    assert.equal(2, #host.runs)
   end)
 end)
