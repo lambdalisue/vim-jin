@@ -126,6 +126,20 @@ the installed jj offers.
 :JinConflicts [args]					*:JinConflicts*
 	The log of the changes that hold conflicts.
 
+:JinArrange [args]					*:JinArrange*
+	A line of changes, newest first, one per line: those `-r` names,
+	or the mutable ancestors of the working copy. Move the lines into
+	the order you want and |:w|: the changes are rebased into it, one
+	at a time, what sat on the newest staying on whatever is newest.
+	Only the order counts, never the text after a line's change ID.
+	Anything but a reordering of one line of changes, none of them a
+	merge or divergent, is refused before anything moves, and so is a
+	write after the line moved since the buffer was read, as by a split
+	or a rebase elsewhere: |:edit| reads it again first. A rebase jj
+	refuses stops the write there, the changes moved so far staying
+	moved. Like a description buffer, it is never read again by
+	itself; |:edit| reads it again.
+
 The view commands take the `++` options and [!] of |:JinBuffer|.
 
 :JinCd							*:JinCd*

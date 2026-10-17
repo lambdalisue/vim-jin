@@ -51,7 +51,8 @@ To follow what was done to the repository, by you or by an agent,
 `:JinOpLog` lists every operation (and opens the log as it stood after
 one), `:JinEvolog` the versions a change went through (and the interdiff
 between them), and `:JinStatus`, `:JinAnnotate`, `:JinBookmark`,
-`:JinWorkspace` and `:JinConflicts` the rest. Views keep up with jj run
+`:JinWorkspace` and `:JinConflicts` the rest; `:JinArrange` reorders a line of
+changes by reordering lines and writing the buffer. Views keep up with jj run
 elsewhere, too: entering one, or coming back to the editor, reads it again
 when the repository moved on.
 

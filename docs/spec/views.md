@@ -94,6 +94,24 @@ the window.
 : The log of the changes that hold conflicts (`jj log -r 'conflicts()'`),
   narrowed further by `[args]`.
 
+`:JinArrange [args]`
+: A line of changes, newest first, one per line, to reorder: the changes
+  `-r` names in `[args]`, or the mutable ancestors of the working copy
+  (`::@ & mutable()`), which make a line only while none of them is a
+  merge. Only the order of the lines counts, read by the change ID that
+  starts each; the rest of a line writes nothing. Written, the buffer
+  rebases the changes into the order of its lines, the changes that sat on
+  the newest staying on whatever is newest. Anything but a reordering of one
+  line of changes is refused before anything is rebased, as a write is in a
+  view at an earlier operation, and so is a write when the line is no longer
+  the one the buffer was read with: reordered, or with a change added or
+  gone, as by a split or a rebase elsewhere meanwhile, since writing its
+  order would put back what was done to changes nobody moved in the buffer.
+  A rebase jj refuses stops the write there:
+  the changes moved so far stay moved, each move an operation of its own,
+  and the buffer stays unwritten. Like a description buffer, it is read
+  once and never again by itself; `:edit` reads it again.
+
 `:JinFile` and `:JinAnnotate` need the path of a file in `[args]` (`%`
 names the current one); without it they say so and open nothing.
 
@@ -460,10 +478,10 @@ Each view maps keys to its actions and motions unless
 `g:jin_{view}_disable_default_mappings` is set, `{view}` being the name
 in the first column below (`buffer` for `:JinBuffer`). A key the buffer
 already maps itself, as an ftplugin of the user may, is left alone. A
-buffer that is edited, such as a description buffer, maps no key, its
-actions reached only through `<Plug>(jin-action-{name})`. The keys follow
-rules rather than a list, and none of them changes what the key means in
-Vim. A key either keeps its meaning while the view tells
+buffer that is edited, a description buffer or the arrange buffer, maps no
+key, its actions reached only through `<Plug>(jin-action-{name})`. The
+keys follow rules rather than a list, and none of them changes what the
+key means in Vim. A key either keeps its meaning while the view tells
 what it applies to, as `yy` still yanks, `u` still undoes and `]]` still
 goes to the next section, or it is a key that edits text, which a
 read-only buffer has no use for, given the change closest to what it does

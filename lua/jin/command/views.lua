@@ -81,6 +81,13 @@ M.COMMANDS = {
     jj = { "log" },
     options = view.OPTIONS,
   },
+  JinArrange = {
+    name = "JinArrange",
+    shortest = 4,
+    view = "arrange",
+    jj = { "log" },
+    options = view.OPTIONS,
+  },
 }
 
 ---Open the view of the Ex command `name` for its arguments as typed.

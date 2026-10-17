@@ -309,4 +309,37 @@ return {
       end)
     end,
   },
+  {
+    ":JinArrange rebases a line of changes into the order the lines are written in",
+    function()
+      workspace()
+      h.eq(0, jin.jj({ "new", "-m", "third" }).code)
+      h.ex("JinArrange")
+      settle()
+      h.eq(3, #h.lines())
+      local by = {}
+      for _, line in ipairs(h.lines()) do
+        by[line:match("%S+$")] = line
+      end
+      vim.fn.setline(1, host.to_list({ by.second, by.third, by.first }))
+      h.ex("write")
+      local function order()
+        return jin.jj({
+          "log",
+          "--no-graph",
+          "-r",
+          "mutable()",
+          "-T",
+          'description.first_line() ++ " "',
+        }).stdout
+      end
+      h.eventually(function()
+        return order() == "second third first "
+      end, function()
+        return "order: " .. order()
+      end)
+      h.eq("third\n", at("@"))
+      h.eq(0, vim.fn.getbufvar(vim.fn.bufnr(), "&modified"))
+    end,
+  },
 }

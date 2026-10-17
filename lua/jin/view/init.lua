@@ -30,6 +30,7 @@ local VIEWS = {
   workspace = true,
   conflicts = true,
   resolve = true,
+  arrange = true,
   describe = true,
   commit = true,
 }
