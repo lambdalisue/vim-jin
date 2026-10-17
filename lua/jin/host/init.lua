@@ -73,6 +73,10 @@
 ---Highlight lines `first`..`last` of `bufnr` whole, as JinCursorEntry, in
 ---place of those highlighted before; with no lines, highlight none.
 ---@field highlight_lines fun(bufnr: integer, first?: integer, last?: integer)
+---Highlight `lnums` of `bufnr` whole, as JinSelected, over JinCursorEntry and
+---JinCursorChange where they fall on the same line, in place of those
+---highlighted before.
+---@field highlight_selected fun(bufnr: integer, lnums: integer[])
 ---Highlight `lnums` of `bufnr` whole, as JinCursorChange, in place of
 ---those highlighted before.
 ---@field highlight_change fun(bufnr: integer, lnums: integer[])

@@ -210,6 +210,13 @@ function M.new(opts)
     return host.vertical_split
   end
 
+  -- Per buffer, the lines shown as selected.
+  host.selected = {}
+
+  function host.highlight_selected(bufnr, lnums)
+    host.selected[bufnr] = lnums
+  end
+
   -- Per buffer, the lines highlighted as { first, last }, or false once
   -- cleared.
   host.highlighted = {}

@@ -16,6 +16,7 @@ action.openers(actions, "diff", "show the diff of this version of the change", f
   support.open(ctx, "diff", { "-r", action.entry(ctx)[2] }, opener)
 end)
 
+support.select_actions(actions)
 support.yank_actions(actions)
 
 ---@type jin.View

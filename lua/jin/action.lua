@@ -166,6 +166,11 @@ function M.keys(view_def, vertical)
     local split = vertical and ":vsplit" or ":split"
     keys[#keys + 1] = { "<C-w><CR>", view_def.primary .. split }
   end
+  if all.select then
+    keys[#keys + 1] = { "x", "select" }
+    keys[#keys + 1] = { "x", "select", "x" }
+    keys[#keys + 1] = { "X", "select:clear" }
+  end
   if view_def.yank then
     keys[#keys + 1] = { "yy", view_def.yank }
     keys[#keys + 1] = { "y", view_def.yank, "x" }

@@ -96,7 +96,7 @@ end
 
 ---Per host, per buffer: the generation of the latest read and its result,
 ---and what it shows highlighted.
----@type table<jin.Host, table<integer, { generation: integer, meta?: jin.ViewMeta, line?: integer|string, change?: { meta: jin.ViewMeta, rev: string } }>>
+---@type table<jin.Host, table<integer, { generation: integer, meta?: jin.ViewMeta, line?: integer|string, selected?: boolean, change?: { meta: jin.ViewMeta, rev: string } }>>
 local states = setmetatable({}, { __mode = "k" })
 
 ---@param host jin.Host
@@ -438,6 +438,7 @@ function M.read(jin, host, bufnr, name)
         s.line = nil
       end
       M.cursor_moved(host, bufnr)
+      M.show_selected(host, bufnr)
     end)
   end
 
@@ -500,6 +501,48 @@ local function graph_only(line)
   end
   line = line:gsub("%(elided revisions%)", "")
   return not line:find("%S")
+end
+
+---Show which lines of `bufnr` stand for a selected change, the lines of the
+---graph alone aside.
+---@param host jin.Host
+---@param bufnr integer
+function M.show_selected(host, bufnr)
+  local meta = M.meta(host, bufnr)
+  if not meta or view_of(meta.parsed).editable then
+    return
+  end
+  local selected = {}
+  for _, rev in ipairs(require("jin.selection").list(host, meta.parsed.root)) do
+    selected[rev] = true
+  end
+  -- Required here: the views' support requires this module.
+  local revision = require("jin.view.support").revision
+  local lnums = {}
+  for lnum, entry in ipairs(meta.entries) do
+    local rev = entry and revision(entry)
+    if rev and selected[rev] and not graph_only(meta.lines[lnum]) then
+      lnums[#lnums + 1] = lnum
+    end
+  end
+  local s = state(host, bufnr)
+  -- A view that never showed a selection need not be told there is none.
+  if #lnums > 0 or s.selected then
+    host.highlight_selected(bufnr, lnums)
+  end
+  s.selected = #lnums > 0
+end
+
+---Show the selection again in every loaded view of the workspace at `root`.
+---@param host jin.Host
+---@param root string
+function M.show_selected_of(host, root)
+  for _, buf in ipairs(host.buffers()) do
+    local meta = M.meta(host, buf.bufnr)
+    if meta and meta.parsed.root == root then
+      M.show_selected(host, buf.bufnr)
+    end
+  end
 end
 
 ---Highlight every line written by the change of the line under the cursor

@@ -256,6 +256,18 @@ Workspace ~
 	log		Show the log up to the workspace's working copy.
 	show		Show that change.
 
+							*jin-selection*
+Selection ~
+The log, show, evolog, annotate and operation show views select changes,
+as the other side of an action that takes two. The selection
+belongs to the workspace: every view of it shows the lines of a selected
+change with |hl-JinSelected|, even under the cursor. It is vim-jin's own,
+and leaves Vim's marks (|mark-motions|) alone.
+
+	select		Select the change of the line, or of every line
+			selected, or leave it out when selected.
+	select:clear	Clear the selection of the workspace.
+
 Changing the repository ~
 The log, show, evolog, annotate and conflicts views also change the
 repository, though never in a view at an earlier operation.
@@ -314,6 +326,9 @@ exceptions. A view maps only the keys of the actions it has.
 			status and the conflicted paths.
 	gd		The diff; the interdiff in the evolog.
 	gp gc		The parent, the child.
+	x		Select the change of the line, or leave it out; `x` in
+			visual mode for the lines selected.
+	X		Clear the selection of the workspace.
 	yy		Yank what the line stands for; `y` in visual mode.
 	YY		Yank commit IDs; `Y` in visual mode.
 	]] [[		Go to the first line of the next, or the previous,
@@ -377,8 +392,13 @@ JinCursorEntry		The lines of the change, version or operation under
 
 							*hl-JinCursorChange*
 JinCursorChange		In |:JinAnnotate|, every line written by the change
-			of the line under the cursor. Links to |hl-CursorLine|
-			by default.
+			of the line under the cursor; a selected line shows
+			as selected. Links to |hl-CursorLine| by default.
+
+							*hl-JinSelected*
+JinSelected		The lines of a selected change, shown over
+			|hl-JinCursorEntry| and |hl-JinCursorChange|. Links to
+			|hl-Visual| by default.
 
 							*b:jin_title*
 b:jin_title		A short title of a vim-jin buffer, such as

@@ -452,6 +452,41 @@ function M.commit_actions(actions)
   end)
 end
 
+---Add select, selecting the change of every entry acted on, or leaving it
+---out when selected, and select:clear, clearing the selection of the
+---workspace.
+---@param actions table<string, jin.Action>
+function M.select_actions(actions)
+  local selection = require("jin.selection")
+  actions.select = {
+    desc = "select the changes as the other side of an action, or leave them out",
+    fn = function(ctx)
+      if #ctx.entries == 0 then
+        action.nothing(ctx, "jin: nothing to act on in this line")
+      end
+      -- Once each: lines that each name a change, as annotate's do, would
+      -- toggle it as many times.
+      local revs, seen = {}, {}
+      for _, entry in ipairs(ctx.entries) do
+        local rev = M.revision(entry)
+        if not seen[rev] then
+          seen[rev] = true
+          revs[#revs + 1] = rev
+        end
+      end
+      selection.toggle(ctx.host, ctx.meta.parsed.root, revs)
+      view.show_selected_of(ctx.host, ctx.meta.parsed.root)
+    end,
+  }
+  actions["select:clear"] = {
+    desc = "clear the selection of the workspace",
+    fn = function(ctx)
+      selection.clear(ctx.host, ctx.meta.parsed.root)
+      view.show_selected_of(ctx.host, ctx.meta.parsed.root)
+    end,
+  }
+end
+
 ---CHANGE_FIELDS with the description itself, for a buffer that edits it:
 ---the draft jj shows may add to the description, which is what jj compares
 ---against.

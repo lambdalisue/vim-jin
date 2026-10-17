@@ -88,7 +88,9 @@ local function highlighted(group)
   local bufnr = vim.fn.bufnr()
   local found = {}
   if vim.api then
-    local ns = vim.api.nvim_create_namespace("jin-cursor-change")
+    local ns = vim.api.nvim_create_namespace(
+      group == "JinSelected" and "jin-selected" or "jin-cursor-change"
+    )
     for _, mark in ipairs(vim.api.nvim_buf_get_extmarks(bufnr, ns, 0, -1, { details = true })) do
       h.eq(group, mark[4].line_hl_group)
       found[#found + 1] = { mark[2] + 1, mark[4].priority }
@@ -196,6 +198,20 @@ return {
         "CursorLine",
         vim.fn.synIDattr(vim.fn.synIDtrans(vim.fn.hlID("JinCursorChange")), "name")
       )
+    end,
+  },
+  {
+    "JinAnnotate shows a selected line as selected under the highlight of the change",
+    function()
+      workspace()
+      annotate()
+      require("jin.host.entry").action(vim.fn.bufnr(), "select", 1, 1)
+      h.ex("call cursor(1, 1) | doautocmd CursorMoved")
+      local change = highlighted("JinCursorChange")[1]
+      local selected = highlighted("JinSelected")[1]
+      h.eq({ 1, 1 }, { change[1], selected[1] })
+      h.truthy(change[2] < selected[2], "the highlight of the change hides the selection")
+      require("jin.host.entry").action(vim.fn.bufnr(), "select", 1, 1)
     end,
   },
   {

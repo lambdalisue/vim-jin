@@ -31,7 +31,8 @@ highlighted the same way.
 In the annotation, every line written by the change of the line under the
 cursor is highlighted, across the window, with `JinCursorChange`, which
 links to `CursorLine` unless defined otherwise; a divergent change counts
-as the one commit that wrote the line. Moving the cursor runs no jj.
+as the one commit that wrote the line. A line of a selected change shows as
+selected even then. Moving the cursor runs no jj.
 
 In the annotation, a line too long for the window wraps after the
 annotation: while a window shows the view, its `'breakindent'` is on and
@@ -133,6 +134,23 @@ with `a` says why it cannot run.
 
 A bookmark or workspace is acted on by its name as it is, even when the name
 holds spaces or quotes and jj shows it quoted.
+
+### Selection
+
+The log, show, evolog, annotate and operation show views select changes
+as the other side of an action that takes two. The selection belongs to the workspace for the editing
+session: every view of it shows the lines of a selected change with
+`JinSelected`, which links to `Visual` unless defined otherwise, over the
+highlight of the line under the cursor; it keeps showing them when read
+again. The selection names a change as the views do, so it follows the
+change through rewrites. It is vim-jin's own and leaves Vim's marks alone.
+
+`select`
+: Select the change of the line, or of every line selected, or leave it
+  out of the selection when selected.
+
+`select:clear`
+: Clear the selection of the workspace.
 
 ### Changing the repository
 
@@ -369,6 +387,9 @@ Not changing the repository:
 - `gf` goes to the file (as `:JinFile`, or the file itself as `edit` opens
   it), `gd` to the diff (the interdiff in the evolog), `gp` and `gc` to the
   parent and the child.
+- `x` selects the change of the line, or of the lines selected in visual
+  mode, or leaves it out when selected, and `X` clears the selection of the
+  workspace.
 - `yy` yanks what the line stands for, and `y` in visual mode what the lines
   selected stand for.
 - `YY` yanks the commit IDs of the changes, in a view that has them, and `Y`

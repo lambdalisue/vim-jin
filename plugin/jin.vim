@@ -43,6 +43,7 @@ command! -bar JinTcd call luaeval('require("jin.host.entry").cd(_A)', 'tcd')
 function! s:highlight() abort
   highlight default link JinCursorEntry CursorLine
   highlight default link JinCursorChange CursorLine
+  highlight default link JinSelected Visual
 endfunction
 call s:highlight()
 

@@ -250,7 +250,8 @@ end
 ---@param bufnr integer
 ---@param group string
 ---@param lnums integer[]
-local function sign_lines(bufnr, group, lnums)
+---@param priority? integer
+local function sign_lines(bufnr, group, lnums, priority)
   vim.fn.sign_unplace(group, vim.dict({ buffer = bufnr }))
   if #lnums == 0 then
     return
@@ -263,7 +264,7 @@ local function sign_lines(bufnr, group, lnums)
     vim.fn.win_execute(winid, "setlocal signcolumn=no")
   end
   for _, lnum in ipairs(lnums) do
-    vim.fn.sign_place(0, group, group, bufnr, vim.dict({ lnum = lnum, priority = 10 }))
+    vim.fn.sign_place(0, group, group, bufnr, vim.dict({ lnum = lnum, priority = priority or 10 }))
   end
 end
 
@@ -273,6 +274,12 @@ function M.highlight_lines(bufnr, first, last)
     lnums[#lnums + 1] = lnum
   end
   sign_lines(bufnr, "JinCursorEntry", lnums)
+end
+
+function M.highlight_selected(bufnr, lnums)
+  -- Above the cursor entry and the cursor change, placed with the default,
+  -- so that the line under the cursor shows as selected.
+  sign_lines(bufnr, "JinSelected", lnums, 11)
 end
 
 function M.highlight_change(bufnr, lnums)

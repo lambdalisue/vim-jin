@@ -27,6 +27,16 @@ local function settle()
   return view.meta(host, bufnr)
 end
 
+---The line of the log showing `text`.
+local function line_of(text)
+  for lnum, line in ipairs(h.lines()) do
+    if line:find(text, 1, true) then
+      return lnum
+    end
+  end
+  error("no line shows " .. text)
+end
+
 local function act(name, lnum)
   require("jin.host.entry").action(vim.fn.bufnr(), name, lnum, lnum)
 end
@@ -100,6 +110,68 @@ return {
       h.eq(commit, vim.fn.bufnr())
       h.eq("kept", vim.fn.getline(1))
       h.ex("bwipeout!")
+    end,
+  },
+  {
+    "x selects the change of the line in every view of the workspace",
+    function()
+      workspace()
+      h.ex("JinLog")
+      settle()
+      local log = vim.fn.bufnr()
+      h.ex("vsplit")
+      h.ex("JinLog -r @-")
+      settle()
+      act("select", line_of("first"))
+      local function selected(bufnr)
+        if vim.api then
+          local ns = vim.api.nvim_create_namespace("jin-selected")
+          return #vim.api.nvim_buf_get_extmarks(bufnr, ns, 0, -1, {})
+        end
+        return #vim.fn.sign_getplaced(bufnr, vim.dict({ group = "JinSelected" }))[0].signs
+      end
+      h.eq(2, selected(vim.fn.bufnr()))
+      h.eq(2, selected(log))
+      h.eq("Visual", vim.fn.synIDattr(vim.fn.synIDtrans(vim.fn.hlID("JinSelected")), "name"))
+      h.ex("only")
+    end,
+  },
+  {
+    "a selection shows over the cursor entry",
+    function()
+      workspace()
+      h.ex("JinLog")
+      settle()
+      local bufnr = vim.fn.bufnr()
+      local lnum = line_of("first")
+      act("select", lnum)
+      local priority, entry_priority
+      if vim.api then
+        local function top(name)
+          local ns = vim.api.nvim_create_namespace(name)
+          local found = 0
+          for _, mark in ipairs(vim.api.nvim_buf_get_extmarks(bufnr, ns, 0, -1, { details = true })) do
+            found = math.max(found, mark[4].priority or 4096)
+          end
+          return found
+        end
+        priority, entry_priority = top("jin-selected"), math.max(top("jin-cursor-entry"), 4096)
+      else
+        local function top(group)
+          local found = 0
+          for _, sign in
+            ipairs(host.list(vim.fn.sign_getplaced(bufnr, vim.dict({ group = group }))[0].signs))
+          do
+            found = math.max(found, sign.priority)
+          end
+          return found
+        end
+        priority, entry_priority = top("JinSelected"), math.max(top("JinCursorEntry"), 10)
+      end
+      h.truthy(
+        priority > entry_priority,
+        ("selection %d, cursor entry %d"):format(priority, entry_priority)
+      )
     end,
   },
 }

@@ -379,6 +379,8 @@ describe("jin.action.keys", function()
     ["^cw$"] = "cw changes a word",
     ["^gp$"] = "gp puts text",
     ["^gc$"] = "gc comments lines out, in Neovim; Vim gives it nothing",
+    ["^x$"] = "x deletes a character",
+    ["^X$"] = "X deletes a character",
   }
   -- A key may keep its meaning, the view telling what it applies to.
   local KEPT = {

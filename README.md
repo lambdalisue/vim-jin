@@ -69,6 +69,7 @@ exceptions:
 | `<C-w><CR>` | what `<CR>` opens, in a new window split the way `'diffopt'` splits diffs |
 | `gf` / `gd` / `gp` / `gc` | go to the file / the diff / the parent / the child |
 | `cc` / `cw` | commit the working copy / describe the change |
+| `x` / `X` | select the change as the other side of an action / clear the selection |
 | `yy` / `YY` | yank change IDs (or what the line stands for) / commit IDs |
 | `]]` / `[[` | go to the next / previous block: change, file, or lines one change wrote |
 | `a`, `.`, `?` | choose an action by name (every one without a key), repeat it, list them all |

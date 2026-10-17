@@ -159,6 +159,20 @@ function M.highlight_lines(bufnr, first, last)
   end
 end
 
+local selected = vim.api.nvim_create_namespace("jin-selected")
+
+function M.highlight_selected(bufnr, lnums)
+  vim.api.nvim_buf_clear_namespace(bufnr, selected, 0, -1)
+  for _, lnum in ipairs(lnums) do
+    vim.api.nvim_buf_set_extmark(bufnr, selected, lnum - 1, 0, {
+      line_hl_group = "JinSelected",
+      -- Above the cursor entry and the cursor change, which are put with
+      -- the default, so that the line under the cursor shows as selected.
+      priority = 4097,
+    })
+  end
+end
+
 local cursor_change = vim.api.nvim_create_namespace("jin-cursor-change")
 
 function M.highlight_change(bufnr, lnums)

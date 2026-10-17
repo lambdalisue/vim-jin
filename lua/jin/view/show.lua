@@ -33,6 +33,7 @@ end
 
 support.describe_actions(actions)
 support.commit_actions(actions)
+support.select_actions(actions)
 support.yank_actions(actions)
 
 ---@type jin.View
