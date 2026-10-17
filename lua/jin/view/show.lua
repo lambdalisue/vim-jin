@@ -31,6 +31,8 @@ for name, which in pairs({ parent = "parents", child = "children" }) do
   )
 end
 
+support.describe_actions(actions)
+support.commit_actions(actions)
 support.yank_actions(actions)
 
 ---@type jin.View

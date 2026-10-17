@@ -39,6 +39,8 @@ action.openers(
   end
 )
 
+support.describe_actions(actions)
+support.commit_actions(actions)
 support.yank_actions(actions)
 
 -- Divergent and hidden as well, as the views name such a commit by its commit ID.

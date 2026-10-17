@@ -34,6 +34,7 @@ function M.new(opts)
       argv = argv,
       cwd = run_opts.cwd,
       env = run_opts.env,
+      stdin = run_opts.stdin,
       on_exit = on_exit,
     }
   end
@@ -235,11 +236,25 @@ function M.new(opts)
     return nil
   end
 
+  -- The buffers marked as written, as after a :w that succeeded.
+  host.saved = {}
+
+  function host.mark_saved(bufnr)
+    host.saved[bufnr] = true
+  end
+
   -- Per buffer name, the lines a file opened with `open` holds.
   host.contents = {}
 
   function host.lines(bufnr)
     return host.contents[host.buffer_name(bufnr) or ""] or {}
+  end
+
+  -- The buffers left, each with the buffer shown in its place, if any.
+  host.left = {}
+
+  function host.leave(bufnr, previous)
+    host.left[#host.left + 1] = { bufnr = bufnr, previous = previous }
   end
 
   ---Pretend the editor has `name` loaded as a buffer, and return its number.

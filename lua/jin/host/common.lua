@@ -214,6 +214,24 @@ function M.input(prompt, completion)
   return answer
 end
 
+---@param bufnr integer
+---@param previous? string
+---@param list fun(value: any): any[]
+function M.leave(bufnr, previous, list)
+  if previous then
+    local back = vim.fn.win_getid()
+    for _, winid in ipairs(list(vim.fn.win_findbuf(bufnr))) do
+      vim.fn.win_gotoid(winid)
+      M.ex("silent edit " .. vim.fn.fnameescape(previous))
+    end
+    vim.fn.win_gotoid(back)
+  end
+  -- :bwipeout closes the windows still showing it, and a tab page with them.
+  if vim.fn.bufexists(bufnr) == 1 then
+    M.ex("bwipeout " .. bufnr)
+  end
+end
+
 function M.cd(scope, path)
   M.ex(scope .. " " .. vim.fn.fnameescape(path))
 end
@@ -250,24 +268,33 @@ function M.keep_views(bufnr, list, fresh)
   end
 end
 
----Make `bufnr` a read-only scratch buffer of `filetype`, titled `title`.
+---Make `bufnr` a read-only scratch buffer of `filetype`, titled `title`; with
+---`editable`, one to edit that :w hands back through BufWriteCmd, and that is
+---hidden rather than unloaded when left, keeping what is being written.
 ---@param bufnr integer
 ---@param filetype string
 ---@param title? string
-function M.finish(bufnr, filetype, title, fresh)
+---@param editable? boolean
+function M.finish(bufnr, filetype, title, editable, fresh)
   if title then
     vim.fn.setbufvar(bufnr, "jin_title", title)
   end
-  vim.fn.setbufvar(bufnr, "&buftype", "nofile")
-  vim.fn.setbufvar(bufnr, "&bufhidden", "unload")
+  vim.fn.setbufvar(bufnr, "&buftype", editable and "acwrite" or "nofile")
+  vim.fn.setbufvar(bufnr, "&bufhidden", editable and "hide" or "unload")
   vim.fn.setbufvar(bufnr, "&swapfile", 0)
-  vim.fn.setbufvar(bufnr, "&modifiable", 0)
+  vim.fn.setbufvar(bufnr, "&modifiable", editable and 1 or 0)
   vim.fn.setbufvar(bufnr, "&modified", 0)
   -- Unloading takes the syntax and what plugins set up along, but keeps
   -- 'filetype': a buffer loaded again sets it anew, for FileType to run.
   if fresh or vim.fn.getbufvar(bufnr, "&filetype") ~= filetype then
     vim.fn.setbufvar(bufnr, "&filetype", filetype)
   end
+end
+
+---Mark `bufnr` as written, as a :w that succeeded does.
+---@param bufnr integer
+function M.mark_saved(bufnr)
+  vim.fn.setbufvar(bufnr, "&modified", 0)
 end
 
 ---`annotations` with a chunk of spaces ending each line's, so that every

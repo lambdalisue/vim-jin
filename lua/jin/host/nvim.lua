@@ -13,8 +13,13 @@ local M = {
   input = common.input,
   yank = common.yank,
   cd = common.cd,
+  mark_saved = common.mark_saved,
   vertical = common.vertical,
 }
+
+function M.leave(bufnr, previous)
+  common.leave(bufnr, previous, M.list)
+end
 
 local ns = vim.api.nvim_create_namespace("jin")
 
@@ -62,7 +67,7 @@ function M.render(bufnr, content)
   local filetype = content.filetype
     or (content.detect and common.detect_filetype(bufnr, content.detect, M.list))
     or "jin-file"
-  common.finish(bufnr, filetype, content.title, content.fresh)
+  common.finish(bufnr, filetype, content.title, content.editable, content.fresh)
   if content.folds then
     common.folds(bufnr, content.folds, M.list, closed or nil)
   end
@@ -73,7 +78,7 @@ function M.render(bufnr, content)
 end
 
 function M.run(argv, opts, on_exit)
-  local system_opts = { cwd = opts.cwd, env = opts.env, text = true }
+  local system_opts = { cwd = opts.cwd, env = opts.env, stdin = opts.stdin, text = true }
   local ok, err = pcall(vim.system, argv, system_opts, function(obj)
     vim.schedule(function()
       on_exit({ code = obj.code, stdout = obj.stdout or "", stderr = obj.stderr or "" })

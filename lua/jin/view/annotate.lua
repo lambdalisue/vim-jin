@@ -42,6 +42,8 @@ action.openers(actions, "file", "show the file without the annotation", function
   support.open(ctx, "file", { "-r", rev, support.fileset(path) }, opener, ctx.first)
 end)
 
+support.describe_actions(actions)
+support.commit_actions(actions)
 support.yank_actions(actions)
 
 ---The first `width` bytes of `line` as chunks of text, each with the style

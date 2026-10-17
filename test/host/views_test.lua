@@ -224,11 +224,11 @@ return {
     "views leave a key the user mapped on the buffer as it is",
     function()
       workspace()
-      h.ex("autocmd FileType jin-log ++once nnoremap <buffer> yy <Cmd>let g:jin_test_yy = 1<CR>")
+      h.ex("autocmd FileType jin-log ++once nnoremap <buffer> cw <Cmd>let g:jin_test_cw = 1<CR>")
       h.ex("JinLog")
       settle()
-      h.eq("<Cmd>let g:jin_test_yy = 1<CR>", vim.fn.maparg("yy", "n"))
-      h.eq("<Plug>(jin-action-yank:commit)", vim.fn.maparg("YY", "n"))
+      h.eq("<Cmd>let g:jin_test_cw = 1<CR>", vim.fn.maparg("cw", "n"))
+      h.eq("<Plug>(jin-action-commit)", vim.fn.maparg("cc", "n"))
     end,
   },
   {

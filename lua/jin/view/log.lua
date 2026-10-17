@@ -17,6 +17,8 @@ action.openers(actions, "evolog", "show the versions the change went through", f
   support.open(ctx, "evolog", { "-r", support.revision(action.entry(ctx)) }, opener)
 end)
 
+support.describe_actions(actions)
+support.commit_actions(actions)
 support.yank_actions(actions)
 
 ---@type jin.View

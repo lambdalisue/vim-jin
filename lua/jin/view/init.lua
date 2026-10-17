@@ -30,6 +30,8 @@ local VIEWS = {
   workspace = true,
   conflicts = true,
   resolve = true,
+  describe = true,
+  commit = true,
 }
 
 ---How a view reads jj and makes sense of what it prints.
@@ -47,6 +49,9 @@ local VIEWS = {
 ---@field detect? fun(meta: jin.ViewMeta): string? a path to take the filetype from, in place of `filetype`
 ---@field prepare? fun(argv: string[]): string[] rewrite the user's arguments before they reach jj
 ---@field needs_path? boolean refuse to open without the path of a file in the arguments
+---@field editable? boolean a buffer to edit and hand back with `write`: read without colors, mapping no keys, and never read again by itself, which would lose what is being written
+---@field write? fun(jin: jin.Api, host: jin.Host, bufnr: integer, parsed: jin.Bufname) hand what an editable buffer holds back to jj
+---@field title? string[] the jj words its title names in place of `command`
 ---@field line_items? boolean each line stands for one thing, so the line under the cursor is highlighted as an entry would be
 ---@field entries_span_lines? boolean an entry, such as a change of the log, takes several lines, all highlighted while the cursor is on one
 ---@field scattered_changes? boolean the lines a change wrote lie apart, as in an annotation, and are all highlighted while the cursor is on one
@@ -121,6 +126,14 @@ function M.get(name)
     error("jin: unknown view: " .. tostring(name), 0)
   end
   return require("jin.view." .. name)
+end
+
+---The view a parsed vim-jin buffer name asks for.
+---@param parsed jin.Bufname
+---@return jin.View
+local function view_of(parsed)
+  local name = parsed.params.view
+  return M.get(type(name) == "string" and name or "buffer")
 end
 
 ---Register a view module `jin.view.{name}`.
@@ -294,7 +307,7 @@ end
 ---@return string
 local function title_of(view, argv)
   local words = { "jj" }
-  for _, list in ipairs({ view.command, argv }) do
+  for _, list in ipairs({ view.title or view.command, argv }) do
     for _, word in ipairs(list) do
       if word:match("^%x+$") and #word > 12 then
         word = word:sub(1, 12)
@@ -335,7 +348,8 @@ function M.read(jin, host, bufnr, name)
       user_argv = view.prepare(user_argv)
     end
     local argv = command_line(view, user_argv, template)
-    jin.jj(argv, { cwd = parsed.root, color = not parsed.params.monochrome }, function(result)
+    local color = not parsed.params.monochrome and not view.editable
+    jin.jj(argv, { cwd = parsed.root, color = color }, function(result)
       if not current() then
         return
       end
@@ -347,7 +361,12 @@ function M.read(jin, host, bufnr, name)
       if template then
         raw, entries = marker.parse(raw)
       end
-      local lines, spans = ansi.parse(raw)
+      local lines, spans = raw, {}
+      -- An editable buffer holds text to hand back as it is, which jj does
+      -- not color: what looks like an escape sequence there is the text's.
+      if not view.editable then
+        lines, spans = ansi.parse(raw)
+      end
       ---@type jin.ViewMeta
       local meta = {
         name = name,
@@ -396,14 +415,18 @@ function M.read(jin, host, bufnr, name)
         detect = detect or nil,
         folds = meta.data.folds,
         annotations = annotations,
+        editable = view.editable,
         fresh = not previous,
       })
       -- The mappings stay while the buffer is loaded; an unload forgets the
       -- previous read, so they are made again after it.
+      -- An editable buffer maps no keys, as its text is there to be edited,
+      -- but all its actions are there for the user to map.
       if not previous then
+        local keys = view.editable and {} or require("jin.action").keys(view, host.vertical())
         host.define_actions(bufnr, require("jin.action").names(view), {
           view = view_name,
-          keys = require("jin.action").keys(view, host.vertical()),
+          keys = keys,
           motions = require("jin.view.block").keys(view),
         })
       end
@@ -615,7 +638,7 @@ function M.reload(jin, host)
   templates[host] = nil
   for _, buf in ipairs(host.buffers()) do
     local parsed = bufname.parse(buf.name)
-    if parsed and parsed.scheme == M.SCHEME then
+    if parsed and parsed.scheme == M.SCHEME and not view_of(parsed).editable then
       M.read(jin, host, buf.bufnr, buf.name)
     end
   end
@@ -632,7 +655,11 @@ local operations = setmetatable({}, { __mode = "k" })
 ---@param parsed jin.Bufname
 ---@return boolean
 local function follows(parsed)
-  if parsed.scheme ~= M.SCHEME or (parsed.params.view or "buffer") == "buffer" then
+  if
+    parsed.scheme ~= M.SCHEME
+    or (parsed.params.view or "buffer") == "buffer"
+    or view_of(parsed).editable
+  then
     return false
   end
   local argv = parsed.argv
@@ -719,6 +746,19 @@ function M.refresh(jin, host, bufnr)
       end
     end)
   end
+end
+
+---Hand what `bufnr` holds back to jj, as :w does in a buffer to edit.
+---@param jin jin.Api
+---@param host jin.Host
+---@param bufnr integer
+function M.write(jin, host, bufnr)
+  local name = host.buffer_name(bufnr)
+  local parsed = name and bufname.parse(name)
+  if not parsed or parsed.scheme ~= M.SCHEME or not view_of(parsed).write then
+    error("jin: this buffer is not to be written", 0)
+  end
+  view_of(parsed).write(jin, host, bufnr, parsed)
 end
 
 M.OPTIONS = { opener = "value", monochrome = "flag", filetype = "value" }

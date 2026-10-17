@@ -93,6 +93,12 @@ describe("jin.jj.run", function()
     assert.equal("/new", host.runs[1].cwd)
   end)
 
+  it("hands stdin to jj", function()
+    local host = fake_host.new()
+    jj.run(host, { "describe", "--stdin" }, { stdin = "feat: x\n" }, function() end)
+    assert.equal("feat: x\n", host.runs[1].stdin)
+  end)
+
   it("passes env on to the process", function()
     local host = fake_host.new()
     jj.run(host, { "status" }, { env = { JJ_USER = "x" } }, function() end)

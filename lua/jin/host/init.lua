@@ -2,9 +2,10 @@
 ---main loop, where the editor can be used freely.
 ---@class jin.Host
 ---@field name "nvim"|"vim"
----Run `argv` without a shell or stdin; `on_exit` receives its whole output.
----`env` adds to the editor's environment.
----@field run fun(argv: string[], opts: { cwd?: string, env?: table<string, string> }, on_exit: fun(result: jin.RunResult))
+---Run `argv` without a shell; `on_exit` receives its whole output. `env`
+---adds to the editor's environment, and `stdin` is written to the process
+---whole, which otherwise gets no input at all.
+---@field run fun(argv: string[], opts: { cwd?: string, env?: table<string, string>, stdin?: string }, on_exit: fun(result: jin.RunResult))
 ---Process events until `cond` holds or `timeout` ms pass; false on timeout.
 ---@field wait fun(timeout: integer, cond: fun(): boolean): boolean
 ---Show `text`, which may span lines, and record it in the message history.
@@ -60,6 +61,13 @@
 ---@field jump fun(bufnr: integer, lnum: integer)
 ---The lines of `bufnr`.
 ---@field lines fun(bufnr: integer): string[]
+---Mark `bufnr` as written, as a :w that succeeded does.
+---@field mark_saved fun(bufnr: integer)
+---Stop showing `bufnr` and wipe it out: a window showing it shows the buffer
+---named `previous` instead, read again as :edit reads it, when given;
+---otherwise each window showing it closes, and the tab page it was the last
+---window of.
+---@field leave fun(bufnr: integer, previous?: string)
 ---The line of the cursor in the window showing `bufnr`, nil when none does.
 ---@field line fun(bufnr: integer): integer?
 ---Highlight lines `first`..`last` of `bufnr` whole, as JinCursorEntry, in
@@ -80,6 +88,7 @@
 ---@field filetype? string
 ---@field detect? string a path to take the filetype from, when `filetype` is nil
 ---@field title? string a short name for the buffer, kept in b:jin_title
+---@field editable? boolean make the buffer one to edit, which :w hands back through BufWriteCmd
 ---@field fresh? boolean the first content since the buffer was loaded, which its filetype has to be set up for anew
 ---@field folds? { [1]: integer, [2]: integer }[] line ranges to fold, left open
 ---@field annotations? { text: string, group?: string }[][] per line, text shown before it as virtual text, not part of the line, padded so that the lines after it start in one column

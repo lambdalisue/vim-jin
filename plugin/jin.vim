@@ -77,6 +77,8 @@ augroup jin_plugin
   autocmd BufWinEnter jin://*
         \ call luaeval('require("jin.host.entry").buffer_shown(_A)', str2nr(expand('<abuf>')))
   autocmd ColorScheme * call s:highlight()
+  autocmd BufWriteCmd jin://*
+        \ call luaeval('require("jin.host.entry").write_buffer(_A)', str2nr(expand('<abuf>')))
   autocmd BufUnload jin://*
         \ call luaeval('require("jin.host.entry").forget_buffer(_A)', str2nr(expand('<abuf>')))
   autocmd User JinCommandPost

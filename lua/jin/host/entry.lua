@@ -110,6 +110,12 @@ function M.refresh_buffers(bufnr)
   pcall(require("jin.view").refresh, jin, host, bufnr ~= 0 and bufnr or nil)
 end
 
+---Hand what a jin:// buffer to edit holds back to jj (BufWriteCmd).
+---@param bufnr integer
+function M.write_buffer(bufnr)
+  report(require("jin.view").write, jin, host, bufnr)
+end
+
 ---Refresh every loaded jin:// buffer (User JinCommandPost).
 function M.reload_buffers()
   report(require("jin.view").reload, jin, host)

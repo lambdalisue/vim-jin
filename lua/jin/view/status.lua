@@ -76,6 +76,8 @@ action.openers(actions, "annotate", "show which change wrote each line", functio
   support.open(ctx, "annotate", { "--", path_of(ctx).path }, opener)
 end)
 
+support.commit_actions(actions)
+
 actions["yank:path"] = {
   desc = "yank the paths",
   fn = function(ctx)

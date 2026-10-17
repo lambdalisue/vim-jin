@@ -138,6 +138,13 @@ local GOES = {
   child = "gc",
 }
 
+---The keys of the actions changing the repository: the Vim key that edits
+---text closest to each, which a read-only buffer has no other use for.
+local CHANGES = {
+  commit = "cc",
+  describe = "cw",
+}
+
 ---The default keys of `view_def` as { lhs, action, mode }, in normal mode
 ---unless `mode` says otherwise. A key that opens a view in a new window
 ---splits it vertically when `vertical`.
@@ -167,6 +174,10 @@ function M.keys(view_def, vertical)
     if name == "yank:commit" then
       keys[#keys + 1] = { "YY", name }
       keys[#keys + 1] = { "Y", name, "x" }
+    end
+    local change = CHANGES[name]
+    if change then
+      keys[#keys + 1] = { change, name }
     end
     local goes = GOES[name]
     if goes then

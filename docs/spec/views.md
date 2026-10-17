@@ -134,6 +134,40 @@ with `a` says why it cannot run.
 A bookmark or workspace is acted on by its name as it is, even when the name
 holds spaces or quotes and jj shows it quoted.
 
+### Changing the repository
+
+The log, show, evolog, annotate and conflicts views also change the
+repository, and the status view commits. Such an action never runs on a
+view at an earlier operation.
+
+`describe`
+: Edit the description of the change of the line, or of every line
+  selected, in a description buffer.
+
+`commit`
+: Commit the working copy, whatever the line, with a description written
+  in a description buffer; the status view has it too. `:w` hands it to
+  `jj commit`, as long as the working copy is still the change the buffer
+  was opened for and its description is still the one read, and says so
+  otherwise. Once committed, the buffer closes: the window it was opened
+  over shows again what it showed before, and a window or tab page opened
+  for it closes. A commit that fails leaves the buffer as it is.
+
+jj's report of a change shows only when it fails; the views read again show
+the result.
+
+A description buffer holds jj's own draft of the description, and that of
+each of several changes under a head of its own, as jj's editor does. `:w`
+describes each change with its text, leaving out what jj's editor would
+leave out, and marks the buffer written once jj took every one; jj's report
+is shown only when it fails. When a description changed since the buffer
+was read, as an agent may change it, `:w` says so and describes nothing. A
+version named by its commit ID, as the version of a divergent change is, is
+replaced by the `:w` that describes it, so `:w` refuses it after that and
+says to describe it again from a view. Leaving the buffer unwritten changes
+nothing. It describes the changes it was opened for, and is never read again
+by itself, so that what is being written is not lost.
+
 ### Log
 
 `show`
@@ -307,15 +341,19 @@ The actions of the log, and:
 Each view maps keys to its actions and motions unless
 `g:jin_{view}_disable_default_mappings` is set, `{view}` being the name
 in the first column below (`buffer` for `:JinBuffer`). A key the buffer
-already maps itself, as an ftplugin of the user may, is left alone. The keys
-follow rules rather than a list, and none of them changes what the key
-means in Vim. A key either keeps its meaning while the view tells
+already maps itself, as an ftplugin of the user may, is left alone. A
+buffer that is edited, such as a description buffer, maps no key, its
+actions reached only through `<Plug>(jin-action-{name})`. The keys follow
+rules rather than a list, and none of them changes what the key means in
+Vim. A key either keeps its meaning while the view tells
 what it applies to, as `yy` still yanks and `]]` still
 goes to the next section, or it is a key that edits text, which a
 read-only buffer has no use for, given the change closest to what it does
 to text. Vim's motions and marks keep working, and `=` stays Vim's
 operator. `a`, `.` and `?` are the deliberate exceptions. A view maps only
 the keys of the actions it has.
+
+Not changing the repository:
 
 - `a` chooses an action by name, `.` repeats it and `?` lists the actions.
 - `<CR>` goes to what the line names, as it does in the quickfix window,
@@ -348,26 +386,30 @@ the keys of the actions it has.
   `<Plug>(jin-prev-block)`, which are there for keys of the user's own
   even when the default mappings are disabled.
 
-Keys that start others, as `g` and `CTRL-W` do, wait as long as
+Changing the repository:
+
+- `cc` commits the working copy, and `cw` describes the change.
+
+Keys that start others, as `c`, `g` and `CTRL-W` do, wait as long as
 `'timeoutlen'` for the rest. The openers that have no key of their own, and
 every variant, such as `{name}:tab`, are reached through `a` or by mapping
 `<Plug>(jin-action-{name})`.
 
-| View | `<CR>` | `<S-CR>` | `g` keys | `yy` | `YY` |
-| --- | --- | --- | --- | --- | --- |
-| log | show | diff | `gd` | yank:change | yank:commit |
-| show | jump | | `gp` `gc` | yank:change | yank:commit |
-| diff | jump | | | | |
-| interdiff | jump | | | | |
-| file | annotate | log | | | |
-| oplog | show | log | | yank:operation | |
-| opshow | show | diff | `gd` | yank:change | yank:commit |
-| evolog | interdiff | show | `gd` | yank:change | yank:commit |
-| status | inspect | open | `gf` `gd` | yank:path | |
-| annotate | show | | `gf` `gd` | yank:change | yank:commit |
-| bookmark | log | show | | yank:bookmark | |
-| workspace | tcd | log | | | |
-| conflicts | files | | `gd` | yank:change | yank:commit |
-| resolve | edit | | `gf` `gd` | | |
+| View | `<CR>` | `<S-CR>` | `g` keys | Changes | `yy` | `YY` |
+| --- | --- | --- | --- | --- | --- | --- |
+| log | show | diff | `gd` | `cc` `cw` | yank:change | yank:commit |
+| show | jump | | `gp` `gc` | `cc` `cw` | yank:change | yank:commit |
+| diff | jump | | | | | |
+| interdiff | jump | | | | | |
+| file | annotate | log | | | | |
+| oplog | show | log | | | yank:operation | |
+| opshow | show | diff | `gd` | | yank:change | yank:commit |
+| evolog | interdiff | show | `gd` | `cc` `cw` | yank:change | yank:commit |
+| status | inspect | open | `gf` `gd` | `cc` | yank:path | |
+| annotate | show | | `gf` `gd` | `cc` `cw` | yank:change | yank:commit |
+| bookmark | log | show | | | yank:bookmark | |
+| workspace | tcd | log | | | | |
+| conflicts | files | | `gd` | `cc` `cw` | yank:change | yank:commit |
+| resolve | edit | | `gf` `gd` | | | |
 
 `resolve` is the list of conflicted paths `files` opens.

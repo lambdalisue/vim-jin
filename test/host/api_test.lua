@@ -23,6 +23,16 @@ return {
     end,
   },
   {
+    "jj hands stdin to jj, as describe --stdin reads it",
+    function()
+      local dir = workspace()
+      local text = "feat: add parser\n\nIt reads what jj prints.\n"
+      h.eq(0, jin.jj({ "describe", "--stdin" }, { cwd = dir, stdin = text }).code)
+      local r = jin.jj({ "log", "--no-graph", "-r", "@", "-T", "description" }, { cwd = dir })
+      h.eq(text, r.stdout)
+    end,
+  },
+  {
     "jj calls back with the result when given a callback",
     function()
       local dir = workspace()

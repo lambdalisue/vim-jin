@@ -256,6 +256,37 @@ Workspace ~
 	log		Show the log up to the workspace's working copy.
 	show		Show that change.
 
+Changing the repository ~
+The log, show, evolog, annotate and conflicts views also change the
+repository, though never in a view at an earlier operation.
+
+	describe	Edit the description of the change of the line, or of
+			every line selected, in a description buffer.
+	commit		Commit the working copy, whatever the line, with a
+			description written in a description buffer; the status
+			view has it too. |:w| commits only while the working
+			copy is still the change it was opened for, its
+			description unchanged meanwhile. Once committed, the
+			buffer closes and the window shows what it showed
+			before; a window or tab page opened for it closes. A
+			commit that fails keeps the buffer.
+
+jj's report of a change shows only when it fails; the views read again show
+the result.
+
+						*jin-description-buffer*
+A description buffer holds jj's own draft of the description, with its
+lines starting with "JJ:", and that of each of several changes under a
+"JJ: describe {change} -------" line. |:w| hands it to jj, without the
+lines starting with "JJ:" and without everything from "JJ: ignore-rest" on;
+jj's report shows only when it fails. When a description changed since the
+buffer was read, as an agent may change it, |:w| says so and changes
+nothing. A version of a divergent change, named by its commit ID, is
+replaced by the |:w| that describes it; describe it again from a view to
+write once more. Leaving the buffer unwritten, as with
+`:q!`, changes nothing. It is never read again by itself, so that what is
+being written is not lost.
+
 -----------------------------------------------------------------------------
 KEY MAPPINGS						*jin-mappings*
 
@@ -288,7 +319,12 @@ exceptions. A view maps only the keys of the actions it has.
 	]] [[		Go to the first line of the next, or the previous,
 			block; see |jin-blocks|.
 
-Keys that start others, as `g` and CTRL-W do, wait 'timeoutlen' for
+These change the repository:
+
+	cc		commit
+	cw		describe
+
+Keys that start others, as `c`, `g` and CTRL-W do, wait 'timeoutlen' for
 the rest. The openers without a key and the variants have no key: reach
 them with `a`, or map their <Plug>.
 
@@ -399,11 +435,14 @@ jin.jj({argv} [, {opts} [, {on_exit}]])
 	Run jj and return `{ code, stdout, stderr }`, echoing nothing and
 	firing no event. With {on_exit}, return at once and call it with
 	the result. `opts.color` asks for ANSI colors, `opts.env` adds
-	environment variables.
+	environment variables. `opts.stdin` is written to jj's standard
+	input, as `jj describe --stdin` reads it.
 
 						*jin.command()*
 jin.command({argv} [, {opts} [, {on_exit}]])
-	Do what |:Jin| does. `opts.wait` stands for `++wait`.
+	Do what |:Jin| does. `opts.wait` stands for `++wait`. `opts.stdin` is
+	handed to jj as for |jin.jj()|. `opts.quiet` echoes nothing unless
+	jj fails.
 
 						*jin.buffer()*
 jin.buffer({argv} [, {opts}])

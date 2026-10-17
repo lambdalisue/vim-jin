@@ -60,7 +60,17 @@ return {
     end,
   },
   {
-    "run gives a process no stdin, so that reading it ends at once",
+    "run hands stdin to the process, however long",
+    function()
+      local text = ("line of input\n"):rep(20000)
+      local r = run({ "sh", "-c", "wc -c" }, { stdin = text })
+      h.eq(0, r.code)
+      h.eq(#text, tonumber((r.stdout:gsub("%s", ""))))
+      h.eq({ code = 0, stdout = "a\nb", stderr = "" }, run({ "cat" }, { stdin = "a\nb" }))
+    end,
+  },
+  {
+    "run gives a process no stdin unless asked, so that reading it ends at once",
     function()
       h.eq({ code = 0, stdout = "", stderr = "" }, run({ "cat" }))
     end,

@@ -313,6 +313,18 @@ describe("jin.action.keys", function()
     end
   )
 
+  it("gives each change the Vim key that edits text closest to it", function()
+    local log = action.keys(view.get("log"), false)
+    assert.same({
+      cc = "commit",
+      cw = "describe",
+    }, {
+      cc = lookup(log, "cc"),
+      cw = lookup(log, "cw"),
+    })
+    assert.equal("commit", lookup(action.keys(view.get("status"), false), "cc"))
+  end)
+
   it("leaves the other openers to a, and = to Vim", function()
     local wrong = {}
     for _, name in ipairs(VIEWS) do
@@ -363,6 +375,8 @@ describe("jin.action.keys", function()
   -- A key whose Vim meaning a read-only buffer has no use for, as it edits
   -- text, is free to take, for the change closest to what it does to text.
   local UNUSED = {
+    ["^cc$"] = "cc changes a line",
+    ["^cw$"] = "cw changes a word",
     ["^gp$"] = "gp puts text",
     ["^gc$"] = "gc comments lines out, in Neovim; Vim gives it nothing",
   }

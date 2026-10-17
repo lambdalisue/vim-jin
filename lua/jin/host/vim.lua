@@ -13,8 +13,13 @@ local M = {
   input = common.input,
   yank = common.yank,
   cd = common.cd,
+  mark_saved = common.mark_saved,
   vertical = common.vertical,
 }
+
+function M.leave(bufnr, previous)
+  common.leave(bufnr, previous, M.list)
+end
 
 -- The text property type of an uncolored part of an annotation.
 local ANNOTATION = "JinAnnotation"
@@ -90,7 +95,7 @@ function M.render(bufnr, content)
   local filetype = content.filetype
     or (content.detect and common.detect_filetype(bufnr, content.detect, M.list))
     or "jin-file"
-  common.finish(bufnr, filetype, content.title, content.fresh)
+  common.finish(bufnr, filetype, content.title, content.editable, content.fresh)
   if content.folds then
     common.folds(bufnr, content.folds, M.list, closed or nil)
   end
@@ -102,11 +107,14 @@ end
 
 function M.run(argv, opts, on_exit)
   local stdout, stderr = {}, {}
-  local code, closed
+  local code, closed, stdin_file
   local function finish()
     -- exit_cb may come before the last output is read, so the result is
     -- complete only once the channel has closed as well.
     if code ~= nil and closed then
+      if stdin_file then
+        vim.fn.delete(stdin_file)
+      end
       on_exit({ code = code, stdout = table.concat(stdout), stderr = table.concat(stderr) })
     end
   end
@@ -141,6 +149,14 @@ function M.run(argv, opts, on_exit)
   end
   if opts.env then
     job_opts.env = vim.dict(opts.env)
+  end
+  if opts.stdin then
+    -- From a file rather than a pipe: writing to the pipe needs the job,
+    -- which cannot cross into Lua.
+    stdin_file = vim.fn.tempname()
+    vim.fn.writefile(vim.fn.split(opts.stdin, "\n", 1), stdin_file, "b")
+    job_opts.in_io = "file"
+    job_opts.in_name = stdin_file
   end
   -- The returned job cannot cross into Lua (it arrives as nil), so a command
   -- that fails to start is reported through exit_cb like any other failure.

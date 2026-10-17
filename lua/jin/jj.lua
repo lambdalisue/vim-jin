@@ -9,6 +9,7 @@ M.WAIT_FOREVER = 2 ^ 31 - 1
 ---@field cwd? string a directory in the workspace to run in; by default the current buffer's or directory's
 ---@field env? table<string, string> added to the environment jj inherits
 ---@field color? boolean ask jj for ANSI colors instead of plain text
+---@field stdin? string written to jj's standard input, as `jj describe --stdin` reads it
 
 ---The directory `path` stands for: itself when it is a directory (such as a
 ---directory buffer), else the one it is in. Relative paths are taken from
@@ -86,7 +87,7 @@ function M.run(host, argv, opts, on_exit)
   end
 
   local result
-  host.run(cmd, { cwd = M.cwd(host, opts.cwd), env = opts.env }, function(r)
+  host.run(cmd, { cwd = M.cwd(host, opts.cwd), env = opts.env, stdin = opts.stdin }, function(r)
     result = r
     if on_exit then
       on_exit(r)

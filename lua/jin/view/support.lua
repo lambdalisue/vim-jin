@@ -257,6 +257,44 @@ function M.decorate_diff_or(note)
   end
 end
 
+---Per host, per commit buffer: the name of the buffer it was opened over in
+---the same window, or false when it was opened in a window of its own.
+---@type table<jin.Host, table<integer, string|false>>
+local returns = setmetatable({}, { __mode = "k" })
+
+---Mark `bufnr` written, as long as it still holds the lines `written` that
+---jj took: lines edited while jj ran are not written yet.
+---@param host jin.Host
+---@param bufnr integer
+---@param written string[]
+---@return boolean marked
+function M.mark_saved(host, bufnr, written)
+  local now = host.lines(bufnr)
+  if #now ~= #written then
+    return false
+  end
+  for i, line in ipairs(now) do
+    if line ~= written[i] then
+      return false
+    end
+  end
+  host.mark_saved(bufnr)
+  return true
+end
+
+---Stop showing the commit buffer `bufnr`: the window it was opened over
+---shows again what it showed before, and a window or tab page opened for it
+---closes.
+---@param host jin.Host
+---@param bufnr integer
+function M.leave_commit(host, bufnr)
+  local back = (returns[host] or {})[bufnr]
+  if returns[host] then
+    returns[host][bufnr] = nil
+  end
+  host.leave(bufnr, back or nil)
+end
+
 ---The status of the file whose section holds line `lnum` of a parsed diff.
 ---@param parsed { files: jin.DiffFile[] }
 ---@param lnum integer
@@ -340,6 +378,158 @@ function M.jump_actions(actions, sides_of)
       M.jump(ctx, opener, "new", sides_of(ctx))
     end
   )
+end
+
+---Refuse to change the repository from a view at an earlier operation: what
+---it shows is not what a change would apply to.
+---@param ctx jin.ActionContext
+function M.refuse_at_op(ctx)
+  if M.at_op(ctx.meta.parsed.argv) then
+    error("jin: this view shows an earlier operation, which is not to be changed", 0)
+  end
+end
+
+---The revisions of every entry acted on, after refusing a view at an earlier
+---operation and lines that name no change.
+---@param ctx jin.ActionContext
+---@return string[]
+local function changed(ctx)
+  M.refuse_at_op(ctx)
+  if #ctx.entries == 0 then
+    action.nothing(ctx, "jin: nothing to act on in this line")
+  end
+  -- Once each: lines that each name a change, as annotate's do, would name
+  -- it as many times.
+  local revs, seen = {}, {}
+  for _, entry in ipairs(ctx.entries) do
+    local rev = M.revision(entry)
+    if not seen[rev] then
+      seen[rev] = true
+      revs[#revs + 1] = rev
+    end
+  end
+  return revs
+end
+
+---Add describe (with its opener variants): open the description buffer of
+---the change of every entry acted on.
+---@param actions table<string, jin.Action>
+function M.describe_actions(actions)
+  action.openers(actions, "describe", "edit the description of the changes", function(ctx, opener)
+    local argv = {}
+    for _, rev in ipairs(changed(ctx)) do
+      argv[#argv + 1] = "-r"
+      argv[#argv + 1] = rev
+    end
+    M.open(ctx, "describe", argv, opener)
+  end)
+end
+
+---The change ID of the working copy of the workspace at `root`.
+---@param jin jin.Api
+---@param root string
+---@return string
+function M.working_copy(jin, root)
+  local query = { "log", "--no-graph", "-r", "@", "-T", "change_id" }
+  local result = jin.jj(query, { cwd = root })
+  if result.code ~= 0 then
+    error("jin: " .. result.stderr:gsub("\n$", ""), 0)
+  end
+  return (result.stdout:gsub("\n$", ""))
+end
+
+---Add commit (with its opener variants): open the description buffer of the
+---working copy, the change jj commit works on, whatever the line.
+---@param actions table<string, jin.Action>
+function M.commit_actions(actions)
+  action.openers(actions, "commit", "commit the working copy", function(ctx, opener)
+    M.refuse_at_op(ctx)
+    local id = M.working_copy(ctx.jin, ctx.meta.parsed.root)
+    local back = opener == "edit" and ctx.host.buffer_name(ctx.bufnr) or false
+    local bufnr = M.open(ctx, "commit", { "-r", id }, opener)
+    returns[ctx.host] = returns[ctx.host] or {}
+    returns[ctx.host][bufnr] = back
+  end)
+end
+
+---CHANGE_FIELDS with the description itself, for a buffer that edits it:
+---the draft jj shows may add to the description, which is what jj compares
+---against.
+M.DESCRIBED_FIELDS = { M.CHANGE_FIELDS[1], M.CHANGE_FIELDS[2], M.CHANGE_FIELDS[3], "description" }
+
+---The description each change of `meta` had when read, by revision, from
+---the entries DESCRIBED_FIELDS marked.
+---@param meta jin.ViewMeta
+---@return table<string, string>
+function M.originals(meta)
+  local originals = {}
+  for _, entry in ipairs(meta.entries) do
+    if entry then
+      local lines = {}
+      for line in ((entry[4] or "") .. "\n"):gmatch("(.-)\n") do
+        lines[#lines + 1] = line
+      end
+      originals[M.revision(entry)] = require("jin.description").text(lines)
+    end
+  end
+  return originals
+end
+
+-- One record per commit: its change ID, its commit ID and its description.
+local DESCRIPTIONS = 'change_id ++ "\\x1f" ++ commit_id ++ "\\x1f" ++ description ++ "\\x1e"'
+
+---Refuse to write over the description of any of `revs` someone, such as an
+---agent, changed since it was read as `originals` says, asking jj once for
+---all of them.
+---@param jin jin.Api
+---@param root string
+---@param originals table<string, string>
+---@param revs string[]
+function M.refuse_changed(jin, root, originals, revs)
+  local asked = {}
+  for _, rev in ipairs(revs) do
+    if originals[rev] then
+      asked[#asked + 1] = rev
+    end
+  end
+  if #asked == 0 then
+    return
+  end
+  local query = { "log", "--no-graph", "-r", table.concat(asked, "|"), "-T", DESCRIPTIONS }
+  local result = jin.jj(query, { cwd = root })
+  if result.code ~= 0 then
+    return
+  end
+  local now, versions = {}, {}
+  for record in result.stdout:gmatch("([^\30]*)\30") do
+    local change_id, commit_id, text = record:match("^([^\31]*)\31([^\31]*)\31(.*)$")
+    if change_id then
+      local lines = {}
+      for line in (text .. "\n"):gmatch("(.-)\n") do
+        lines[#lines + 1] = line
+      end
+      text = require("jin.description").text(lines)
+      now[change_id], now[commit_id] = text, text
+      versions[change_id] = (versions[change_id] or 0) + 1
+    end
+  end
+  for _, rev in ipairs(asked) do
+    -- Describing a change ID describes every version it has now.
+    if (versions[rev] or 0) > 1 then
+      error(
+        ("jin: %s has split into several versions since it was read; describe one from a view"):format(
+          rev
+        ),
+        0
+      )
+    end
+    if now[rev] and now[rev] ~= originals[rev] then
+      error(
+        ("jin: the description of %s changed since it was read; :edit! reads it again"):format(rev),
+        0
+      )
+    end
+  end
 end
 
 ---Add yank:change and yank:commit, yanking the IDs of every entry acted on.
