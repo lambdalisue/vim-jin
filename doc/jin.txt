@@ -31,7 +31,8 @@ Every vim-jin buffer is read-only and tied to no file; its name starts with
 =============================================================================
 REQUIREMENTS						*jin-requirements*
 
-- jj on $PATH.
+- jj 0.46 on $PATH. vim-jin follows one jj release at a time, and another
+  may print what it reads differently.
 - Neovim 0.10 or later, or Vim 9.0.0067 or later built with |+lua|.
 
 =============================================================================

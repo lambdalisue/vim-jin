@@ -17,9 +17,9 @@ to run on Vim built with `+lua` as well.
 
 ## Install
 
-Install it with any plugin manager. It needs jj on `PATH`, and either Neovim
-0.10 or later, or Vim 9.0.0067 or later built with `+lua`. `:help jin`
-covers everything below.
+Install it with any plugin manager. It needs jj 0.46 on `PATH`, the one jj
+release it follows, and either Neovim 0.10 or later, or Vim 9.0.0067 or
+later built with `+lua`. `:help jin` covers everything below.
 
 ## Usage
 
