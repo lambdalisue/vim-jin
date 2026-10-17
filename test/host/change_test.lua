@@ -37,6 +37,20 @@ local function line_of(text)
   error("no line shows " .. text)
 end
 
+---Answer the next question or prompt with `reply`: true or false for a
+---confirmation, text for an input. The prompts themselves are the editor's.
+local function answer(reply)
+  local confirm, input = host.confirm, host.input
+  host.confirm = function()
+    host.confirm = confirm
+    return reply == true
+  end
+  host.input = function()
+    host.input = input
+    return type(reply) == "string" and reply or nil
+  end
+end
+
 local function act(name, lnum)
   require("jin.host.entry").action(vim.fn.bufnr(), name, lnum, lnum)
 end
@@ -46,6 +60,43 @@ local function at(rev)
 end
 
 return {
+  {
+    "new and edit move the working copy as jj does",
+    function()
+      workspace()
+      h.ex("JinLog")
+      settle()
+      act("new", line_of("first"))
+      h.eventually(function()
+        return at("@-") == "first\n"
+      end, "no new change on top of first")
+      act("edit", line_of("second"))
+      h.eventually(function()
+        return at("@") == "second\n"
+      end, "second is not the working copy")
+    end,
+  },
+  {
+    "abandon asks before it changes anything, and undo and redo do not",
+    function()
+      workspace()
+      h.ex("JinLog")
+      settle()
+      answer(true)
+      act("abandon", line_of("second"))
+      h.eventually(function()
+        return at("@-") == "first\n"
+      end, "second was not abandoned")
+      act("undo", 1)
+      h.eventually(function()
+        return at("@") == "second\n"
+      end, "the abandon was not undone")
+      act("redo", 1)
+      h.eventually(function()
+        return at("@") == ""
+      end, "the abandon was not redone")
+    end,
+  },
   {
     "commit opens the draft of the working copy, and :w commits it with the text",
     function()
@@ -172,6 +223,54 @@ return {
         priority > entry_priority,
         ("selection %d, cursor entry %d"):format(priority, entry_priority)
       )
+    end,
+  },
+  {
+    "squash into the selected change joins both descriptions, with no editor to wait for",
+    function()
+      workspace()
+      h.ex("JinLog")
+      settle()
+      act("select", line_of("first"))
+      act("squash", line_of("second"))
+      h.eventually(function()
+        return at("@-") == "first\n\nsecond\n"
+      end, function()
+        return "@- is " .. at("@-")
+      end)
+    end,
+  },
+  {
+    "restore takes the repository back to how it was after the operation",
+    function()
+      workspace()
+      h.eq(0, jin.jj({ "bookmark", "set", "topic", "-r", "@-" }).code)
+      local before =
+        jin.jj({ "op", "log", "--no-graph", "--limit", "2", "-T", 'id ++ "\\n"' }).stdout
+      local op = before:match("\n(%x+)")
+      h.truthy(op, before)
+      h.ex("JinOpLog")
+      settle()
+      answer(true)
+      act("restore", line_of(op:sub(1, 12)))
+      h.eventually(function()
+        return jin.jj({ "bookmark", "list" }).stdout == ""
+      end, function()
+        return table.concat({
+          "bookmarks: " .. jin.jj({ "bookmark", "list" }).stdout,
+          "ops: " .. jin.jj({
+            "op",
+            "log",
+            "--no-graph",
+            "--limit",
+            "4",
+            "-T",
+            'id.short() ++ " " ++ description ++ "\\n"',
+          }).stdout,
+          "wanted: " .. op,
+          "messages: " .. vim.fn.execute("messages"),
+        }, "\n")
+      end)
     end,
   },
 }

@@ -49,6 +49,7 @@ local VIEWS = {
 ---@field detect? fun(meta: jin.ViewMeta): string? a path to take the filetype from, in place of `filetype`
 ---@field prepare? fun(argv: string[]): string[] rewrite the user's arguments before they reach jj
 ---@field needs_path? boolean refuse to open without the path of a file in the arguments
+---@field current_entries? boolean its lines show the latest version of their changes, so a change rewritten since the view was read is not acted on
 ---@field editable? boolean a buffer to edit and hand back with `write`: read without colors, mapping no keys, and never read again by itself, which would lose what is being written
 ---@field write? fun(jin: jin.Api, host: jin.Host, bufnr: integer, parsed: jin.Bufname) hand what an editable buffer holds back to jj
 ---@field title? string[] the jj words its title names in place of `command`

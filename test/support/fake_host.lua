@@ -175,6 +175,15 @@ function M.new(opts)
     return table.remove(host.answers, 1)
   end
 
+  -- What `confirm` answers in order, and what it was asked; no answer is no.
+  host.confirms = {}
+  host.asked = {}
+
+  function host.confirm(prompt)
+    host.asked[#host.asked + 1] = prompt
+    return table.remove(host.confirms, 1) == true
+  end
+
   function host.yank(text)
     host.yanked[#host.yanked + 1] = text
   end

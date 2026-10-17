@@ -18,6 +18,7 @@ action.openers(actions, "evolog", "show the versions the change went through", f
 end)
 
 support.describe_actions(actions)
+support.change_actions(actions)
 support.commit_actions(actions)
 support.select_actions(actions)
 support.yank_actions(actions)
@@ -32,6 +33,7 @@ return {
   blocks = require("jin.view.block").entries,
   template = support.logged("log", "builtin_log_compact"),
   actions = actions,
+  current_entries = true,
   primary = "show",
   secondary = "diff",
   yank = "yank:change",

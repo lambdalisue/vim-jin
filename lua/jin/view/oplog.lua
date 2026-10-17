@@ -13,6 +13,18 @@ action.openers(actions, "log", "show the log as it was after the operation", fun
   support.open(ctx, "log", { "--at-op", action.entry(ctx)[1] }, opener)
 end)
 
+actions.restore = {
+  desc = "restore the repository to how it was after the operation, once confirmed",
+  changes = true,
+  fn = function(ctx)
+    support.refuse_at_op(ctx)
+    local id = action.entry(ctx)[1]
+    if ctx.host.confirm(("jin: restore the repository to %s?"):format(id)) then
+      ctx.jin.command({ "op", "restore", id }, { cwd = ctx.meta.parsed.root, quiet = true })
+    end
+  end,
+}
+
 actions["yank:operation"] = {
   desc = "yank the operation IDs",
   fn = function(ctx)

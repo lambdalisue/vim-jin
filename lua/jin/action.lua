@@ -9,6 +9,7 @@ local M = {}
 ---@class jin.Action
 ---@field desc string
 ---@field fn fun(ctx: jin.ActionContext)
+---@field changes? boolean it changes the repository, which tells the keys of a name apart
 
 ---@class jin.ActionContext
 ---@field jin jin.Api
@@ -106,6 +107,19 @@ local function actions_of(view_def)
       ctx.host.echo(M.help(ctx.host, all))
     end,
   }
+  -- Without asking, as u and CTRL-R do in Vim: jj keeps every operation, so
+  -- what one undoes the other brings back.
+  for _, step in ipairs({ "undo", "redo" }) do
+    all[step] = {
+      desc = step == "undo" and "undo the latest operation" or "redo the operation last undone",
+      changes = true,
+      fn = function(ctx)
+        -- Required here: the views' support requires this module.
+        require("jin.view.support").refuse_at_op(ctx)
+        ctx.jin.command({ step }, { cwd = ctx.meta.parsed.root, quiet = true })
+      end,
+    }
+  end
   return all
 end
 
@@ -139,10 +153,21 @@ local GOES = {
 }
 
 ---The keys of the actions changing the repository: the Vim key that edits
----text closest to each, which a read-only buffer has no other use for.
+---text closest to each, which a read-only buffer has no other use for, and
+---the key in visual mode, for an action on the lines selected. A change
+---without one is reached by name.
 local CHANGES = {
-  commit = "cc",
-  describe = "cw",
+  undo = { "u" },
+  redo = { "<C-r>" },
+  abandon = { "dd", "d" },
+  ["new:before"] = { "o" },
+  ["new:after"] = { "O" },
+  edit = { "i" },
+  commit = { "cc" },
+  describe = { "cw" },
+  squash = { "J", "J" },
+  ["put:after"] = { "p" },
+  ["put:before"] = { "P" },
 }
 
 ---The default keys of `view_def` as { lhs, action, mode }, in normal mode
@@ -180,11 +205,16 @@ function M.keys(view_def, vertical)
       keys[#keys + 1] = { "YY", name }
       keys[#keys + 1] = { "Y", name, "x" }
     end
-    local change = CHANGES[name]
+    -- Apart, as a name may stand for both: edit opens a file in the status but
+    -- makes a change the working copy in the log.
+    local change = all[name].changes and CHANGES[name]
     if change then
-      keys[#keys + 1] = { change, name }
+      keys[#keys + 1] = { change[1], name }
+      if change[2] then
+        keys[#keys + 1] = { change[2], name, "x" }
+      end
     end
-    local goes = GOES[name]
+    local goes = not all[name].changes and GOES[name]
     if goes then
       keys[#keys + 1] = { goes, name }
     end

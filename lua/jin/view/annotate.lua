@@ -43,6 +43,7 @@ action.openers(actions, "file", "show the file without the annotation", function
 end)
 
 support.describe_actions(actions)
+support.change_actions(actions)
 support.commit_actions(actions)
 support.select_actions(actions)
 support.yank_actions(actions)
@@ -130,6 +131,7 @@ return {
     return meta.data.annotations and support.file_path(meta.parsed.argv) or nil
   end,
   actions = actions,
+  current_entries = true,
   scattered_changes = true,
   blocks = require("jin.view.block").changes,
   needs_path = true,

@@ -56,7 +56,7 @@ elsewhere, too: entering one, or coming back to the editor, reads it again
 when the repository moved on.
 
 The keys of every view follow the same few rules, and none of them changes what
-the key means in Vim: a key keeps its meaning, as `yy` still yanks and `]]`
+the key means in Vim: a key keeps its meaning, as `u` still undoes and `]]`
 still goes to the next section, or it is a key that edits text, which a
 read-only buffer has no use for, given the jj operation closest to what it does
 to text. Vim's motions and marks keep working. `a`, `.` and `?` are the
@@ -68,11 +68,17 @@ exceptions:
 | `<S-CR>` / `<C-CR>` | what it is opened for next most often |
 | `<C-w><CR>` | what `<CR>` opens, in a new window split the way `'diffopt'` splits diffs |
 | `gf` / `gd` / `gp` / `gc` | go to the file / the diff / the parent / the child |
+| `u` / `<C-r>` | undo / redo the latest operation |
+| `dd` | abandon the change |
+| `o` / `O` | a new change below / above the one of the line |
+| `i` | edit the change: make it the working copy |
 | `cc` / `cw` | commit the working copy / describe the change |
+| `J` | squash the change into the selected one, or into its parent |
 | `x` / `X` | select the change as the other side of an action / clear the selection |
+| `p` / `P` | move the selected changes in after / before the change of the line |
 | `yy` / `YY` | yank change IDs (or what the line stands for) / commit IDs |
 | `]]` / `[[` | go to the next / previous block: change, file, or lines one change wrote |
-| `a`, `.`, `?` | choose an action by name (every one without a key), repeat it, list them all |
+| `a`, `.`, `?` | choose an action by name (rebase and every other without a key), repeat it, list them all |
 
 Your own mappings of `<Plug>(jin-action-{name})` win over these. See
 [docs/spec/views.md](docs/spec/views.md).

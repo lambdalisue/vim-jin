@@ -215,6 +215,8 @@ return {
       settle()
       h.eq("<Plug>(jin-action-show)", vim.fn.maparg("<CR>", "n"))
       h.eq("<Plug>(jin-action-choice)", vim.fn.maparg("a", "n"))
+      h.eq("<Plug>(jin-action-new:before)", vim.fn.maparg("o", "n"))
+      h.eq("<Plug>(jin-action-undo)", vim.fn.maparg("u", "n"))
       h.eq("<Plug>(jin-action-diff)", vim.fn.maparg("<S-CR>", "n"))
       h.eq("<Plug>(jin-action-diff)", vim.fn.maparg("<C-CR>", "n"))
       h.eq("<Plug>(jin-action-yank:change)", vim.fn.maparg("y", "x"))

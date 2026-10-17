@@ -145,7 +145,9 @@ describe("the actions every view has", function()
       "open:tab",
       "open:vsplit",
       "record",
+      "redo",
       "repeat",
+      "undo",
     }, host.defined[bufnr])
   end)
 
@@ -316,21 +318,49 @@ describe("jin.action.keys", function()
   it("gives each change the Vim key that edits text closest to it", function()
     local log = action.keys(view.get("log"), false)
     assert.same({
+      u = "undo",
+      ["<C-r>"] = "redo",
+      dd = "abandon",
+      o = "new:before",
+      O = "new:after",
+      i = "edit",
       cc = "commit",
       cw = "describe",
+      J = "squash",
+      p = "put:after",
+      P = "put:before",
     }, {
+      u = lookup(log, "u"),
+      ["<C-r>"] = lookup(log, "<C-r>"),
+      dd = lookup(log, "dd"),
+      o = lookup(log, "o"),
+      O = lookup(log, "O"),
+      i = lookup(log, "i"),
       cc = lookup(log, "cc"),
       cw = lookup(log, "cw"),
+      J = lookup(log, "J"),
+      p = lookup(log, "p"),
+      P = lookup(log, "P"),
     })
+    assert.same({ "abandon", "squash" }, { lookup(log, "d", "x"), lookup(log, "J", "x") })
     assert.equal("commit", lookup(action.keys(view.get("status"), false), "cc"))
   end)
 
-  it("leaves the other openers to a, and = to Vim", function()
+  it("leaves the other changes to a, and = to Vim", function()
     local wrong = {}
     for _, name in ipairs(VIEWS) do
       for _, key in ipairs(action.keys(view.get(name), false)) do
         -- Reached by name, or as what <CR> and <S-CR> serve.
         local unmapped = {
+          rebase = true,
+          duplicate = true,
+          revert = true,
+          absorb = true,
+          parallelize = true,
+          restore = true,
+          new = true,
+          next = true,
+          prev = true,
           show = true,
           log = true,
           evolog = true,
@@ -375,8 +405,16 @@ describe("jin.action.keys", function()
   -- A key whose Vim meaning a read-only buffer has no use for, as it edits
   -- text, is free to take, for the change closest to what it does to text.
   local UNUSED = {
+    ["^dd$"] = "dd deletes a line",
+    ["^d$"] = "d deletes the lines selected",
+    ["^o$"] = "o opens a line below",
+    ["^O$"] = "O opens a line above",
+    ["^i$"] = "i inserts text",
     ["^cc$"] = "cc changes a line",
     ["^cw$"] = "cw changes a word",
+    ["^J$"] = "J joins lines",
+    ["^p$"] = "p puts text after the cursor",
+    ["^P$"] = "P puts text before the cursor",
     ["^gp$"] = "gp puts text",
     ["^gc$"] = "gc comments lines out, in Neovim; Vim gives it nothing",
     ["^x$"] = "x deletes a character",
@@ -390,6 +428,8 @@ describe("jin.action.keys", function()
     ["^<C%-w><CR>$"] = "goes to what the line names in a new window, as in the quickfix window",
     ["^gf$"] = "goes to the file",
     ["^gd$"] = "goes to what defines what is under the cursor",
+    ["^u$"] = "undoes",
+    ["^<C%-r>$"] = "redoes",
     ["^yy$"] = "yanks",
     ["^y$"] = "yanks",
     ["^YY$"] = "yanks",

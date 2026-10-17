@@ -11,6 +11,7 @@ local M = {
   buffers = common.buffers,
   buffer_name = common.buffer_name,
   input = common.input,
+  confirm = common.confirm,
   yank = common.yank,
   cd = common.cd,
   mark_saved = common.mark_saved,

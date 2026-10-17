@@ -389,6 +389,48 @@ function M.refuse_at_op(ctx)
   end
 end
 
+---Refuse to act on a change rewritten since the view was read, as by an
+---agent meanwhile: the line shows a version that is no longer the change,
+---and acting on the change would act on what nobody looked at. The view is
+---read again instead. A change jj cannot tell about is let through.
+---@param ctx jin.ActionContext
+function M.refuse_rewritten(ctx)
+  local seen, names = {}, {}
+  for _, entry in ipairs(ctx.entries) do
+    -- Named by its commit ID, a divergent or hidden one is the version seen.
+    if entry[2] and entry[3] ~= "divergent" and entry[3] ~= "hidden" then
+      seen[entry[1]] = entry[2]
+      names[#names + 1] = entry[1]
+    end
+  end
+  if #names == 0 then
+    return
+  end
+  local query = {
+    "log",
+    "--no-graph",
+    "-r",
+    table.concat(names, "|"),
+    "-T",
+    'change_id ++ " " ++ commit_id ++ "\\n"',
+  }
+  local result = ctx.jin.jj(query, { cwd = ctx.meta.parsed.root })
+  if not result or result.code ~= 0 then
+    return
+  end
+  for change_id, commit_id in result.stdout:gmatch("(%S+) (%S+)\n") do
+    if seen[change_id] and seen[change_id] ~= commit_id then
+      view.read(ctx.jin, ctx.host, ctx.bufnr, ctx.meta.name)
+      error(
+        ("jin: %s changed since the view was read, so it is read again; look before acting again"):format(
+          change_id
+        ),
+        0
+      )
+    end
+  end
+end
+
 ---The revisions of every entry acted on, after refusing a view at an earlier
 ---operation and lines that name no change.
 ---@param ctx jin.ActionContext
@@ -397,6 +439,9 @@ local function changed(ctx)
   M.refuse_at_op(ctx)
   if #ctx.entries == 0 then
     action.nothing(ctx, "jin: nothing to act on in this line")
+  end
+  if view.get(ctx.meta.view).current_entries then
+    M.refuse_rewritten(ctx)
   end
   -- Once each: lines that each name a change, as annotate's do, would name
   -- it as many times.
@@ -411,6 +456,40 @@ local function changed(ctx)
   return revs
 end
 
+---The words of every list in turn.
+---@param ... string[]
+---@return string[]
+local function join(...)
+  local argv = {}
+  for _, list in ipairs({ ... }) do
+    for _, word in ipairs(list) do
+      argv[#argv + 1] = word
+    end
+  end
+  return argv
+end
+
+---`flag` before each of `revs`.
+---@param flag string
+---@param revs string[]
+---@return string[]
+local function flagged(flag, revs)
+  local argv = {}
+  for _, rev in ipairs(revs) do
+    argv[#argv + 1] = flag
+    argv[#argv + 1] = rev
+  end
+  return argv
+end
+
+---Run jj with the words of every list in turn, quietly, as the views it reads
+---again show the result.
+---@param ctx jin.ActionContext
+---@param ... string[]
+local function change(ctx, ...)
+  ctx.jin.command(join(...), { cwd = ctx.meta.parsed.root, quiet = true })
+end
+
 ---Add describe (with its opener variants): open the description buffer of
 ---the change of every entry acted on.
 ---@param actions table<string, jin.Action>
@@ -423,6 +502,7 @@ function M.describe_actions(actions)
     end
     M.open(ctx, "describe", argv, opener)
   end)
+  actions.describe.changes = true
 end
 
 ---The change ID of the working copy of the workspace at `root`.
@@ -450,6 +530,7 @@ function M.commit_actions(actions)
     returns[ctx.host] = returns[ctx.host] or {}
     returns[ctx.host][bufnr] = back
   end)
+  actions.commit.changes = true
 end
 
 ---Add select, selecting the change of every entry acted on, or leaving it
@@ -485,6 +566,73 @@ function M.select_actions(actions)
       view.show_selected_of(ctx.host, ctx.meta.parsed.root)
     end,
   }
+end
+
+---The selected changes of the workspace of `ctx`.
+---@param ctx jin.ActionContext
+---@return string[]
+function M.selected(ctx)
+  return require("jin.selection").list(ctx.host, ctx.meta.parsed.root)
+end
+
+---An `on_exit` for jj run with the selection of `ctx`, which leaves them out once
+---jj succeeded, used up, and shows it in every view. A failure leaves them
+---for the action to be tried again.
+---@param ctx jin.ActionContext
+---@return fun(result: jin.RunResult)
+function M.clear_selected_on_success(ctx)
+  local selection = require("jin.selection")
+  local host, root = ctx.host, ctx.meta.parsed.root
+  local taken = M.selected(ctx)
+  return function(result)
+    if result.code ~= 0 then
+      return
+    end
+    -- Only those still selected: a change selected while jj ran is for the
+    -- next action, and one left out meanwhile would be selected again by
+    -- toggling.
+    local now = {}
+    for _, rev in ipairs(selection.list(host, root)) do
+      now[rev] = true
+    end
+    local used = {}
+    for _, rev in ipairs(taken) do
+      if now[rev] then
+        used[#used + 1] = rev
+      end
+    end
+    if #used > 0 then
+      selection.toggle(host, root, used)
+      view.show_selected_of(host, root)
+    end
+  end
+end
+
+---Run jj as `change` does, with the selection of `ctx`.
+---@param ctx jin.ActionContext
+---@param ... string[]
+local function change_with_selected(ctx, ...)
+  local opts = { cwd = ctx.meta.parsed.root, quiet = true }
+  ctx.jin.command(join(...), opts, M.clear_selected_on_success(ctx))
+end
+
+---The description of `rev` in the workspace at `root`, as a description
+---buffer reads it, or nil when jj fails to tell it.
+---@param jin jin.Api
+---@param root string
+---@param rev string
+---@return string?
+function M.description(jin, root, rev)
+  local query = { "log", "--no-graph", "-r", rev, "-T", "description" }
+  local result = jin.jj(query, { cwd = root })
+  if result.code ~= 0 then
+    return nil
+  end
+  local lines = {}
+  for line in (result.stdout .. "\n"):gmatch("(.-)\n") do
+    lines[#lines + 1] = line
+  end
+  return require("jin.description").text(lines)
 end
 
 ---CHANGE_FIELDS with the description itself, for a buffer that edits it:
@@ -564,6 +712,200 @@ function M.refuse_changed(jin, root, originals, revs)
         0
       )
     end
+  end
+end
+
+---@param ctx jin.ActionContext
+---@param rev string
+---@return string
+local function description_of(ctx, rev)
+  return M.description(ctx.jin, ctx.meta.parsed.root, rev) or ""
+end
+
+---The jj arguments that squash the changes of `ctx` into the selected one, or
+---into their parent.
+---@param ctx jin.ActionContext
+---@return string[]
+local function squash_argv(ctx)
+  local revs = changed(ctx)
+  local selected = M.selected(ctx)
+  if #selected > 1 then
+    error(
+      ("jin: squash takes one selected change to squash into, but %d are selected"):format(
+        #selected
+      ),
+      0
+    )
+  end
+  local into = selected[1]
+  if not into and #revs > 1 then
+    error("jin: select the change to squash these into first", 0)
+  end
+  -- -m always: with a description on both sides, jj would otherwise
+  -- open an editor to merge them, which nobody can answer from here.
+  local sides = { into or (revs[1] .. "-") }
+  for _, rev in ipairs(revs) do
+    sides[#sides + 1] = rev
+  end
+  local texts = {}
+  for _, rev in ipairs(sides) do
+    local text = description_of(ctx, rev)
+    if text ~= "" then
+      texts[#texts + 1] = text
+    end
+  end
+  local message = { "-m", table.concat(texts, "\n") }
+  if not into then
+    return join({ "squash", "-r", revs[1] }, message)
+  end
+  local from = {}
+  for _, rev in ipairs(revs) do
+    from[#from + 1] = "--from"
+    from[#from + 1] = rev
+  end
+  return join({ "squash" }, from, { "--into", into }, message)
+end
+
+---Add new, edit, abandon, squash and rebase, acting on the change of every
+---entry acted on, and on the selected changes for those that take two sides.
+---@param actions table<string, jin.Action>
+function M.change_actions(actions)
+  actions.new = {
+    desc = "create a change on top of the changes and the selected ones, a merge of several",
+    changes = true,
+    fn = function(ctx)
+      local revs = changed(ctx)
+      change_with_selected(ctx, { "new" }, revs, M.selected(ctx))
+    end,
+  }
+  for where, flag in pairs({ after = "--insert-after", before = "--insert-before" }) do
+    actions["new:" .. where] = {
+      desc = ("insert a new change %s the changes"):format(where),
+      changes = true,
+      fn = function(ctx)
+        change(ctx, { "new" }, flagged(flag, changed(ctx)))
+      end,
+    }
+  end
+  actions.edit = {
+    desc = "make the change the working copy",
+    changes = true,
+    fn = function(ctx)
+      change(ctx, { "edit" }, { changed(ctx)[1] })
+    end,
+  }
+  actions.abandon = {
+    desc = "abandon the changes, once confirmed",
+    changes = true,
+    fn = function(ctx)
+      local revs = changed(ctx)
+      local question = ("jin: abandon %d %s?"):format(#revs, #revs == 1 and "change" or "changes")
+      if ctx.host.confirm(question) then
+        change(ctx, { "abandon" }, revs)
+      end
+    end,
+  }
+  actions.squash = {
+    desc = "squash the changes into the selected one, or into their parent",
+    changes = true,
+    fn = function(ctx)
+      change_with_selected(ctx, squash_argv(ctx))
+    end,
+  }
+  ---Rebase the changes of `ctx`, each after `which`, to the selected changes,
+  ---each after `where`.
+  local function rebase(which, where, desc)
+    return {
+      desc = desc,
+      changes = true,
+      fn = function(ctx)
+        local revs = changed(ctx)
+        local selected = M.selected(ctx)
+        if #selected == 0 then
+          error("jin: select the change to rebase onto first", 0)
+        end
+        change_with_selected(ctx, { "rebase" }, flagged(which, revs), flagged(where, selected))
+      end,
+    }
+  end
+  actions.rebase =
+    rebase("-s", "-o", "rebase the changes, with their descendants, onto the selected ones")
+  actions["rebase:revisions"] =
+    rebase("-r", "-o", "rebase only the changes, not their descendants, onto the selected ones")
+  actions["rebase:branch"] =
+    rebase("-b", "-o", "rebase the whole branch of the changes onto the selected ones")
+  actions["rebase:after"] =
+    rebase("-r", "--insert-after", "move only the changes in after the selected ones")
+  actions["rebase:before"] =
+    rebase("-r", "--insert-before", "move only the changes in before the selected ones")
+  -- The other way round from rebase:after and rebase:before: the selected
+  -- changes go to the change of the line, as p puts what was yanked at the
+  -- cursor.
+  for where, flag in pairs({ after = "--insert-after", before = "--insert-before" }) do
+    actions["put:" .. where] = {
+      desc = ("move only the selected changes in %s the change"):format(where),
+      changes = true,
+      fn = function(ctx)
+        local rev = changed(ctx)[1]
+        local selected = M.selected(ctx)
+        if #selected == 0 then
+          error("jin: select the changes to put here first", 0)
+        end
+        change_with_selected(ctx, { "rebase" }, flagged("-r", selected), { flag, rev })
+      end,
+    }
+  end
+  actions.duplicate = {
+    desc = "duplicate the changes",
+    changes = true,
+    fn = function(ctx)
+      change(ctx, { "duplicate" }, changed(ctx))
+    end,
+  }
+  actions.revert = {
+    desc = "revert the changes on top of the selected change, or of the working copy",
+    changes = true,
+    fn = function(ctx)
+      local revs = changed(ctx)
+      local onto = M.selected(ctx)
+      if #onto == 0 then
+        onto = { "@" }
+      end
+      change_with_selected(ctx, { "revert" }, flagged("-r", revs), flagged("-o", onto))
+    end,
+  }
+  actions.absorb = {
+    desc = "absorb the change into the changes below it that last touched its lines",
+    changes = true,
+    fn = function(ctx)
+      change(ctx, { "absorb", "--from", changed(ctx)[1] })
+    end,
+  }
+  actions.parallelize = {
+    desc = "make the changes siblings",
+    changes = true,
+    fn = function(ctx)
+      change(ctx, { "parallelize" }, changed(ctx))
+    end,
+  }
+  for _, step in ipairs({ "next", "prev" }) do
+    local which = step == "next" and "next" or "previous"
+    actions[step] = {
+      desc = ("move the working copy to the %s change"):format(which),
+      changes = true,
+      fn = function(ctx)
+        M.refuse_at_op(ctx)
+        change(ctx, { step })
+      end,
+    }
+    actions[step .. ":edit"] = {
+      desc = ("make the %s change the working copy"):format(which),
+      changes = true,
+      fn = function(ctx)
+        M.refuse_at_op(ctx)
+        change(ctx, { step, "--edit" })
+      end,
+    }
   end
 end
 

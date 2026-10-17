@@ -207,7 +207,8 @@ function M.keymaps(list)
 end
 
 function M.input(prompt, completion)
-  local answer = vim.fn.input(prompt, "", completion)
+  -- input() rejects an empty completion with E180, so none is given then.
+  local answer = completion ~= "" and vim.fn.input(prompt, "", completion) or vim.fn.input(prompt)
   if answer == "" then
     return nil
   end
@@ -230,6 +231,10 @@ function M.leave(bufnr, previous, list)
   if vim.fn.bufexists(bufnr) == 1 then
     M.ex("bwipeout " .. bufnr)
   end
+end
+
+function M.confirm(prompt)
+  return vim.fn.confirm(prompt, "&Yes\n&No", 2) == 1
 end
 
 function M.cd(scope, path)

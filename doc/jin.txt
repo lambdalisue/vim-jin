@@ -263,6 +263,8 @@ as the other side of an action that takes two. The selection
 belongs to the workspace: every view of it shows the lines of a selected
 change with |hl-JinSelected|, even under the cursor. It is vim-jin's own,
 and leaves Vim's marks (|mark-motions|) alone.
+An action that uses the selected changes leaves them out of the selection
+once jj succeeded, and keeps them when jj fails.
 
 	select		Select the change of the line, or of every line
 			selected, or leave it out when selected.
@@ -270,10 +272,46 @@ and leaves Vim's marks (|mark-motions|) alone.
 
 Changing the repository ~
 The log, show, evolog, annotate and conflicts views also change the
-repository, though never in a view at an earlier operation.
+repository, though never in a view at an earlier operation. In the log,
+annotate and conflicts views, an action on a change rewritten since
+the view was read, as by an agent meanwhile, does not run: the view is read
+again and says so.
 
 	describe	Edit the description of the change of the line, or of
 			every line selected, in a description buffer.
+	new		Create a change on top of the change of the line, or a
+			merge of those of every line selected and the
+			selected ones, and make it the working copy.
+	new:after, new:before
+			Insert a new change after, or before, the changes of
+			the lines, and make it the working copy.
+	edit		Make the change of the line the working copy.
+	abandon		Abandon the changes of the lines, once confirmed.
+	squash		Squash the changes of the lines into the selected
+			change, one at most, or, with none selected, the change into its
+			parent, keeping both descriptions.
+	rebase		Rebase the changes of the lines, with their
+			descendants, onto the selected changes.
+	rebase:revisions, rebase:branch
+			Rebase only the changes of the lines, or their whole
+			branch, onto the selected changes.
+	rebase:after, rebase:before
+			Move only the changes of the lines in after, or
+			before, the selected changes.
+	put:after, put:before
+			The other way round: move only the selected changes
+			in after, or before, the change of the line.
+	duplicate	Duplicate the changes of the lines.
+	revert		Revert the changes of the lines, on top of the
+			selected change or of the working copy.
+	absorb		Move the parts of the change into the changes below it
+			that last touched those lines.
+	parallelize	Make the changes of the lines siblings.
+	next, prev	Move the working copy to the next or previous change.
+	next:edit, prev:edit
+			Make the next or previous change the working copy.
+	restore		(operation log) Restore the repository to how it was
+			after the operation, once confirmed.
 	commit		Commit the working copy, whatever the line, with a
 			description written in a description buffer; the status
 			view has it too. |:w| commits only while the working
@@ -282,6 +320,11 @@ repository, though never in a view at an earlier operation.
 			buffer closes and the window shows what it showed
 			before; a window or tab page opened for it closes. A
 			commit that fails keeps the buffer.
+
+Every view also has:
+
+	undo		Undo the latest operation, without asking.
+	redo		Redo the operation last undone, without asking.
 
 jj's report of a change shows only when it fails; the views read again show
 the result.
@@ -304,7 +347,7 @@ KEY MAPPINGS						*jin-mappings*
 
 Each view maps a few keys, by these rules, and none of them changes what
 the key means in Vim. A key either keeps its meaning while the view tells
-what it applies to, as |yy| still yanks, |]]| still goes
+what it applies to, as |yy| still yanks, |u| still undoes, |]]| still goes
 to the next section and <CR> goes to what the line names as it does in the |quickfix-window|, or it is a
 key that edits text, which a read-only buffer has no use for, given the
 change closest to what it does to text. Vim's motions and marks keep
@@ -336,12 +379,24 @@ exceptions. A view maps only the keys of the actions it has.
 
 These change the repository:
 
+	u		undo, without asking.
+	<C-r>		redo, likewise.
+	dd		abandon; `d` in visual mode for the lines selected.
+	o		new:before: a new change below the one of the line, as
+			the log lists it, between it and its parent.
+	O		new:after: a new change above it, between it and its
+			children.
+	i		edit: make the change the working copy.
 	cc		commit
 	cw		describe
+	J		squash; `J` in visual mode for the lines selected.
+	p P		put:after, put:before: move the selected changes in
+			after, or before, the change of the line.
 
-Keys that start others, as `c`, `g` and CTRL-W do, wait 'timeoutlen' for
-the rest. The openers without a key and the variants have no key: reach
-them with `a`, or map their <Plug>.
+Keys that start others, as `d`, `c`, `g` and CTRL-W do, wait 'timeoutlen'
+for the rest. The other actions, such as rebase, duplicate, revert,
+absorb, parallelize, restore, next and prev, the openers without a key, and
+the variants have no key: reach them with `a`, or map their <Plug>.
 
 `?` shows the keys of the view at hand.
 

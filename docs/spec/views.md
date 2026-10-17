@@ -138,7 +138,8 @@ holds spaces or quotes and jj shows it quoted.
 ### Selection
 
 The log, show, evolog, annotate and operation show views select changes
-as the other side of an action that takes two. The selection belongs to the workspace for the editing
+as the other side of an action that takes two, such as the change
+to squash into. The selection belongs to the workspace for the editing
 session: every view of it shows the lines of a selected change with
 `JinSelected`, which links to `Visual` unless defined otherwise, over the
 highlight of the line under the cursor; it keeps showing them when read
@@ -156,11 +157,80 @@ change through rewrites. It is vim-jin's own and leaves Vim's marks alone.
 
 The log, show, evolog, annotate and conflicts views also change the
 repository, and the status view commits. Such an action never runs on a
-view at an earlier operation.
+view at an earlier operation. In the log, annotate and conflicts views, whose lines show the latest version of their changes, it does not
+run on a change rewritten since the view was read, as by an agent
+meanwhile: the view is read again instead, and says so.
 
 `describe`
 : Edit the description of the change of the line, or of every line
   selected, in a description buffer.
+
+`new`
+: Create a change on top of the change of the line, or a merge of the
+  changes of every line selected and the selected ones, and make it the
+  working copy.
+
+`new:after`, `new:before`
+: Insert a new change between the changes of the lines and their children,
+  or their parents, and make it the working copy.
+
+`edit`
+: Make the change of the line the working copy.
+
+`abandon`
+: Abandon the changes of the lines, once confirmed.
+
+`squash`
+: Squash the changes of the lines into the selected change, or, with nothing
+  selected, the change of the line into its parent. The result keeps the
+  descriptions of both sides, joined by a blank line, as jj would offer
+  them to edit; one selected change at most.
+
+`rebase`
+: Rebase the changes of the lines, with their descendants, onto the selected
+  changes.
+
+`rebase:revisions`, `rebase:branch`
+: Rebase onto the selected changes only the changes of the lines, their
+  descendants left in place, or the whole branch they are on.
+
+`rebase:after`, `rebase:before`
+: Move only the changes of the lines in between the selected changes and
+  their children, or their parents.
+
+`put:after`, `put:before`
+: The other way round: move only the selected changes in between the
+  change of the line and its children, or its parent.
+
+`duplicate`
+: Duplicate the changes of the lines.
+
+`revert`
+: Create a change reverting the changes of the lines, on top of the selected
+  change, or of the working copy with nothing selected.
+
+`absorb`
+: Move the parts of the change of the line into the changes below it that
+  last touched those lines.
+
+`parallelize`
+: Make the changes of the lines siblings.
+
+`next`, `prev`
+: Move the working copy to the next or the previous change.
+
+`next:edit`, `prev:edit`
+: Make the next or the previous change itself the working copy.
+
+The operation log has, besides:
+
+`restore`
+: Restore the repository to how it was after the operation of the line,
+  once confirmed.
+
+An action that takes the selected changes as its other side leaves them out
+of the selection once jj succeeded, keeping them when it fails, and says so
+when it needs a selected change and finds none.
 
 `commit`
 : Commit the working copy, whatever the line, with a description written
@@ -170,6 +240,12 @@ view at an earlier operation.
   otherwise. Once committed, the buffer closes: the window it was opened
   over shows again what it showed before, and a window or tab page opened
   for it closes. A commit that fails leaves the buffer as it is.
+
+Every view, these included, also has:
+
+`undo`, `redo`
+: Undo the latest operation, or redo the one last undone, without asking,
+  as `u` and `CTRL-R` do in Vim.
 
 jj's report of a change shows only when it fails; the views read again show
 the result.
@@ -364,7 +440,7 @@ buffer that is edited, such as a description buffer, maps no key, its
 actions reached only through `<Plug>(jin-action-{name})`. The keys follow
 rules rather than a list, and none of them changes what the key means in
 Vim. A key either keeps its meaning while the view tells
-what it applies to, as `yy` still yanks and `]]` still
+what it applies to, as `yy` still yanks, `u` still undoes and `]]` still
 goes to the next section, or it is a key that edits text, which a
 read-only buffer has no use for, given the change closest to what it does
 to text. Vim's motions and marks keep working, and `=` stays Vim's
@@ -409,28 +485,40 @@ Not changing the repository:
 
 Changing the repository:
 
+- `u` undoes the latest operation and `CTRL-R` redoes it, in every view.
+- `dd` abandons the changes of the line, and `d` in visual mode those of
+  the lines selected.
+- `o` inserts a new change below the change of the line, as the log lists
+  it, between it and its parent (`new:before`), and `O` above it, between
+  it and its children (`new:after`).
+- `i` makes the change the working copy (`edit`).
 - `cc` commits the working copy, and `cw` describes the change.
+- `J` squashes the change, or in visual mode those of the lines selected,
+  into the selected change, or into its parent.
+- `p` and `P` move the selected changes in after or before the change of
+  the line (`put:after`, `put:before`).
 
-Keys that start others, as `c`, `g` and `CTRL-W` do, wait as long as
-`'timeoutlen'` for the rest. The openers that have no key of their own, and
-every variant, such as `{name}:tab`, are reached through `a` or by mapping
-`<Plug>(jin-action-{name})`.
+Keys that start others, as `d`, `c`, `g` and `CTRL-W` do, wait as long as
+`'timeoutlen'` for the rest. Every other action, such as `rebase`,
+`duplicate`, `revert`, `absorb`, `parallelize`, `restore`, `next` and
+`prev`, the openers that have no key of their own, and every variant, such as
+`{name}:tab`, is reached through `a` or by mapping `<Plug>(jin-action-{name})`.
 
 | View | `<CR>` | `<S-CR>` | `g` keys | Changes | `yy` | `YY` |
 | --- | --- | --- | --- | --- | --- | --- |
-| log | show | diff | `gd` | `cc` `cw` | yank:change | yank:commit |
-| show | jump | | `gp` `gc` | `cc` `cw` | yank:change | yank:commit |
-| diff | jump | | | | | |
-| interdiff | jump | | | | | |
-| file | annotate | log | | | | |
-| oplog | show | log | | | yank:operation | |
-| opshow | show | diff | `gd` | | yank:change | yank:commit |
-| evolog | interdiff | show | `gd` | `cc` `cw` | yank:change | yank:commit |
-| status | inspect | open | `gf` `gd` | `cc` | yank:path | |
-| annotate | show | | `gf` `gd` | `cc` `cw` | yank:change | yank:commit |
-| bookmark | log | show | | | yank:bookmark | |
-| workspace | tcd | log | | | | |
-| conflicts | files | | `gd` | `cc` `cw` | yank:change | yank:commit |
-| resolve | edit | | `gf` `gd` | | | |
+| log | show | diff | `gd` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
+| show | jump | | `gp` `gc` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
+| diff | jump | | | `u` `<C-r>` | | |
+| interdiff | jump | | | `u` `<C-r>` | | |
+| file | annotate | log | | `u` `<C-r>` | | |
+| oplog | show | log | | `u` `<C-r>` | yank:operation | |
+| opshow | show | diff | `gd` | `u` `<C-r>` | yank:change | yank:commit |
+| evolog | interdiff | show | `gd` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
+| status | inspect | open | `gf` `gd` | `u` `<C-r>` `cc` | yank:path | |
+| annotate | show | | `gf` `gd` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
+| bookmark | log | show | | `u` `<C-r>` | yank:bookmark | |
+| workspace | tcd | log | | `u` `<C-r>` | | |
+| conflicts | files | | `gd` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
+| resolve | edit | | `gf` `gd` | `u` `<C-r>` | | |
 
 `resolve` is the list of conflicted paths `files` opens.
