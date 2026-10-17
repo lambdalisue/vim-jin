@@ -69,11 +69,12 @@ exceptions:
 | `<C-w><CR>` | what `<CR>` opens, in a new window split the way `'diffopt'` splits diffs |
 | `gf` / `gd` / `gp` / `gc` | go to the file / the diff / the parent / the child |
 | `u` / `<C-r>` | undo / redo the latest operation |
-| `dd` | abandon the change |
+| `dd` | abandon the change (delete the bookmark in the bookmark view) |
 | `o` / `O` | a new change below / above the one of the line |
 | `i` | edit the change: make it the working copy |
 | `cc` / `cw` | commit the working copy / describe the change |
 | `J` | squash the change into the selected one, or into its parent |
+| `gb` | set a bookmark on the change |
 | `x` / `X` | select the change as the other side of an action / clear the selection |
 | `p` / `P` | move the selected changes in after / before the change of the line |
 | `yy` / `YY` | yank change IDs (or what the line stands for) / commit IDs |

@@ -241,10 +241,17 @@ return {
     end,
   },
   {
-    "restore takes the repository back to how it was after the operation",
+    "bookmark asks for a name and sets it, and restore takes the repository back",
     function()
       workspace()
-      h.eq(0, jin.jj({ "bookmark", "set", "topic", "-r", "@-" }).code)
+      h.ex("JinLog")
+      settle()
+      answer("topic")
+      act("bookmark", line_of("first"))
+      h.eventually(function()
+        return jin.jj({ "log", "--no-graph", "-r", "topic", "-T", "description" }).stdout
+          == "first\n"
+      end, "no bookmark topic on first")
       local before =
         jin.jj({ "op", "log", "--no-graph", "--limit", "2", "-T", 'id ++ "\\n"' }).stdout
       local op = before:match("\n(%x+)")
@@ -270,6 +277,35 @@ return {
           "wanted: " .. op,
           "messages: " .. vim.fn.execute("messages"),
         }, "\n")
+      end)
+    end,
+  },
+  {
+    "the bookmark view moves a bookmark to the selected change and deletes it, by exact name",
+    function()
+      workspace()
+      h.eq(0, jin.jj({ "bookmark", "create", "to*pic", "topic", "-r", "@" }).code)
+      local function bookmarks()
+        return jin.jj({ "bookmark", "list", "-T", 'name ++ " " ++ normal_target.description()' }).stdout
+      end
+      h.ex("JinLog")
+      settle()
+      act("select", line_of("first"))
+      h.ex("JinBookmark")
+      settle()
+      act("move", line_of("to*pic"))
+      h.eventually(function()
+        return bookmarks() == "to*pic first\ntopic second\n"
+      end, function()
+        return "bookmarks: " .. bookmarks()
+      end)
+      settle()
+      answer(true)
+      act("delete", line_of("to*pic"))
+      h.eventually(function()
+        return bookmarks() == "topic second\n"
+      end, function()
+        return "bookmarks: " .. bookmarks()
       end)
     end,
   },

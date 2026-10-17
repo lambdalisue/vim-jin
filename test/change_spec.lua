@@ -324,6 +324,20 @@ describe("more changes", function()
     assert.same({ "parallelize", "kkk", "zzz" }, (run("parallelize", 1, 2)))
   end)
 
+  it("set a bookmark, named when asked, to the change of the line", function()
+    local argv = run("bookmark", 1, 1, function(h)
+      h.answers = { "my topic" }
+    end)
+    assert.same({ "bookmark", "set", "my topic", "-r", "kkk" }, argv)
+  end)
+
+  it("set no bookmark when no name is given", function()
+    local host, jin = setup()
+    local bufnr = log(host, jin)
+    action.run(jin, host, bufnr, "bookmark", 1, 1)
+    assert.equal("log", last(host)[1])
+  end)
+
   it("move the working copy to the next or the previous change", function()
     assert.same({ "next" }, (run("next", 1)))
     assert.same({ "prev" }, (run("prev", 1)))

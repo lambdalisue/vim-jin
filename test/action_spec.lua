@@ -329,6 +329,7 @@ describe("jin.action.keys", function()
       J = "squash",
       p = "put:after",
       P = "put:before",
+      gb = "bookmark",
     }, {
       u = lookup(log, "u"),
       ["<C-r>"] = lookup(log, "<C-r>"),
@@ -341,9 +342,15 @@ describe("jin.action.keys", function()
       J = lookup(log, "J"),
       p = lookup(log, "p"),
       P = lookup(log, "P"),
+      gb = lookup(log, "gb"),
     })
     assert.same({ "abandon", "squash" }, { lookup(log, "d", "x"), lookup(log, "J", "x") })
     assert.equal("commit", lookup(action.keys(view.get("status"), false), "cc"))
+  end)
+
+  it("deletes bookmarks with dd, and the lines selected with d in visual mode", function()
+    local keys = action.keys(view.get("bookmark"), false)
+    assert.same({ "delete", "delete" }, { lookup(keys, "dd"), lookup(keys, "d", "x") })
   end)
 
   it("leaves the other changes to a, and = to Vim", function()
@@ -359,6 +366,11 @@ describe("jin.action.keys", function()
           parallelize = true,
           restore = true,
           new = true,
+          forget = true,
+          track = true,
+          untrack = true,
+          move = true,
+          ["update-stale"] = true,
           next = true,
           prev = true,
           show = true,
@@ -417,6 +429,7 @@ describe("jin.action.keys", function()
     ["^P$"] = "P puts text before the cursor",
     ["^gp$"] = "gp puts text",
     ["^gc$"] = "gc comments lines out, in Neovim; Vim gives it nothing",
+    ["^gb$"] = "Vim gives gb nothing",
     ["^x$"] = "x deletes a character",
     ["^X$"] = "X deletes a character",
   }

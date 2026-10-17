@@ -128,6 +128,16 @@ describe("the workspace view", function()
     assert.same({ { text = "jin: tcd to the root of workspace other" } }, host.messages)
   end)
 
+  it("updates the workspace on the line when it went stale, in its own root", function()
+    local host, jin = setup()
+    local bufnr = read(host, jin, NAME, m("other") .. "other: kkk\n")
+    host.results = { ok("/elsewhere/other\n") }
+    action.run(jin, host, bufnr, "update-stale", 1, 1)
+    local run = host.runs[#host.runs]
+    assert.same({ "workspace", "update-stale" }, words(run))
+    assert.equal("/elsewhere/other", run.cwd)
+  end)
+
   it("leads to the log up to the workspace's working copy", function()
     local host, jin = setup()
     local bufnr = read(host, jin, NAME, m("other") .. "other: kkk\n")

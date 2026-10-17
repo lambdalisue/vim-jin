@@ -160,6 +160,7 @@ local CHANGES = {
   undo = { "u" },
   redo = { "<C-r>" },
   abandon = { "dd", "d" },
+  delete = { "dd", "d" },
   ["new:before"] = { "o" },
   ["new:after"] = { "O" },
   edit = { "i" },
@@ -168,6 +169,7 @@ local CHANGES = {
   squash = { "J", "J" },
   ["put:after"] = { "p" },
   ["put:before"] = { "P" },
+  bookmark = { "gb" },
 }
 
 ---The default keys of `view_def` as { lhs, action, mode }, in normal mode

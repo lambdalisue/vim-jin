@@ -37,6 +37,17 @@ for _, scope in ipairs({ "cd", "lcd", "tcd" }) do
   }
 end
 
+actions["update-stale"] = {
+  desc = "update the workspace's working copy once another workspace rewrote it",
+  changes = true,
+  fn = function(ctx)
+    support.refuse_at_op(ctx)
+    local _, root = workspace(ctx)
+    -- In the workspace's own root: jj updates the workspace it runs in.
+    ctx.jin.command({ "workspace", "update-stale" }, { cwd = root, quiet = true })
+  end,
+}
+
 action.openers(
   actions,
   "log",

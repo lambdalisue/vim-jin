@@ -888,6 +888,17 @@ function M.change_actions(actions)
       change(ctx, { "parallelize" }, changed(ctx))
     end,
   }
+  actions.bookmark = {
+    desc = "set a bookmark, named when asked, to the change",
+    changes = true,
+    fn = function(ctx)
+      local rev = changed(ctx)[1]
+      local name = ctx.host.input("bookmark: ", "")
+      if name then
+        change(ctx, { "bookmark", "set", name, "-r", rev })
+      end
+    end,
+  }
   for _, step in ipairs({ "next", "prev" }) do
     local which = step == "next" and "next" or "previous"
     actions[step] = {

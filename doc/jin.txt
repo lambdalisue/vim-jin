@@ -249,12 +249,19 @@ Bookmark ~
 	log		Show the log up to the bookmark.
 	show		Show the change it points to.
 	yank:bookmark	Yank the bookmark names.
+	delete		Delete the local bookmarks, once confirmed; a remote
+			one goes once the deletion is pushed.
+	forget		Forget the bookmarks, local and remote.
+	track, untrack	Track or stop tracking the remote bookmarks.
+	move		Move the local bookmark to the selected change.
 
 Workspace ~
 	tcd		Change the tab page's directory to the workspace root.
 	cd, lcd		Likewise, globally or for the window.
 	log		Show the log up to the workspace's working copy.
 	show		Show that change.
+	update-stale	Update the workspace's working copy once another
+			workspace rewrote it.
 
 							*jin-selection*
 Selection ~
@@ -307,6 +314,7 @@ again and says so.
 	absorb		Move the parts of the change into the changes below it
 			that last touched those lines.
 	parallelize	Make the changes of the lines siblings.
+	bookmark	Set a bookmark, named when asked, to the change.
 	next, prev	Move the working copy to the next or previous change.
 	next:edit, prev:edit
 			Make the next or previous change the working copy.
@@ -381,7 +389,8 @@ These change the repository:
 
 	u		undo, without asking.
 	<C-r>		redo, likewise.
-	dd		abandon; `d` in visual mode for the lines selected.
+	dd		abandon; delete in the bookmarks. `d` in visual mode
+			for the lines selected.
 	o		new:before: a new change below the one of the line, as
 			the log lists it, between it and its parent.
 	O		new:after: a new change above it, between it and its
@@ -392,11 +401,14 @@ These change the repository:
 	J		squash; `J` in visual mode for the lines selected.
 	p P		put:after, put:before: move the selected changes in
 			after, or before, the change of the line.
+	gb		bookmark
 
 Keys that start others, as `d`, `c`, `g` and CTRL-W do, wait 'timeoutlen'
 for the rest. The other actions, such as rebase, duplicate, revert,
-absorb, parallelize, restore, next and prev, the openers without a key, and
-the variants have no key: reach them with `a`, or map their <Plug>.
+absorb, parallelize, restore, next and prev, the bookmarks'
+forget, track, untrack and move, update-stale of the workspaces, the
+openers without a key, and the variants have no key: reach them with `a`,
+or map their <Plug>.
 
 `?` shows the keys of the view at hand.
 

@@ -216,6 +216,9 @@ meanwhile: the view is read again instead, and says so.
 `parallelize`
 : Make the changes of the lines siblings.
 
+`bookmark`
+: Set a bookmark, named when asked, to the change of the line.
+
 `next`, `prev`
 : Move the working copy to the next or the previous change.
 
@@ -404,6 +407,22 @@ operation added or removed stands for that version of the change:
 `yank:bookmark`
 : Yank the bookmark names, a remote one as `name@remote`.
 
+`delete`
+: Delete the local bookmarks of the lines, once confirmed. A remote
+  bookmark goes once the deletion is pushed, so a line of one is passed
+  over.
+
+`forget`
+: Forget the bookmarks of the lines, local and remote, without deleting
+  them on any remote.
+
+`track`, `untrack`
+: Track or stop tracking the remote bookmarks of the lines.
+
+`move`
+: Move the local bookmark of the line to the selected change, wherever it
+  is.
+
 A bookmark is named exactly, even when its name holds characters jj would
 take for a pattern. A bookmark that points to no change, such as a remote
 one not pushed yet, says so instead of showing anything.
@@ -417,6 +436,11 @@ one not pushed yet, says so instead of showing anything.
 
 `log`, `show`
 : Show the log up to the workspace's working copy, or that change.
+
+`update-stale`
+: Update the working copy of the workspace of the line once another
+  workspace rewrote it (`jj workspace update-stale`, run in that
+  workspace).
 
 ### Conflicts
 
@@ -487,7 +511,7 @@ Changing the repository:
 
 - `u` undoes the latest operation and `CTRL-R` redoes it, in every view.
 - `dd` abandons the changes of the line, and `d` in visual mode those of
-  the lines selected.
+  the lines selected; in the bookmark view they delete the bookmarks.
 - `o` inserts a new change below the change of the line, as the log lists
   it, between it and its parent (`new:before`), and `O` above it, between
   it and its children (`new:after`).
@@ -497,28 +521,31 @@ Changing the repository:
   into the selected change, or into its parent.
 - `p` and `P` move the selected changes in after or before the change of
   the line (`put:after`, `put:before`).
+- `gb` sets a bookmark, named when asked, to the change.
 
 Keys that start others, as `d`, `c`, `g` and `CTRL-W` do, wait as long as
 `'timeoutlen'` for the rest. Every other action, such as `rebase`,
 `duplicate`, `revert`, `absorb`, `parallelize`, `restore`, `next` and
-`prev`, the openers that have no key of their own, and every variant, such as
-`{name}:tab`, is reached through `a` or by mapping `<Plug>(jin-action-{name})`.
+`prev`, the bookmark view's `forget`, `track`, `untrack` and
+`move`, the workspace view's `update-stale`, the openers that have no key
+of their own, and every variant, such as `{name}:tab`, is reached through
+`a` or by mapping `<Plug>(jin-action-{name})`.
 
 | View | `<CR>` | `<S-CR>` | `g` keys | Changes | `yy` | `YY` |
 | --- | --- | --- | --- | --- | --- | --- |
-| log | show | diff | `gd` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
-| show | jump | | `gp` `gc` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
+| log | show | diff | `gd` `gb` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
+| show | jump | | `gp` `gc` `gb` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
 | diff | jump | | | `u` `<C-r>` | | |
 | interdiff | jump | | | `u` `<C-r>` | | |
 | file | annotate | log | | `u` `<C-r>` | | |
 | oplog | show | log | | `u` `<C-r>` | yank:operation | |
 | opshow | show | diff | `gd` | `u` `<C-r>` | yank:change | yank:commit |
-| evolog | interdiff | show | `gd` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
+| evolog | interdiff | show | `gd` `gb` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
 | status | inspect | open | `gf` `gd` | `u` `<C-r>` `cc` | yank:path | |
-| annotate | show | | `gf` `gd` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
-| bookmark | log | show | | `u` `<C-r>` | yank:bookmark | |
+| annotate | show | | `gf` `gd` `gb` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
+| bookmark | log | show | | `u` `<C-r>` `dd` | yank:bookmark | |
 | workspace | tcd | log | | `u` `<C-r>` | | |
-| conflicts | files | | `gd` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
+| conflicts | files | | `gd` `gb` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
 | resolve | edit | | `gf` `gd` | `u` `<C-r>` | | |
 
 `resolve` is the list of conflicted paths `files` opens.
