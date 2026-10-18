@@ -433,6 +433,63 @@ describe("the annotate view", function()
     assert.equal(3, host.cursors[file])
   end)
 
+  it(
+    "annotates the file again from the parent or the child of the change that wrote the line",
+    function()
+      local host, jin = setup()
+      local bufnr = read(host, jin, ANNOTATE, ANNOTATED, true)
+      host.results = { ok("ppp\n"), ok("src/main.lua\n"), ok("ccc\n"), ok("src/main.lua\n") }
+      action.run(jin, host, bufnr, "parent", 1, 1)
+      action.run(jin, host, bufnr, "child:tab", 2, 2)
+      assert.equal("parents(kkk)", words(host.runs[3])[6])
+      assert.same(
+        { "--at-op", "op1", "file", "list", "-r", "ppp", "--", "src/main.lua" },
+        words(host.runs[4])
+      )
+      assert.equal("children(zzz)", words(host.runs[5])[6])
+      assert.equal(
+        "jin:///repo;view=annotate#--at-op op1 -r ppp -- src/main.lua",
+        host.opened[1].name
+      )
+      assert.same({
+        name = "jin:///repo;view=annotate#--at-op op1 -r ccc -- src/main.lua",
+        opener = "tabedit",
+      }, { name = host.opened[2].name, opener = host.opened[2].opener })
+    end
+  )
+
+  it("tells why it stays when the line goes back no further, as the file was added", function()
+    local host, jin = setup()
+    local bufnr = read(host, jin, ANNOTATE, ANNOTATED, true)
+    host.results = { ok("ppp\n"), ok("") }
+    assert.has_error(function()
+      action.run(jin, host, bufnr, "parent", 1, 1)
+    end, "jin: src/main.lua is not in the parent")
+    assert.same({}, host.opened)
+  end)
+
+  it("keeps the cursor on the same line when it annotates the parent", function()
+    local host, jin = setup()
+    local bufnr = read(host, jin, ANNOTATE, ANNOTATED, true)
+    host.results = { ok("ppp\n"), ok("src/main.lua\n") }
+    action.run(jin, host, bufnr, "parent", 3, 3)
+    local parent = assert(host.buffer_bufnr(host.opened[1].name))
+    view.read(jin, host, parent, host.opened[1].name)
+    host.finish(ok(ANNOTATED))
+    assert.equal(3, host.cursors[parent])
+  end)
+
+  it("opens a pick of the parents to annotate when the change of the line has several", function()
+    local host, jin = setup()
+    local bufnr = read(host, jin, ANNOTATE, ANNOTATED, true)
+    host.results = { ok("aaa\nbbb\n") }
+    action.run(jin, host, bufnr, "parent", 3, 3)
+    assert.equal(
+      "jin:///repo;line=3;open=annotate;path=src/main.lua;view=pick#--at-op op1 -r parents(zzz)",
+      host.opened[1].name
+    )
+  end)
+
   it("shows the log of the changes that touched the file with log:file", function()
     local host, jin = setup()
     local bufnr = read(host, jin, "jin:///repo;view=annotate#-r @- -- a.lua", ANNOTATED, true)

@@ -78,6 +78,7 @@ describe("the blocks of a view", function()
       "jin:///repo;view=log#",
       "jin:///repo;view=evolog#",
       "jin:///repo;view=oplog#",
+      "jin:///repo;view=pick#",
       "jin:///repo;view=conflicts#",
     }) do
       assert.same({ 1, 3 }, starts(name, two, true), name)

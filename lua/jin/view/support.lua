@@ -130,13 +130,15 @@ end
 
 ---Lead to the parents or children of `rev`: `open_one` opens the only one,
 ---named as a view opened from a change names it; several open a log of them
----to choose from.
+---to choose from, or, given `pick`, a pick view of them with those
+---parameters, whose choice goes on to what they name.
 ---@param ctx jin.ActionContext
 ---@param which "parents"|"children"
 ---@param rev string
 ---@param opener string
 ---@param open_one fun(rev: string)
-function M.relative(ctx, which, rev, opener, open_one)
+---@param pick? table<string, string>
+function M.relative(ctx, which, rev, opener, open_one, pick)
   local revset = which .. "(" .. rev .. ")"
   local result = M.query(ctx, {
     "log",
@@ -159,6 +161,8 @@ function M.relative(ctx, which, rev, opener, open_one)
     error("jin: the change has no " .. which, 0)
   elseif #revs == 1 then
     open_one(revs[1])
+  elseif pick then
+    M.open(ctx, "pick", { "-r", revset }, opener, nil, pick)
   else
     M.open(ctx, "log", { "-r", revset }, opener)
   end
@@ -191,6 +195,63 @@ function M.shown_file(ctx)
   return M.revision_arg(argv), path
 end
 
+---Open `path` as it is in `rev` with the view `kind`, a file view or an
+---annotation, the cursor on `line`. A revision without the file, such as
+---the parent of the change that added it, is refused rather than opened;
+---`where` names it in the message.
+---@param ctx jin.ActionContext
+---@param kind "file"|"annotate"
+---@param rev string
+---@param path string
+---@param opener string
+---@param line? integer
+---@param where string
+function M.open_file_at(ctx, kind, rev, path, opener, line, where)
+  local result = M.query(ctx, { "file", "list", "-r", rev, "--", M.fileset(path) })
+  if not result or result.code ~= 0 then
+    error("jin: " .. (result and result.stderr:gsub("\n$", "") or "jj did not finish"), 0)
+  end
+  if result.stdout == "" then
+    error(("jin: %s is not in %s"):format(path, where), 0)
+  end
+  if kind == "annotate" then
+    -- jj file annotate takes a path, not a fileset, so file:"..." would not do.
+    M.open(ctx, "annotate", { "-r", rev, "--", path }, opener, line)
+  else
+    M.open(ctx, "file", { "-r", rev, M.fileset(path) }, opener, line)
+  end
+end
+
+---Add `parent` and `child` (each with its opener variants) to `actions`,
+---opening the file of a file or annotate view with the view `kind`, on the
+---same line, as it is in the parent or the child of the revision `from`
+---gives, by default the one shown. Several open a pick view of them that
+---goes on to the file in the one chosen.
+---@param actions table<string, jin.Action>
+---@param kind "file"|"annotate"
+---@param from? { desc: string, rev: fun(ctx: jin.ActionContext): string }
+function M.file_relatives(actions, kind, from)
+  for name, which in pairs({ parent = "parents", child = "children" }) do
+    action.openers(
+      actions,
+      name,
+      ("open the file as it is in the %s of %s, or a pick of them when there are several"):format(
+        which,
+        from and from.desc or "the revision shown"
+      ),
+      function(ctx, opener)
+        local rev, path = M.shown_file(ctx)
+        if from then
+          rev = from.rev(ctx)
+        end
+        M.relative(ctx, which, rev, opener, function(found)
+          M.open_file_at(ctx, kind, found, path, opener, ctx.first, "the " .. name)
+        end, { open = kind, path = path, line = tostring(ctx.first) })
+      end
+    )
+  end
+end
+
 ---Show the log of the changes that touched the file of a file or annotate
 ---view, up to the revision shown.
 ---@param ctx jin.ActionContext
@@ -208,9 +269,10 @@ end
 ---@param name string
 ---@param argv string[]
 ---@param opener string
----@param line? integer|string
+---@param line? jin.ViewLine
+---@param params? table<string, string|true>
 ---@return integer bufnr
-function M.open(ctx, name, argv, opener, line)
+function M.open(ctx, name, argv, opener, line, params)
   local op = M.at_op(ctx.meta.parsed.argv)
   if op then
     local with_op = { "--at-op", op }
@@ -223,6 +285,7 @@ function M.open(ctx, name, argv, opener, line)
     cwd = ctx.meta.parsed.root,
     opener = opener,
     line = line,
+    params = params,
   })
 end
 

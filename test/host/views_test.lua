@@ -189,7 +189,7 @@ return {
     end,
   },
   {
-    "JinFile leads to the annotation of the file and its log",
+    "JinFile leads to the annotation of the file, its parent version and its log",
     function()
       local dir = workspace()
       h.ex("JinFile -r @ f.lua")
@@ -202,6 +202,11 @@ return {
       end, "the annotation is not on line 2")
       h.ex("buffer " .. file)
       settle()
+      act("parent", 1)
+      h.truthy(vim.fn.bufname():find(";view=file#%-r %l+ f%.lua$"), vim.fn.bufname())
+      h.eventually(function()
+        return h.lines()[2] == "b"
+      end, "the parent version is not shown")
       act("log", 1)
       settle()
       find("first change")
@@ -273,17 +278,31 @@ return {
       settle()
       h.eq("lua", vim.fn.getbufvar(vim.fn.bufnr(), "&filetype"))
       local keys = { a = "choice", ["."] = "repeat", ["?"] = "help" }
-      keys["<CR>"] = "annotate"
+      keys.gp, keys.gc, keys["<CR>"] = "parent", "child", "annotate"
       for lhs, name in pairs(keys) do
         h.eq("<Plug>(jin-action-" .. name .. ")", vim.fn.maparg(lhs, "n"))
         h.eq(1, vim.fn.eval(("maparg('%s', 'n', 0, 1).buffer"):format(lhs)))
       end
       h.ex("edit f.lua")
       h.eq("lua", vim.fn.getbufvar(vim.fn.bufnr(), "&filetype"))
+      -- Neovim maps gc itself, globally.
       for lhs in pairs(keys) do
         h.eq(0, vim.fn.eval(("get(maparg('%s', 'n', 0, 1), 'buffer', 0)"):format(lhs)))
       end
       h.ex("filetype plugin off")
+    end,
+  },
+  {
+    "JinFile's default keys lead to the parent version",
+    function()
+      workspace()
+      h.ex("JinFile -r @ f.lua")
+      settle()
+      h.ex("normal gp")
+      h.truthy(vim.fn.bufname():find(";view=file#%-r %l+ f%.lua$"), vim.fn.bufname())
+      h.eventually(function()
+        return h.lines()[2] == "b"
+      end, "the parent version is not shown")
     end,
   },
   {
@@ -294,6 +313,7 @@ return {
       h.ex("JinFile -r @- f.lua")
       settle()
       vim.fn.execute("unlet g:jin_file_disable_default_mappings")
+      h.eq("", vim.fn.maparg("gp", "n"))
       h.eq("", vim.fn.maparg("?", "n"))
       h.truthy(vim.fn.maparg("<Plug>(jin-action-annotate)", "n") ~= "", "annotate is not mapped")
     end,
@@ -464,7 +484,7 @@ return {
         return view.meta(host, bufnr) ~= nil
       end, "the buffer was never read")
       h.ex("buffer " .. bufnr)
-      h.eq("<Plug>(jin-action-annotate)", vim.fn.maparg("<CR>", "n"))
+      h.eq("<Plug>(jin-action-parent)", vim.fn.maparg("gp", "n"))
     end,
   },
   {

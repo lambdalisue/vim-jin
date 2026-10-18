@@ -50,7 +50,7 @@ end
 ---@field last integer the last line of the section
 
 ---@param lines string[]
----@return { files: jin.DiffFile[], lines: table<integer, jin.DiffLine> }
+---@return jin.ParsedDiff
 function M.parse(lines)
   local files, mapped = {}, {}
   local current
@@ -87,6 +87,97 @@ function M.parse(lines)
     current.last = #lines
   end
   return { files = files, lines = mapped }
+end
+
+---@alias jin.ParsedDiff { files: jin.DiffFile[], lines: table<integer, jin.DiffLine> }
+
+---@param parsed jin.ParsedDiff
+---@param lnum integer
+---@return jin.DiffFile?
+local function file_at(parsed, lnum)
+  for _, file in ipairs(parsed.files) do
+    if file.first <= lnum and lnum <= file.last then
+      return file
+    end
+  end
+  return nil
+end
+
+---The line of `file` in `parsed` whose `side` is nearest `number`, the
+---first of those as near; nil when no line of it is on `side`.
+---@param parsed jin.ParsedDiff
+---@param file jin.DiffFile
+---@param side "old"|"new"
+---@param number integer
+---@return integer?
+local function nearest(parsed, file, side, number)
+  local best, distance
+  for lnum = file.first + 1, file.last do
+    local at = parsed.lines[lnum] and parsed.lines[lnum][side]
+    if at and (not distance or math.abs(at - number) < distance) then
+      best, distance = lnum, math.abs(at - number)
+    end
+  end
+  return best
+end
+
+---The number on `side` of line `lnum` of `file`, or of the nearest line of
+---the file that has one, the one above first.
+---@param parsed jin.ParsedDiff
+---@param file jin.DiffFile
+---@param lnum integer
+---@param side "old"|"new"
+---@return integer?
+local function number_near(parsed, file, lnum, side)
+  for distance = 0, file.last - file.first do
+    for _, at in ipairs({ lnum - distance, lnum + distance }) do
+      local line = at > file.first and at <= file.last and parsed.lines[at]
+      if line and line[side] then
+        return line[side]
+      end
+    end
+  end
+  return nil
+end
+
+---The line of `to` showing the line of the file that line `lnum` of `from`
+---shows, `to` being a diff whose other side is the `side` of `from`: `old`
+---when `to` is the diff of the parent, whose new side is the old side of
+---`from`, and `new` when it is the diff of the child. A line not on `side`,
+---as an added or a removed one, stands for the nearest line of its file
+---that is. When `to` lacks the line, the nearest line of the file stands
+---for it, and the file's header when none is on the other side. Nil off a
+---file, or when `to` does not touch the file.
+---@param from jin.ParsedDiff
+---@param lnum integer
+---@param to jin.ParsedDiff
+---@param side "old"|"new"
+---@return integer?
+function M.counterpart(from, lnum, to, side)
+  local file = file_at(from, lnum)
+  if not file then
+    return nil
+  end
+  -- The parent names a renamed file by its old path; the child names the
+  -- path shown as its old one.
+  local wanted = side == "old" and (file.from or file.path) or file.path
+  local target
+  for _, candidate in ipairs(to.files) do
+    local name = side == "old" and candidate.path or (candidate.from or candidate.path)
+    if name == wanted then
+      target = candidate
+      break
+    end
+  end
+  if not target then
+    return nil
+  end
+  if lnum == file.first then
+    return target.first
+  end
+  local number = number_near(from, file, lnum, side)
+  local other = side == "old" and "new" or "old"
+  return number and nearest(to, target, other, number) or target.first
 end
 
 ---The revisions on the old and new sides of a diff with these arguments:

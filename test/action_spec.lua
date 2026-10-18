@@ -279,6 +279,7 @@ describe("jin.action.keys", function()
       opshow = "diff",
       evolog = "show",
       status = "open",
+      annotate = "parent",
       bookmark = "show",
       workspace = "log",
     }
@@ -296,9 +297,12 @@ describe("jin.action.keys", function()
     "goes to the file with gf, the diff with gd, and the parent and the child with gp and gc",
     function()
       local keys = action.keys(view.get("annotate"), false)
-      assert.same({ "file", "diff" }, { lookup(keys, "gf"), lookup(keys, "gd") })
-      local show = action.keys(view.get("show"), false)
-      assert.same({ "parent", "child" }, { lookup(show, "gp"), lookup(show, "gc") })
+      assert.same({ "file", "diff", "parent", "child" }, {
+        lookup(keys, "gf"),
+        lookup(keys, "gd"),
+        lookup(keys, "gp"),
+        lookup(keys, "gc"),
+      })
       assert.equal("interdiff", lookup(action.keys(view.get("evolog"), false), "gd"))
       assert.equal("edit", lookup(action.keys(view.get("status"), false), "gf"))
       assert.is_nil(lookup(action.keys(view.get("log"), false), "gf"))

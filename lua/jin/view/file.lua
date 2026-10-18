@@ -11,6 +11,8 @@ action.openers(actions, "annotate", "show which change wrote each line", functio
   support.open(ctx, "annotate", { "-r", rev, "--", path }, opener, ctx.first)
 end)
 
+support.file_relatives(actions, "file")
+
 action.openers(
   actions,
   "log",

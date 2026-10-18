@@ -23,6 +23,7 @@ local VIEWS = {
   file = true,
   oplog = true,
   opshow = true,
+  pick = true,
   evolog = true,
   status = true,
   annotate = true,
@@ -69,6 +70,8 @@ local VIEWS = {
 ---@field entries (string[]|false)[] per line, the marker fields of the entry it belongs to
 ---@field data table view-specific data set by `decorate`; its `folds` and `annotations` (per line, { text, style? } chunks shown before it) are shown as jin.Content says
 
+---@alias jin.ViewLine integer|string|fun(meta: jin.ViewMeta): integer?
+
 ---@class jin.ViewOptions
 ---@field cwd? string a directory in the workspace to show; by default the current buffer's or directory's
 ---@field opener? string the command that opens the buffer, `edit` by default
@@ -77,7 +80,7 @@ local VIEWS = {
 ---@field filetype? string the filetype of the buffer, the view's own by default
 ---@field reload? boolean read jj again when the buffer is already open
 ---@field params? table<string, string|true> further view-specific parameters
----@field line? integer|string the line to put the cursor on once the buffer shows: its number, or a Lua pattern the line matches first
+---@field line? jin.ViewLine the line to put the cursor on once the buffer shows: its number, a Lua pattern the line matches first, or a function finding it in what was read
 
 ---The number of the line `line` stands for in `lines`: itself, or the first
 ---line matching it as a Lua pattern. Nil when no line matches.
@@ -96,9 +99,20 @@ function M.line_of(lines, line)
   return nil
 end
 
+---The number of the line `line` stands for in the buffer read as `meta`.
+---@param meta jin.ViewMeta
+---@param line jin.ViewLine
+---@return integer?
+local function cursor_line(meta, line)
+  if type(line) == "function" then
+    return line(meta)
+  end
+  return M.line_of(meta.lines, line)
+end
+
 ---Per host, per buffer: the generation of the latest read and its result,
 ---and what it shows highlighted.
----@type table<jin.Host, table<integer, { generation: integer, meta?: jin.ViewMeta, line?: integer|string, selected?: boolean, change?: { meta: jin.ViewMeta, rev: string } }>>
+---@type table<jin.Host, table<integer, { generation: integer, meta?: jin.ViewMeta, line?: jin.ViewLine, selected?: boolean, change?: { meta: jin.ViewMeta, rev: string } }>>
 local states = setmetatable({}, { __mode = "k" })
 
 ---@param host jin.Host
@@ -205,7 +219,7 @@ function M.open(jin, host, view, argv, opts)
       state(host, bufnr).line = opts.line
     else
       local meta = M.meta(host, bufnr)
-      local lnum = meta and M.line_of(meta.lines, opts.line)
+      local lnum = meta and cursor_line(meta, opts.line)
       if lnum then
         host.cursor(bufnr, lnum)
       end
@@ -433,7 +447,7 @@ function M.read(jin, host, bufnr, name)
         })
       end
       if s.line then
-        local lnum = M.line_of(meta.lines, s.line)
+        local lnum = cursor_line(meta, s.line)
         if lnum then
           host.cursor(bufnr, lnum)
         end

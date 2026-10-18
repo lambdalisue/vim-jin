@@ -118,3 +118,90 @@ describe("jin.diff.sides of a revset", function()
     assert.same({ old = "x-", new = "x" }, diff.sides({ "-R", "repo", "x" }, true))
   end)
 end)
+
+describe("jin.diff.counterpart", function()
+  local SHOWN = diff.parse({
+    "Commit ID: c", -- 1
+    "Modified regular file a.txt:", -- 2
+    "   1    1: a", -- 3
+    "   2     : b", -- 4
+    "        2: B", -- 5
+    "   3    3: c", -- 6
+    "Added regular file new.txt:", -- 7
+    "        1: n", -- 8
+    "Modified regular file to.txt (from.txt => to.txt):", -- 9
+    "   4    4: r", -- 10
+  })
+
+  -- The parent's new side is the old side of the change shown.
+  local PARENT = diff.parse({
+    "Commit ID: p", -- 1
+    "", -- 2
+    "Modified regular file a.txt:", -- 3
+    "   1     : x", -- 4
+    "        1: a", -- 5
+    "   2    2: b", -- 6
+    "    ...", -- 7
+    "   9    9: i", -- 8
+    "Modified regular file from.txt:", -- 9
+    "   4    4: r", -- 10
+  })
+
+  -- The child's old side is the new side of the change shown.
+  local CHILD = diff.parse({
+    "Commit ID: k", -- 1
+    "Modified regular file to.txt:", -- 2
+    "   4    5: r", -- 3
+    "Modified regular file a.txt:", -- 4
+    "   2    2: B", -- 5
+    "   3     : c", -- 6
+  })
+
+  it("finds the line of the parent whose new side is the old side of the line", function()
+    assert.equal(5, diff.counterpart(SHOWN, 3, PARENT, "old"))
+    assert.equal(6, diff.counterpart(SHOWN, 4, PARENT, "old"))
+  end)
+
+  it("finds the line of the child whose old side is the new side of the line", function()
+    assert.equal(5, diff.counterpart(SHOWN, 5, CHILD, "new"))
+    assert.equal(6, diff.counterpart(SHOWN, 6, CHILD, "new"))
+  end)
+
+  it("takes the nearest line on the side for one not on it, the one above first", function()
+    -- Line 5 is added, so it has no old side; lines 4 and 6 are as near.
+    assert.equal(6, diff.counterpart(SHOWN, 5, PARENT, "old"))
+    -- Line 4 is removed, so it has no new side.
+    assert.equal(5, diff.counterpart(SHOWN, 4, CHILD, "new"))
+  end)
+
+  it("goes to the nearest numbered line of the file when the other diff skips the line", function()
+    -- Old line 3 is in neither hunk of the parent's a.txt: 2 is nearer than 9.
+    assert.equal(6, diff.counterpart(SHOWN, 6, PARENT, "old"))
+  end)
+
+  it("goes from a file header to the header of the same file", function()
+    assert.equal(3, diff.counterpart(SHOWN, 2, PARENT, "old"))
+    assert.equal(4, diff.counterpart(SHOWN, 2, CHILD, "new"))
+  end)
+
+  it("follows a rename, which the parent names by the old path", function()
+    assert.equal(10, diff.counterpart(SHOWN, 10, PARENT, "old"))
+    assert.equal(3, diff.counterpart(SHOWN, 10, CHILD, "new"))
+    local renaming = diff.parse({ "Modified regular file b.txt (a.txt => b.txt):", "   1    1: a" })
+    assert.equal(2, diff.counterpart(SHOWN, 3, renaming, "new"))
+  end)
+
+  it("finds nothing when the other diff does not touch the file", function()
+    assert.is_nil(diff.counterpart(SHOWN, 8, PARENT, "old"))
+  end)
+
+  it("finds nothing off a file, such as on the description", function()
+    assert.is_nil(diff.counterpart(SHOWN, 1, PARENT, "old"))
+  end)
+
+  it("goes to the header of the file when no line of it is on the side", function()
+    -- The parent removed new.txt and the change shown adds it again.
+    local removing = diff.parse({ "Removed regular file new.txt:", "   1     : n" })
+    assert.equal(1, diff.counterpart(SHOWN, 8, removing, "old"))
+  end)
+end)

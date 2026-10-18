@@ -42,6 +42,15 @@ action.openers(actions, "file", "show the file without the annotation", function
   support.open(ctx, "file", { "-r", rev, support.fileset(path) }, opener, ctx.first)
 end)
 
+-- From the change that wrote the line, not the revision shown, so that each
+-- step goes back past what last touched the line instead of one revision.
+support.file_relatives(actions, "annotate", {
+  desc = "the change that wrote the line",
+  rev = function(ctx)
+    return support.revision(action.entry(ctx))
+  end,
+})
+
 support.describe_actions(actions)
 support.change_actions(actions)
 support.commit_actions(actions)
@@ -136,5 +145,6 @@ return {
   blocks = require("jin.view.block").changes,
   needs_path = true,
   primary = "show",
+  secondary = "parent",
   yank = "yank:change",
 }

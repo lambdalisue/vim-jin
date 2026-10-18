@@ -19,9 +19,9 @@ Views read jj's own formats: the log through the user's configured
 templates, diffs in jj's color-words format. vim-jin adds markers to the
 templates to tell which change each line belongs to; they never show.
 
-In the log, the evolog, the operation log and the conflicts, where a
-change, a version or an operation takes several lines, all the lines of the
-one under the cursor are highlighted, across the window, with
+In the log, the pick, the evolog, the operation log and the conflicts,
+where a change, a version or an operation takes several lines, all the
+lines of the one under the cursor are highlighted, across the window, with
 `JinCursorEntry`, which links to `CursorLine` unless defined otherwise.
 Lines of the graph alone, such as `~` below the last change shown, are not
 part of it. In the status, the bookmarks, the workspaces and the conflicted
@@ -155,8 +155,8 @@ holds spaces or quotes and jj shows it quoted.
 
 ### Selection
 
-The log, show, evolog, annotate and operation show views select changes
-as the other side of an action that takes two, such as the change
+The log, pick, show, evolog, annotate and operation show views select
+changes as the other side of an action that takes two, such as the change
 to squash into. The selection belongs to the workspace for the editing
 session: every view of it shows the lines of a selected change with
 `JinSelected`, which links to `Visual` unless defined otherwise, over the
@@ -173,9 +173,10 @@ change through rewrites. It is vim-jin's own and leaves Vim's marks alone.
 
 ### Changing the repository
 
-The log, show, evolog, annotate and conflicts views also change the
+The log, pick, show, evolog, annotate and conflicts views also change the
 repository, and the status view commits. Such an action never runs on a
-view at an earlier operation. In the log, annotate and conflicts views, whose lines show the latest version of their changes, it does not
+view at an earlier operation. In the log, pick, annotate and conflicts
+views, whose lines show the latest version of their changes, it does not
 run on a change rewritten since the view was read, as by an agent
 meanwhile: the view is read again instead, and says so.
 
@@ -324,13 +325,23 @@ The show view also has:
 
 `parent`, `child`
 : Show the parent or the child of the version on the line, or, when it has
-  several, a log of them to choose from.
+  several, a log of them to choose from. The cursor stays on the line of the
+  file it was on, as the parent's new side or the child's old side numbers
+  it, or on the nearest line of that file the other diff shows. Off a file,
+  or on a file the other diff does not touch, it stays on the same line
+  number.
 
 ### File
 
 `annotate`
 : Show the file as it is in the revision shown with which change wrote each
   line of it, on the same line.
+
+`parent`, `child`
+: Open the file as it is in the parent or the child of the revision shown,
+  on the same line number, or, when it has several, a pick of them to
+  choose from. When the one it leads to has no such file, as the parent of
+  the change that added it, it says so and opens nothing.
 
 `log`
 : Show the log of the changes that touched the file, up to the revision
@@ -410,9 +421,27 @@ operation added or removed stands for that version of the change:
 `file`
 : Show the file without the annotation, on the same line.
 
+`parent`, `child`
+: Annotate the file again as it is in the parent or the child of the
+  change that wrote the line, or, when it has several, show a pick of them
+  to choose from. The cursor stays on the same line number. Taking the
+  parent again and again goes back through the changes that touched the
+  line, until it reaches the change that added the file; there it says so
+  and opens nothing, as the file view does.
+
 `log:file`
 : The file view's `log`.
 
+### Pick
+
+What `parent` and `child` of a file or annotate view open when there are
+several: the parents or the children as the log lists them. It remembers
+what the choice is for, even when read again. The actions of the log, and:
+
+`pick`
+: Go on to the file as it is in the change of the line, in the view it was
+  opened from, on the line the cursor was on there. A change without the
+  file says so and opens nothing.
 
 ### Bookmark
 
@@ -518,7 +547,7 @@ Not changing the repository:
   leaving where they came from in the jumplist. A count past the last
   block stops at it; with no block that way, the cursor stays. A block is
   a run of lines one change wrote in the annotate view; an entry in the
-  log, conflicts, evolog and oplog views; a file in the diff and
+  log, pick, conflicts, evolog and oplog views; a file in the diff and
   interdiff views; the header of each change and each file in the show
   view. The other views have no blocks and leave `]]` and `[[` to Vim.
   The keys are mapped to `<Plug>(jin-next-block)` and
@@ -555,15 +584,18 @@ of their own, and every variant, such as `{name}:tab`, is reached through
 | show | jump | | `gp` `gc` `gb` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
 | diff | jump | | | `u` `<C-r>` | | |
 | interdiff | jump | | | `u` `<C-r>` | | |
-| file | annotate | log | | `u` `<C-r>` | | |
+| file | annotate | log | `gp` `gc` | `u` `<C-r>` | | |
 | oplog | show | log | | `u` `<C-r>` | yank:operation | |
 | opshow | show | diff | `gd` | `u` `<C-r>` | yank:change | yank:commit |
 | evolog | interdiff | show | `gd` `gb` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
 | status | inspect | open | `gf` `gd` | `u` `<C-r>` `cc` | yank:path | |
-| annotate | show | | `gf` `gd` `gb` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
+| annotate | show | parent | `gf` `gd` `gp` `gc` `gb` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
+| pick | pick | show | `gd` `gb` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
 | bookmark | log | show | | `u` `<C-r>` `dd` | yank:bookmark | |
 | workspace | tcd | log | | `u` `<C-r>` | | |
 | conflicts | files | | `gd` `gb` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
 | resolve | edit | | `gf` `gd` | `u` `<C-r>` | | |
 
-`resolve` is the list of conflicted paths `files` opens.
+`pick` is the choice of parents or children that `parent` and `child` of a
+file or annotate view open. `resolve` is the list of conflicted paths
+`files` opens.

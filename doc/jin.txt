@@ -161,8 +161,8 @@ such as `--at-op @-`, moves on with it. Reading a view snapshots the
 working copy, as jj does, so files changed without jj show, unless every
 view of the workspace is given `--ignore-working-copy` or `--at-op`.
 
-In the log, the evolog, the operation log and the conflicts, all the
-lines of the change, version or operation under the cursor are
+In the log, the pick, the evolog, the operation log and the conflicts, all
+the lines of the change, version or operation under the cursor are
 highlighted with |hl-JinCursorEntry|; in the status, the bookmarks, the
 workspaces and the conflicted paths, one thing to a line, the line under
 the cursor is. In the annotation, every line the change of
@@ -210,13 +210,20 @@ Show, diff and interdiff ~
 			copy file itself, or |:JinFile| of another revision.
 	jump:old	Open it on the old side.
 	jump:new	Open it on the new side.
-	parent		(show) Show the parent of the change.
-	child		(show) Show its child.
+	parent		(show) Show the parent of the change, the cursor on
+			the same line of the file, or the nearest one its
+			diff shows.
+	child		(show) Show its child, likewise.
 	yank:change	(show) Yank the change ID.
 	yank:commit	(show) Yank the commit ID.
 
 File ~
 	annotate	Annotate the file, on the same line.
+	parent		Open the file as it is in the parent revision, on
+			the same line, or a pick of the parents when there
+			are several. When the parent has no such file, it
+			says so and stays.
+	child		Open it as it is in the child.
 	log		Show the log of the changes that touched the file.
 
 Annotate ~
@@ -224,9 +231,24 @@ Annotate ~
 	diff		Show its diff.
 	log		Show the log up to that change.
 	file		Show the file without the annotation.
+	parent		Annotate the file again as it is in the parent of the
+			change that wrote the line. Repeated, it goes back
+			through the changes that touched the line, and stops
+			at the change that added the file. Several parents
+			open a pick of them.
+	child		Likewise, in its child.
 	log:file	Show the log of the changes that touched the file.
 	yank:change	Yank the change IDs of the lines.
 	yank:commit	Yank their commit IDs.
+
+Pick ~
+What parent and child of a file or annotate view open when there are
+several: the parents or the children, listed as in the log, with the
+actions of the log, and:
+	pick		Go on to the file as it is in the change of the line,
+			in the view it was opened from, on the line the cursor
+			was on there. A change without the file says so and
+			stays.
 
 Operation log ~
 	show		Show what the operation changed, the changes it
@@ -279,8 +301,8 @@ Workspace ~
 
 							*jin-selection*
 Selection ~
-The log, show, evolog, annotate and operation show views select changes,
-as the other side of an action that takes two. The selection
+The log, pick, show, evolog, annotate and operation show views select
+changes, as the other side of an action that takes two. The selection
 belongs to the workspace: every view of it shows the lines of a selected
 change with |hl-JinSelected|, even under the cursor. It is vim-jin's own,
 and leaves Vim's marks (|mark-motions|) alone.
@@ -292,9 +314,9 @@ once jj succeeded, and keeps them when jj fails.
 	select:clear	Clear the selection of the workspace.
 
 Changing the repository ~
-The log, show, evolog, annotate and conflicts views also change the
+The log, pick, show, evolog, annotate and conflicts views also change the
 repository, though never in a view at an earlier operation. In the log,
-annotate and conflicts views, an action on a change rewritten since
+pick, annotate and conflicts views, an action on a change rewritten since
 the view was read, as by an agent meanwhile, does not run: the view is read
 again and says so.
 
@@ -381,7 +403,8 @@ exceptions. A view maps only the keys of the actions it has.
 	?		help
 	<CR>		What the view is opened for: show in the log, jump in
 			a diff, annotate in a file view, interdiff in the
-			evolog, inspect in the status, and so on.
+			evolog, inspect in the status, pick in the pick, and
+			so on.
 	<S-CR> <C-CR>	What it is opened for next most often, such as diff
 			in the log or log in a file view. Both are mapped,
 			as a terminal may pass on only one of them.
@@ -436,7 +459,7 @@ the |jumplist|. A count past the last block stops at it; with no block that
 way, the cursor stays. A block is:
 
 - in |:JinAnnotate|, a run of lines one change wrote;
-- in |:JinLog|, |:JinConflicts|, |:JinEvolog| and |:JinOpLog|,
+- in |:JinLog|, the pick, |:JinConflicts|, |:JinEvolog| and |:JinOpLog|,
   an entry, all its lines;
 - in |:JinDiff| and the interdiff, a file;
 - in |:JinShow|, the header of each change, and each file.
@@ -457,7 +480,7 @@ to keys of your own:
 				*g:jin_{view}_disable_default_mappings*
 To map no key at all in a view, set this to 1, `{view}` being `log`,
 `show`, `diff`, `interdiff`, `file`, `oplog`, `opshow`, `evolog`,
-`status`, `annotate`, `bookmark`, `workspace`, `conflicts`,
+`status`, `annotate`, `pick`, `bookmark`, `workspace`, `conflicts`,
 `resolve` (the conflicted paths `files` lists) or `buffer` (|:JinBuffer|):
 >vim
 	let g:jin_log_disable_default_mappings = 1

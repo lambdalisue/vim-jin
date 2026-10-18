@@ -653,7 +653,7 @@ return {
       end
       each("JinLog -r " .. merge, of_merge, { "evolog" })
       each("JinShow " .. merge, first, { "parent", "child" })
-      each("JinFile -r " .. merge .. " f", first, { "annotate", "log" })
+      each("JinFile -r " .. merge .. " f", first, { "annotate", "parent", "child", "log" })
       each("JinAnnotate -r fork_point(" .. merge .. "-) f", first, { "log" })
       each("JinConflicts", of_merge, { "files" })
       for _, a in ipairs({ "edit", "diff" }) do

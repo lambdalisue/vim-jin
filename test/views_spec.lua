@@ -406,6 +406,47 @@ describe("the show view", function()
     )
   end)
 
+  ---Run `name` on line `lnum` of the show view of SHOWN, leading to the one
+  ---change `rev`, and read its show view as `stdout`; the cursor line there.
+  local function relative(name, lnum, rev, stdout)
+    local host, jin = setup()
+    local bufnr = read(host, jin, "jin:///repo;view=show#c1", SHOWN, true)
+    host.results = { ok(rev .. "\n") }
+    action.run(jin, host, bufnr, name, lnum, lnum)
+    local opened = assert(host.buffer_bufnr(host.opened[1].name))
+    view.read(jin, host, opened, host.opened[1].name)
+    host.finish(ok(stdout))
+    return host.cursors[opened]
+  end
+
+  local PARENT = m("ppp", "p1")
+    .. "Commit ID: p1\n\n"
+    .. "Modified regular file keep.txt:\n"
+    .. "   1     : x\n"
+    .. "        1: a\n"
+    .. "        2: b\n"
+
+  it("puts the cursor on the parent's line that the old side of the line is", function()
+    -- Line 4 is "   2     : b", line 2 of keep.txt in the parent.
+    assert.equal(6, relative("parent", 4, "ppp", PARENT))
+  end)
+
+  it("puts the cursor on the child's line that the new side of the line is", function()
+    local child = m("ccc", "k1")
+      .. "Commit ID: k1\n"
+      .. "Modified regular file keep.txt:\n"
+      .. "   1     : a\n"
+      .. "   2    1: B\n"
+    -- Line 5 is "        2: B", line 2 of keep.txt in the child.
+    assert.equal(4, relative("child", 5, "ccc", child))
+  end)
+
+  it("keeps the line number, within the lines, off a file the other diff touches", function()
+    assert.equal(1, relative("parent", 1, "ppp", PARENT))
+    -- Line 7 is in to.txt, which the parent does not touch.
+    assert.equal(6, relative("parent", 7, "ppp", PARENT))
+  end)
+
   it("opens a log of the children to choose from when there are several", function()
     local host, jin = setup()
     local bufnr = read(host, jin, "jin:///repo;view=show#c1", SHOWN, true)
@@ -463,6 +504,20 @@ describe("the file view", function()
     assert.equal(5, host.cursors[bufnr])
   end)
 
+  it("puts the cursor on the line a function finds in what was read", function()
+    local host, jin = setup()
+    local function last(meta)
+      return #meta.lines
+    end
+    local bufnr = view.open(jin, host, "file", { "-r", "x", "a.txt" }, { line = last })
+    view.read(jin, host, bufnr, host.opened[1].name)
+    host.finish(ok("1\n2\n3\n"))
+    assert.equal(3, host.cursors[bufnr])
+    host.cursors[bufnr] = 1
+    view.open(jin, host, "file", { "-r", "x", "a.txt" }, { line = last })
+    assert.equal(3, host.cursors[bufnr])
+  end)
+
   local FILE = "jin:///repo;view=file#-r @- src/main.lua"
 
   it("leads to the annotation of the file at its revision, on the same line", function()
@@ -484,6 +539,60 @@ describe("the file view", function()
     assert.same({ "-r", "@", "--", "sp ace.txt" }, bufname.parse(host.opened[1].name).argv)
   end)
 
+  it("opens the file as it is in the parent or the child revision", function()
+    local host, jin = setup()
+    local bufnr = read(host, jin, FILE, "x\n")
+    host.results = { ok("ppp\n"), ok("src/main.lua\n"), ok("ccc\n"), ok("src/main.lua\n") }
+    action.run(jin, host, bufnr, "parent", 1, 1)
+    action.run(jin, host, bufnr, "child:tab", 1, 1)
+    assert.equal("parents(@-)", words(host.runs[2])[4])
+    assert.same({ "file", "list", "-r", "ppp", "--", "src/main.lua" }, words(host.runs[3]))
+    assert.equal("children(@-)", words(host.runs[4])[4])
+    assert.equal("jin:///repo;view=file#-r ppp src/main.lua", host.opened[1].name)
+    assert.same(
+      { name = "jin:///repo;view=file#-r ccc src/main.lua", opener = "tabedit" },
+      { name = host.opened[2].name, opener = host.opened[2].opener }
+    )
+  end)
+
+  it(
+    "tells why it stays when the parent has no such file, as before the change adding it",
+    function()
+      local host, jin = setup()
+      local bufnr = read(host, jin, FILE, "x\n")
+      host.results = { ok("ppp\n"), ok("") }
+      assert.has_error(function()
+        action.run(jin, host, bufnr, "parent", 1, 1)
+      end, "jin: src/main.lua is not in the parent")
+      assert.same({}, host.opened)
+    end
+  )
+
+  it("keeps the cursor on the same line when it opens the parent", function()
+    local host, jin = setup()
+    local bufnr = read(host, jin, FILE, "1\n2\n3\n")
+    host.results = { ok("ppp\n"), ok("src/main.lua\n") }
+    action.run(jin, host, bufnr, "parent", 3, 3)
+    local parent = assert(host.buffer_bufnr(host.opened[1].name))
+    view.read(jin, host, parent, host.opened[1].name)
+    host.finish(ok("1\n2\n3\n4\n"))
+    assert.equal(3, host.cursors[parent])
+  end)
+
+  it(
+    "opens a pick of the parents, remembering the file and the line, when there are several",
+    function()
+      local host, jin = setup()
+      local bufnr = read(host, jin, FILE, "1\n2\n3\n")
+      host.results = { ok("aaa\nbbb\n") }
+      action.run(jin, host, bufnr, "parent:vsplit", 2, 2)
+      assert.same({
+        name = "jin:///repo;line=2;open=file;path=src/main.lua;view=pick#-r parents(@-)",
+        opener = "vsplit",
+      }, { name = host.opened[1].name, opener = host.opened[1].opener })
+    end
+  )
+
   it("leads to the log of the changes that touched the path up to its revision", function()
     local host, jin = setup()
     local bufnr = read(host, jin, [[jin:///repo;view=file#-r x|y file:\"sp\ ace.txt\"]], "x\n")
@@ -497,7 +606,102 @@ describe("the file view", function()
   it("stays at the operation it shows", function()
     local host, jin = setup()
     local bufnr = read(host, jin, "jin:///repo;view=file#--at-op op1 -r kkk a.txt", "x\n")
+    host.results = { ok("ppp\n"), ok("a.txt\n") }
+    action.run(jin, host, bufnr, "parent", 1, 1)
     action.run(jin, host, bufnr, "annotate", 1, 1)
-    assert.equal("jin:///repo;view=annotate#--at-op op1 -r kkk -- a.txt", host.opened[1].name)
+    assert.equal("jin:///repo;view=file#--at-op op1 -r ppp a.txt", host.opened[1].name)
+    assert.equal("jin:///repo;view=annotate#--at-op op1 -r kkk -- a.txt", host.opened[2].name)
+  end)
+end)
+
+describe("the pick view", function()
+  local PICK = "jin:///repo;line=2;open=file;path=src/main.lua;view=pick#-r parents(@-)"
+  local LISTED = "○  "
+    .. m("aaa", "c1")
+    .. "a\n│\n○  "
+    .. m("bbb", "c2", "divergent")
+    .. "b\n"
+
+  it("lists the changes as the log view does, in the user's log template", function()
+    local host, jin = setup()
+    local bufnr = read(host, jin, PICK, LISTED, true)
+    assert.same({ "config", "get", "templates.log" }, words(host.runs[1]))
+    local argv = host.runs[2].argv
+    assert.same({ "log", "--config", "ui.log-word-wrap=false" }, { argv[5], argv[6], argv[7] })
+    assert.same({ "-r", "parents(@-)" }, { argv[#argv - 1], argv[#argv] })
+    assert.equal("jin-pick", host.rendered[bufnr].filetype)
+  end)
+
+  it("goes on to the file at the change of the line, on the line it was opened from", function()
+    local host, jin = setup()
+    local bufnr = read(host, jin, PICK, LISTED, true)
+    host.results = { ok("src/main.lua\n") }
+    action.run(jin, host, bufnr, "pick", 1, 1)
+    assert.same({ "file", "list", "-r", "aaa", "--", "src/main.lua" }, words(host.runs[3]))
+    assert.equal("jin:///repo;view=file#-r aaa src/main.lua", host.opened[1].name)
+    local file = assert(host.buffer_bufnr(host.opened[1].name))
+    view.read(jin, host, file, host.opened[1].name)
+    host.finish(ok("1\n2\n3\n"))
+    assert.equal(2, host.cursors[file])
+  end)
+
+  it(
+    "goes on to the annotation when it was opened from one, by commit ID when divergent",
+    function()
+      local host, jin = setup()
+      local name = "jin:///repo;line=3;open=annotate;path=sp ace.txt;view=pick#-r parents(kkk)"
+      local bufnr = read(host, jin, name, LISTED, true)
+      host.results = { ok("sp ace.txt\n") }
+      action.run(jin, host, bufnr, "pick:tab", 3, 3)
+      assert.same({ "file", "list", "-r", "c2", "--", [[file:"sp ace.txt"]] }, words(host.runs[3]))
+      assert.same({
+        name = [[jin:///repo;view=annotate#-r c2 -- sp\ ace.txt]],
+        opener = "tabedit",
+      }, { name = host.opened[1].name, opener = host.opened[1].opener })
+    end
+  )
+
+  it("goes on to a hidden parent by its commit ID, not to the change's latest version", function()
+    local host, jin = setup()
+    local bufnr = read(host, jin, PICK, "○  " .. m("aaa", "c1", "hidden") .. "a\n", true)
+    host.results = { ok("src/main.lua\n") }
+    action.run(jin, host, bufnr, "pick", 1, 1)
+    assert.equal("jin:///repo;view=file#-r c1 src/main.lua", host.opened[1].name)
+  end)
+
+  it("tells why it stays when the change of the line has no such file", function()
+    local host, jin = setup()
+    local bufnr = read(host, jin, PICK, LISTED, true)
+    host.results = { ok("") }
+    assert.has_error(function()
+      action.run(jin, host, bufnr, "pick", 1, 1)
+    end, "jin: src/main.lua is not in this change")
+    assert.same({}, host.opened)
+  end)
+
+  it("stays at the operation it shows", function()
+    local host, jin = setup()
+    local name = "jin:///repo;line=1;open=file;path=a.txt;view=pick#--at-op op1 -r parents(kkk)"
+    local bufnr = read(host, jin, name, LISTED, true)
+    host.results = { ok("a.txt\n") }
+    action.run(jin, host, bufnr, "pick", 1, 1)
+    assert.same(
+      { "--at-op", "op1", "file", "list", "-r", "aaa", "--", "a.txt" },
+      words(host.runs[3])
+    )
+    assert.equal("jin:///repo;view=file#--at-op op1 -r aaa a.txt", host.opened[1].name)
+  end)
+
+  it("still shows the change of a line, as the log does", function()
+    local host, jin = setup()
+    local bufnr = read(host, jin, PICK, LISTED, true)
+    action.run(jin, host, bufnr, "show", 1, 1)
+    assert.equal("jin:///repo;view=show#aaa", host.opened[1].name)
+    local keys = {}
+    for _, key in ipairs(action.keys(view.get("pick"), false)) do
+      keys[key[1] .. (key[3] or "")] = key[2]
+    end
+    assert.equal("pick", keys["<CR>"])
+    assert.equal("show", keys["<S-CR>"])
   end)
 end)

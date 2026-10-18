@@ -2,6 +2,7 @@
 
 local action = require("jin.action")
 local block = require("jin.view.block")
+local diff = require("jin.diff")
 local support = require("jin.view.support")
 
 local actions = {}
@@ -18,14 +19,21 @@ support.jump_actions(actions, function(ctx)
   return { old = rev .. "-", new = current and "@" or rev }
 end)
 
+-- The parent's new side is the old side of the version shown, and the
+-- child's old side is its new side.
 for name, which in pairs({ parent = "parents", child = "children" }) do
+  local side = name == "parent" and "old" or "new"
   action.openers(
     actions,
     name,
     ("show the %s of the version shown, or a log of them when there are several"):format(which),
     function(ctx, opener)
+      local from, lnum = ctx.meta.data.diff, ctx.first
       support.relative(ctx, which, action.entry(ctx)[2], opener, function(rev)
-        support.open(ctx, "show", { rev }, opener)
+        support.open(ctx, "show", { rev }, opener, function(meta)
+          return diff.counterpart(from, lnum, meta.data.diff, side)
+            or math.min(lnum, math.max(#meta.lines, 1))
+        end)
       end)
     end
   )
