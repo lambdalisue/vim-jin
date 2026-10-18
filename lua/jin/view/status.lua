@@ -111,6 +111,23 @@ return {
     end
     meta.data.revisions = revisions
   end,
+  detail = require("jin.view.detail").either({
+    require("jin.view.change_detail").detail({
+      entry = function(meta, lnum)
+        return meta.data.revisions[lnum] and meta.entries[lnum] or nil
+      end,
+    }),
+    require("jin.view.file_detail").path_detail(function(meta, lnum)
+      local found = meta.data.paths[lnum]
+      return found and found.status ~= "conflict" and found or nil
+    end, { "diff" }, { "-r", "@" }),
+    require("jin.view.file_detail").conflict_detail(function(meta, lnum)
+      local found = meta.data.paths[lnum]
+      return found and found.status == "conflict" and found.path or nil
+    end, function()
+      return "@"
+    end),
+  }),
   actions = actions,
   primary = "inspect",
   secondary = "open",

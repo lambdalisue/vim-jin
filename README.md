@@ -79,7 +79,7 @@ exceptions:
 | `x` / `X` | select the change as the other side of an action / clear the selection |
 | `p` / `P` | move the selected changes in after / before the change of the line |
 | `yy` / `YY` | yank change IDs (or what the line stands for) / commit IDs |
-| `K` | show or hide the detail panel: the whole description, IDs, bookmarks and changed files of a change |
+| `K` | show or hide the detail panel: the whole description, IDs, bookmarks and changed files of a change, the lines a file adds and removes, the sides of a conflict, what an operation changed, how a bookmark stands against its remotes |
 | `]]` / `[[` | go to the next / previous block: change, file, or lines one change wrote |
 | `a`, `.`, `?` | choose an action by name (rebase and every other without a key), repeat it, list them all |
 

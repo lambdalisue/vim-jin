@@ -49,6 +49,11 @@ return {
     end
     meta.data.paths = paths
   end,
+  detail = require("jin.view.file_detail").conflict_detail(function(meta, lnum)
+    return meta.data.paths[lnum]
+  end, function(meta)
+    return support.revision_arg(meta.parsed.argv)
+  end),
   actions = actions,
   primary = "edit",
 }

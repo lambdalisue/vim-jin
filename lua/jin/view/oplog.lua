@@ -58,6 +58,7 @@ return {
     },
     about = 2,
   },
+  detail = require("jin.view.operation_detail").detail(),
   actions = actions,
   primary = "show",
   secondary = "log",

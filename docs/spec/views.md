@@ -45,9 +45,9 @@ annotation; without one, the view sets it to 1, in place of the editor's
 20, so that a wrapped line goes on beside the annotation however narrow
 the window.
 
-In the log, the pick, the conflicts and the annotation, the
-[detail panel](#detail-panel) tells more of the change of the line under
-the cursor than the line itself does.
+In every view but a buffer to edit, the file view and the raw view, the
+[detail panel](#detail-panel) tells more of what the line
+under the cursor stands for than the line itself does.
 
 ## Commands
 
@@ -549,20 +549,70 @@ The actions of the log, and:
 
 ## Detail panel
 
-A view whose lines stand for changes, the log, the pick, the conflicts
-and the annotation (the change that wrote the line), tells more of the
-change under the cursor than its line holds in a panel docked at an edge
-of the view's window, each value after a label and its glyph. The panel
-is drawn in a border of [glyphs](#glyphs) on the background of `Normal`,
-and takes no focus. It tells, in this order: the first line of the
-change's description as the title, its change and commit IDs eight
-characters long with the shortest prefixes jj accepts in color, its
-author's name and email, when it was committed as jj formats a time and
-as how long ago, the rest of its description between blank rows, its
-bookmarks and tags, whether it is empty, immutable, divergent, conflicted
-or hidden, and the files it changes, with the lines each adds and removes
-and their sum, then the paths it leaves in conflict. What its author
-wrote comes before the lists, which can be long enough to be cut.
+A view that has more to tell of the entry under the cursor than its line
+holds tells it in a panel docked at an edge of the view's window, each
+value after a label and its glyph. The panel is drawn in a border of
+[glyphs](#glyphs) on the background of `Normal`, and takes no focus. What
+it tells depends on what the line stands for:
+
+- A change, in the log, the pick, the conflicts, the annotation (the
+  change that wrote the line), the operation show and the status (the
+  working copy and its parents), and on the header of a change in the
+  show view, in this order: the first line of its description as the
+  title, its change and commit IDs eight characters long with the
+  shortest prefixes jj accepts in color, its author's name and email, when
+  it was committed as jj formats a time and as how long ago, the rest of
+  its description between blank rows, its bookmarks and tags, whether it
+  is empty, immutable, divergent, conflicted or hidden, and the files it
+  changes, with the lines each adds and removes and their sum, then the
+  paths it leaves in conflict. What its author wrote comes before the
+  lists, which can be long enough to be cut. A line of the operation show and of the show view
+  tells of the version it shows, by its commit ID.
+- A file of a diff, on its header and every line of its section in the
+  show, diff and interdiff views, and a changed file of the working copy
+  in the status: the lines it adds and removes, how jj names the change
+  (modified, added, removed, renamed, copied), the path it was renamed or
+  copied from, a change of its mode, or that it is binary. In the status
+  the diff of the file follows, hunk by hunk, its added and removed lines
+  in color, read from the same jj run as the rest; a binary file has none
+  to show. The show, diff and interdiff views show the diff beside the
+  panel already, so their panel does not.
+- A line inside the diff of a file, one with line numbers, in the show,
+  diff and interdiff views: the change that last wrote it, above what is
+  told of its file. Under a "Line" label, the line's number and path and
+  whether it was removed, then the change by the first line of its
+  description, its IDs with the shortest prefixes in color, its author,
+  its date, and whether it is divergent, conflicted or hidden; then the
+  file, as above, and last the rest of the change's description, so that
+  the lines the file adds and removes stay in sight in a panel too short
+  for it all. A removed line is looked for as of the old side of the
+  diff, at its old number and its old path where the file was renamed or
+  copied; any other line as of the new side, at its new number, where a
+  line on both sides was last written before the diff. A line the show
+  view adds was written by the version shown. jj is asked with `jj file
+  annotate` once per read for each revision and path, so that moving
+  along a file asks no more, and a change hidden or divergent is named by
+  its commit ID, as jj annotates it. A line jj cannot annotate, as in a
+  revision without the path or a revision of several commits such as the
+  parents of a merge, and a removed line of the interdiff view, whose old
+  side no revision holds, tell of the file alone.
+- A path left in conflict, in the status and the conflicted paths: of how
+  many sides the conflict is, and each side and base, with the change and
+  commit jj labels it with and its description, as jj writes them in a
+  conflict.
+- A version, in the evolog: its IDs, the operation that made it, by its ID,
+  its description, the command that ran it and when it ended, and the
+  files it differs in from the version before it.
+- An operation, in the operation log: its whole description, its ID, the
+  command that ran it, its user and host, when it ended and how long it
+  lasted, how many changes it added, rewrote and abandoned, and how many
+  bookmarks it moved.
+- A bookmark, in the bookmark view: the change it points to by its IDs,
+  description, author and time, or that it points to none or several, and
+  each other remote bookmark of its name, whether it is tracked, and how
+  many changes it is ahead or behind, or that it is in sync.
+- A workspace, in the workspace view: the root of the workspace, and its
+  working-copy change by its IDs, description, author, time and state.
 
 A value too long for its row is cut with the `ellipsis` glyph, or for a
 description, wrapped.
@@ -654,19 +704,19 @@ The glyphs, by name:
 | Name | Drawn before or as |
 | --- | --- |
 | `view`, `edit` | the name of a view, or of a buffer to edit, in its badge |
-| `operation` | the operation a view stays at, and an operation under the cursor |
+| `operation` | the operation a view stays at, an operation under the cursor, and the label of an operation in the panel |
 | `selected` | how many changes are selected, and the selection column |
 | `change`, `commit` | the change under the cursor, or the one a file view shows, and its commit, and their labels in the panel |
 | `author`, `date` | the author and how long ago, and their labels in the panel |
 | `files`, `added`, `removed` | the label of the files in the panel, and before the lines added and removed |
 | `file` | the file a file view shows |
-| `state` | the label of the state of a change in the panel |
+| `state`, `path`, `command`, `about` | the labels of a state, a path, the command of an operation and a description in the panel |
 | `dot` | between the author and how long ago |
 | `ellipsis` | where a description too long for the statusline or a value too long for a row of the panel is cut, and the last row of a panel too short |
 | `workspace`, `bookmark` | the workspace, its bookmarks, and a workspace or bookmark under the cursor; the bookmark one labels refs in the panel |
-| `traffic` | how far the bookmarks are from their remotes |
+| `traffic` | how far the bookmarks are from their remotes, and the label of the remotes in the panel |
 | `alert` | the state of the workspace, and a path left in conflict in the panel |
-| `line` | the line of the cursor |
+| `line` | the line of the cursor, and the label of a line in the panel |
 | `separator` | between the parts on the right of the statusline |
 | `border_top_left`, `border_top`, `border_top_right`, `border_right`, `border_bottom_right`, `border_bottom`, `border_bottom_left`, `border_left` | the border of the panel |
 

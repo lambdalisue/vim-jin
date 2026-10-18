@@ -506,19 +506,51 @@ To map no key at all in a view, set this to 1, `{view}` being `log`,
 -----------------------------------------------------------------------------
 DETAIL PANEL						*jin-detail*
 
-A view whose lines stand for changes, |:JinLog|, |:JinConflicts|, the
-pick and |:JinAnnotate| (the change that wrote the line), tells more of
-the change under the cursor than its line holds in a panel docked at an
-edge of its window, each value after a label, in this order: the first
-line of its description, its change and commit IDs, its author, when it
-was committed, the rest of its description, its bookmarks and tags,
-whether it is empty, immutable, divergent, conflicted or hidden, the
-files it changes with the lines each adds and removes, and the paths it
-leaves in conflict.
+A view that has more to tell of the entry under the cursor than its line
+holds tells it in a panel docked at an edge of its window, each value
+after a label. What it tells depends on the line:
 
-The other views and a buffer to edit have no panel. The panel takes no
-focus and stays open while the view is shown in the current window; as
-the cursor moves, only what it tells changes. It tells at once what the line itself shows, such as the first line of the
+- A change, in |:JinLog|, |:JinConflicts|, the pick, |:JinAnnotate| (the
+  change that wrote the line), the operation show and |:JinStatus| (the
+  working copy and its parents), and on the header of |:JinShow|, in
+  this order: the first line of its description, its change and commit
+  IDs, its author, when it was committed, the rest of its description,
+  its bookmarks and tags, whether it is empty, immutable, divergent,
+  conflicted or hidden, the files it changes with the lines each adds and
+  removes, and the paths it leaves in conflict.
+- A file of a diff in |:JinShow|, |:JinDiff| and the interdiff, on its
+  header and every line of its section, and a changed file in
+  |:JinStatus|: the lines it adds and removes, how it changed, the path
+  it was renamed or copied from, a change of its mode, or that it is
+  binary. In |:JinStatus| the diff of the file follows, hunk by hunk;
+  a binary file has none.
+- A line inside the diff of a file, one with line numbers, in |:JinShow|,
+  |:JinDiff| and the interdiff: the change that last wrote it, above the
+  file. After "Line", the line's number and path, then the first line of
+  the change's description, its IDs, author, date and whether it is
+  divergent, conflicted or hidden; then the file, and last the rest of
+  the description, so that the lines added and removed stay in sight. A
+  removed line is looked for as of the old side, at its old path where
+  the file was renamed; any other line as of the new side, a line added
+  in |:JinShow| being written by the change shown. Each file is annotated
+  once per revision each time the view is read. A line jj cannot
+  annotate, and a removed line of the interdiff, tell of the file alone.
+- A path left in conflict, in |:JinStatus| and the conflicted paths: each
+  side and base of the conflict, with the change jj labels it with.
+- A version, in |:JinEvolog|: the operation that made it, the command that
+  ran it, when, and the files it differs in from the version before it.
+- An operation, in |:JinOpLog|: its whole description, the command that
+  ran it, its user and host, when it ended and how long it lasted, and
+  how many changes it added, rewrote and abandoned and bookmarks it moved.
+- A bookmark, in |:JinBookmark|: the change it points to, and how each
+  other remote bookmark of its name stands: tracked or not, ahead, behind
+  or in sync.
+- A workspace, in |:JinWorkspace|: its root and its working-copy change.
+
+A buffer to edit, |:JinFile| and |:JinBuffer| have no panel. The panel
+takes no focus and stays open while the view is shown in the current
+window; as the cursor moves, only what it tells changes. It
+tells at once what the line itself shows, such as the first line of the
 description, the author and how long ago, and the rest once jj has told
 it: jj is asked once the cursor stays on an entry for a moment, and once
 per entry each time the view is read, at the operation the view shows
@@ -623,15 +655,19 @@ JinDetailBody		The detail panel (|jin-detail|), and the author and
 			that it lies on the background of the file. Within
 			it, by default linked to:
 
-	JinDetailTitle	|hl-Title|	the first line of the description
+	JinDetailTitle	|hl-Title|	the first line of the description,
+					or the file, operation, bookmark
+					or workspace told of
 	JinDetailChange	|hl-Identifier|	the shortest prefix of the change
-	JinDetailCommit	|hl-Function|	the shortest prefix of the commit
-	JinDetailRef	|hl-Special|	bookmarks and tags
+	JinDetailCommit	|hl-Function|	the shortest prefix of the commit,
+					and an operation
+	JinDetailRef	|hl-Special|	bookmarks, tags and remotes
 	JinDetailAlert	|hl-WarningMsg|	a conflict, a divergent change
 	JinDetailAdded	`Added`		lines added, an added file
 	JinDetailRemoved `Removed`	lines removed, a removed file
 	JinDetailDim	|hl-Comment|	the labels, the rest of each ID,
-					a missing description, and the key
+					a missing description, the hunk
+					headers of a diff, and the key
 					that hides the panel
 
 			JinDetailAdded and JinDetailRemoved link to
@@ -757,8 +793,9 @@ g:jin_glyphs		A |Dictionary| of glyphs, by the names below, to
 			U+F441 nf-oct-eye	none	none
 	edit		Before the name of a buffer to edit, in its badge.
 			U+F448 nf-oct-pencil	✎	none
-	operation	Before the operation a view stays at, and an
-			operation under the cursor.
+	operation	Before the operation a view stays at, an
+			operation under the cursor, and the label of an
+			operation in the detail panel.
 			U+F464 nf-oct-history	⟲	none
 	selected	Before how many changes are selected, and in the
 			column before the first line of a selected change.
@@ -773,17 +810,27 @@ g:jin_glyphs		A |Dictionary| of glyphs, by the names below, to
 			U+F007 nf-fa-user	none	none
 	date		Before how long ago, and the label of the date.
 			U+F017 nf-fa-clock_o	none	none
-	files		The label of the files in the detail panel.
+	files		The label of the files in the detail panel, and
+			of the mode of a file.
 			U+F016 nf-fa-file_o	none	none
 	file		Before the file a file view shows.
 			U+F4A5 nf-oct-file	none	none
-	added		Before the lines added in the detail panel.
+	added		Before the lines added in the detail panel, and
+			the label of a side of a conflict.
 			+			+	+
-	removed		Before the lines removed in the detail panel.
+	removed		Before the lines removed in the detail panel, and
+			the label of a base of a conflict.
 			-			-	-
-	state		The label of the state of a change in the detail
-			panel.
+	state		The label of the state of a change, file or
+			bookmark in the detail panel.
 			U+F024 nf-fa-flag	⚐	none
+	path		The label of a path in the detail panel.
+			U+F114 nf-fa-folder_o	none	none
+	command		The label of the command of an operation in the
+			detail panel.
+			U+F489 nf-oct-terminal	none	none
+	about		The label of a description in the detail panel.
+			U+F0E5 nf-fa-comment_o	none	none
 	dot		Between the author and how long ago; none leaves
 			two spaces.
 			none			·	-
@@ -798,12 +845,14 @@ g:jin_glyphs		A |Dictionary| of glyphs, by the names below, to
 			bookmark under the cursor, and the label of
 			refs in the detail panel.
 			U+F02E nf-fa-bookmark	⚑	none
-	traffic		Before how far bookmarks are from their remotes.
+	traffic		Before how far bookmarks are from their remotes,
+			and the label of the remotes in the detail panel.
 			U+F46A nf-oct-sync	none	none
 	alert		Before the state of the workspace, and a path
 			left in conflict in the detail panel.
 			U+F421 nf-oct-alert	⚠	!
-	line		Before the cursor's line.
+	line		Before the cursor's line, and the label of a line
+			of a diff in the detail panel.
 			U+E0A1 nf-pl-line_number	none	none
 	separator	Between the parts on the right of the statusline;
 			none leaves three spaces.

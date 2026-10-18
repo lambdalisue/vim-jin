@@ -74,6 +74,7 @@ return {
     fields = WORKSPACE_FIELDS,
     about = WORKSPACE_ABOUT,
   },
+  detail = require("jin.view.workspace_detail").detail(),
   actions = actions,
   primary = "tcd",
   secondary = "log",

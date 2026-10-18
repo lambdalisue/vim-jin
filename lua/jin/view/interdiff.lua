@@ -22,6 +22,15 @@ return {
   filetype = "jin-diff",
   decorate = support.decorate_diff_or("These versions differ in neither files nor description."),
   blocks = require("jin.view.block").files,
+  detail = require("jin.view.file_detail").diff_detail(function(meta)
+    local file_detail = require("jin.view.file_detail")
+    return {
+      command = { "interdiff" },
+      revisions = file_detail.revision_words(meta.parsed.argv),
+      key = "",
+      sides = { new = diff.sides(meta.parsed.argv).new },
+    }
+  end),
   actions = actions,
   primary = "jump",
 }

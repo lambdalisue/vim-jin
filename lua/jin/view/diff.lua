@@ -16,6 +16,17 @@ return {
   filetype = "jin-diff",
   decorate = support.decorate_diff_or("No file changed."),
   blocks = require("jin.view.block").files,
+  -- The sides annotated, even for the diff of one change: what it adds is
+  -- told the same, and a revset of several is no change to name.
+  detail = require("jin.view.file_detail").diff_detail(function(meta)
+    local file_detail = require("jin.view.file_detail")
+    return {
+      command = { "diff" },
+      revisions = file_detail.revision_words(meta.parsed.argv),
+      key = "",
+      sides = diff.sides(meta.parsed.argv),
+    }
+  end),
   actions = actions,
   primary = "jump",
 }

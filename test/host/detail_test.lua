@@ -475,6 +475,49 @@ return {
     end,
   },
   {
+    "the detail panel of the show view tells of a line of a diff the change that wrote it",
+    function()
+      two_changes()
+      local lines = telling("JinShow", "the end 1", "Line    4 of f.lua, last written by")
+      h.eq("end f", lines[2])
+      lines = telling("JinShow", "local answer", "Line    1 of f.lua, last written by")
+      h.eq("add f", lines[2])
+      reset()
+    end,
+  },
+  {
+    "the detail panel of the status tells of a file of the working copy its lines and its diff",
+    function()
+      two_changes()
+      local lines = telling("JinStatus", "^M f.lua", "@@ -1,3 +1,4 @@")
+      h.eq(
+        { "f.lua", "Status  modified", "Lines   +1 -0", "", "@@ -1,3 +1,4 @@" },
+        { lines[1], lines[2], lines[3], lines[4], lines[5] }
+      )
+      h.eq(" local answer = 42", lines[6])
+      reset()
+    end,
+  },
+  {
+    "the detail panel of the operation log tells what an operation changed",
+    function()
+      two_changes()
+      local lines = telling("JinOpLog", "describe commit", "Changes  1 rewritten")
+      h.truthy(lines[1]:match("^describe commit") ~= nil, lines[1])
+      reset()
+    end,
+  },
+  {
+    "the detail panel of the bookmark view tells of the change a bookmark points to",
+    function()
+      two_changes()
+      jin.jj({ "bookmark", "create", "b1", "-r", "@-" })
+      local lines = telling("JinBookmark", "b1", "About   add f")
+      h.eq("b1", lines[1])
+      reset()
+    end,
+  },
+  {
     "the detail panel draws on the background of Normal",
     function()
       h.ex("highlight clear")

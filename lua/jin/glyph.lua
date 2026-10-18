@@ -44,6 +44,9 @@ M.NAMES = {
   "added",
   "removed",
   "state",
+  "path",
+  "command",
+  "about",
   "dot",
   "ellipsis",
   "workspace",
@@ -80,6 +83,9 @@ M.PRESETS = {
     added = "+",
     removed = "-",
     state = u(0xF024), -- nf-fa-flag
+    path = u(0xF114), -- nf-fa-folder_o
+    command = u(0xF489), -- nf-oct-terminal
+    about = u(0xF0E5), -- nf-fa-comment_o
     dot = "",
     ellipsis = "…",
     workspace = u(0xF401), -- nf-oct-repo
@@ -111,6 +117,9 @@ M.PRESETS = {
     added = "+",
     removed = "-",
     state = "⚐",
+    path = "",
+    command = "",
+    about = "",
     dot = "·",
     ellipsis = "…",
     workspace = "⌂",
@@ -142,6 +151,9 @@ M.PRESETS = {
     added = "+",
     removed = "-",
     state = "",
+    path = "",
+    command = "",
+    about = "",
     dot = "-",
     ellipsis = "...",
     workspace = "",

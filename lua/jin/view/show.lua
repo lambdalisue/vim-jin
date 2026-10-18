@@ -68,6 +68,32 @@ return {
   },
   decorate = support.decorate_diff,
   blocks = block.together(block.entries, block.files),
+  -- By commit ID, as the version shown may be an older one of the change,
+  -- which wrote every line its diff adds.
+  detail = require("jin.view.detail").either({
+    require("jin.view.file_detail").diff_detail(function(meta, lnum)
+      local entry = meta.entries[lnum]
+      if not entry then
+        return nil
+      end
+      return {
+        command = { "diff" },
+        revisions = { "-r", entry[2] },
+        key = entry[2],
+        sides = {
+          old = entry[2] .. "-",
+          new = entry[2],
+          shown = entry[2],
+          known = require("jin.view.change_detail").known_of(meta, entry),
+        },
+      }
+    end),
+    require("jin.view.change_detail").detail({
+      revision = function(entry)
+        return entry[2]
+      end,
+    }),
+  }),
   actions = actions,
   primary = "jump",
   yank = "yank:change",

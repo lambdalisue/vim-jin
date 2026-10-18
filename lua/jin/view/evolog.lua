@@ -68,6 +68,7 @@ return {
     about = EVOLOG_ABOUT,
     short = EVOLOG_SHORT,
   },
+  detail = require("jin.view.version_detail").detail(),
   actions = actions,
   primary = "interdiff",
   secondary = "show",

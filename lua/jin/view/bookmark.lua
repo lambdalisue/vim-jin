@@ -186,6 +186,7 @@ return {
     fields = BOOKMARK_FIELDS,
     about = BOOKMARK_ABOUT,
   },
+  detail = require("jin.view.bookmark_detail").detail(),
   actions = actions,
   primary = "log",
   secondary = "show",

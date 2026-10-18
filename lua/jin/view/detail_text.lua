@@ -297,6 +297,51 @@ function Text:files(name, files, conflicts)
   end
 end
 
+-- As Vim's default 'tabstop': the panel has no buffer of its own to ask.
+local TABSTOP = 8
+
+---`text` with each tab turned to the spaces up to the next tab stop.
+---@param host jin.Host
+---@param text string
+---@return string
+function M.expand_tabs(host, text)
+  if not text:find("\t", 1, true) then
+    return text
+  end
+  local out, col = {}, 0
+  for char in text:gmatch(CHAR) do
+    if char == "\t" then
+      local spaces = TABSTOP - col % TABSTOP
+      out[#out + 1] = (" "):rep(spaces)
+      col = col + spaces
+    else
+      out[#out + 1] = char
+      col = col + host.width(char)
+    end
+  end
+  return table.concat(out)
+end
+
+-- The color of a line of a diff by its first character; any other, a hunk
+-- header or a note such as "\ No newline at end of file", is dimmed.
+local DIFF_GROUPS =
+  { ["+"] = "JinDetailAdded", ["-"] = "JinDetailRemoved", [" "] = "JinDetailBody" }
+
+---The lines of a diff from its first hunk header on, each colored by its
+---sign and cut to the width. Tabs stop as counted from after the sign, so
+---that the text lines up as it does in the file.
+---@param lines string[]
+function Text:diff(lines)
+  for _, line in ipairs(lines) do
+    local sign = line:sub(1, 1)
+    local chunk = {
+      text = sign .. M.expand_tabs(self.host, line:sub(2)),
+      group = DIFF_GROUPS[sign] or "JinDetailDim",
+    }
+    self.out[#self.out + 1] = M.fit(self.host, { chunk }, self.width, self.glyphs.ellipsis)
+  end
+end
+
 ---@return jin.DetailChunk[][]
 function Text:lines()
   return self.out

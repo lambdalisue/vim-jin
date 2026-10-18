@@ -88,6 +88,50 @@ local windows = setmetatable({}, { __mode = "k" })
 ---@type table<jin.ViewMeta, table<string, { details?: table, waiting?: fun()[] }>>
 local cache = setmetatable({}, { __mode = "k" })
 
+---Per read, per key: what a question that several lines share was told, or
+---the callbacks waiting for it.
+---@type table<jin.ViewMeta, table<string, { told?: boolean, value?: any, waiting?: fun(value: any)[] }>>
+local shared = setmetatable({}, { __mode = "k" })
+
+---Call `done` with what `ask` is told of `key` in the read `meta`, asking
+---only the first time: a later call waits for that answer, or is given it
+---at once. For what the lines of an entry share, such as a file they are
+---lines of, where the key of each line tells it apart from the others.
+---@param meta jin.ViewMeta
+---@param key string
+---@param ask fun(told: fun(value: any))
+---@param done fun(value: any)
+function M.shared(meta, key, ask, done)
+  shared[meta] = shared[meta] or {}
+  local known = shared[meta][key]
+  if known and known.told then
+    done(known.value)
+    return
+  elseif known then
+    table.insert(known.waiting, done)
+    return
+  end
+  known = { waiting = { done } }
+  shared[meta][key] = known
+  ask(function(value)
+    known.told, known.value = true, value
+    local waiting = known.waiting or {}
+    known.waiting = nil
+    for _, fn in ipairs(waiting) do
+      fn(value)
+    end
+  end)
+end
+
+---What `M.shared` was told of `key` in the read `meta`; nil until told.
+---@param meta jin.ViewMeta
+---@param key string
+---@return any
+function M.told(meta, key)
+  local known = (shared[meta] or {})[key]
+  return known and known.value
+end
+
 ---@param host jin.Host
 ---@param bufnr integer
 ---@return jin.DetailState
@@ -458,6 +502,46 @@ function M.window_closed(host, winid)
   if windows[host] then
     windows[host][winid] = nil
   end
+end
+
+---A `detail` telling of each line what the first of `defs` with anything
+---to tell of it tells, for a view whose lines stand for things of more
+---than one kind.
+---@param defs jin.ViewDetail[]
+---@return jin.ViewDetail
+function M.either(defs)
+  ---The def telling of `lnum`, its index and its key.
+  local function which(meta, lnum)
+    for i, def in ipairs(defs) do
+      local key = def.key(meta, lnum)
+      if key then
+        return def, i, key
+      end
+    end
+    return nil
+  end
+  return {
+    key = function(meta, lnum)
+      local _, i, key = which(meta, lnum)
+      return i and (i .. ":" .. key) or nil
+    end,
+    known = function(meta, lnum)
+      local def, i = which(meta, lnum)
+      return {
+        which = i,
+        details = assert(def, "jin: nothing to tell of the line").known(meta, lnum),
+      }
+    end,
+    fetch = function(jin, meta, lnum, key, done)
+      local i, rest = key:match("^(%d+):(.*)$")
+      defs[tonumber(i)].fetch(jin, meta, lnum, rest, function(details)
+        done({ which = tonumber(i), details = details })
+      end)
+    end,
+    lines = function(host, details, width, glyphs)
+      return defs[details.which].lines(host, details.details, width, glyphs)
+    end,
+  }
 end
 
 ---Close the panel of `bufnr` and forget it, as when the buffer is unloaded.

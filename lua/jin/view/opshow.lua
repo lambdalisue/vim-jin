@@ -35,6 +35,12 @@ return {
       meta.entries[lnum] = summaries[lnum] or false
     end
   end,
+  -- By commit ID, as a line stands for one version of the change.
+  detail = require("jin.view.change_detail").detail({
+    revision = function(entry)
+      return entry[2]
+    end,
+  }),
   actions = actions,
   primary = "show",
   secondary = "diff",
