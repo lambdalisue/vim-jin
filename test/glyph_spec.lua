@@ -56,6 +56,16 @@ describe("the glyphs vim-jin draws with", function()
     assert.same(glyph.PRESETS.ascii, glyph.resolve(host))
   end)
 
+  it("keep the preset's border where g:jin_glyphs sets one not a cell wide", function()
+    local host = setup()
+    host.settings.glyph_preset = "unicode"
+    host.dict_settings.glyphs = { border_top = "", border_left = "||", border_right = "#" }
+    local glyphs = glyph.resolve(host)
+    assert.equal("─", glyphs.border_top)
+    assert.equal("│", glyphs.border_left)
+    assert.equal("#", glyphs.border_right)
+  end)
+
   it("follow g:jin_glyph_preset and g:jin_glyphs as they change, without a restart", function()
     local host = setup()
     host.settings.glyph_preset = "ascii"
@@ -92,6 +102,23 @@ describe("the glyphs vim-jin draws with", function()
     for name, value in pairs(glyph.PRESETS.ascii) do
       assert.equal(nil, value:find("[\128-\255]"), name)
     end
+  end)
+
+  it("draw the border of a detail panel in characters of one cell each, in every preset", function()
+    local host = setup()
+    for preset, glyphs in pairs(glyph.PRESETS) do
+      for _, value in ipairs(glyph.border(glyphs)) do
+        assert.equal(1, host.width(value), preset)
+      end
+    end
+  end)
+
+  it("give the border of a detail panel clockwise from its top-left corner", function()
+    assert.same(
+      { "╭", "─", "╮", "│", "╯", "─", "╰", "│" },
+      glyph.border(glyph.PRESETS.unicode)
+    )
+    assert.same({ "+", "-", "+", "|", "+", "-", "+", "|" }, glyph.border(glyph.PRESETS.ascii))
   end)
 
   it("encode a code point as UTF-8", function()

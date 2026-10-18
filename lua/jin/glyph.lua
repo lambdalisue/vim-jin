@@ -1,5 +1,5 @@
--- The glyphs the statusline of a view draws with, from a preset
--- g:jin_glyph_preset chooses, each overridden by g:jin_glyphs.
+-- The glyphs the statusline of a view and the detail panel draw with, from a
+-- preset g:jin_glyph_preset chooses, each overridden by g:jin_glyphs.
 -- They are read on every draw, so a change to either shows on the next.
 
 local M = {}
@@ -39,7 +39,11 @@ M.NAMES = {
   "commit",
   "author",
   "date",
+  "files",
   "file",
+  "added",
+  "removed",
+  "state",
   "dot",
   "ellipsis",
   "workspace",
@@ -48,6 +52,14 @@ M.NAMES = {
   "alert",
   "line",
   "separator",
+  "border_top_left",
+  "border_top",
+  "border_top_right",
+  "border_right",
+  "border_bottom_right",
+  "border_bottom",
+  "border_bottom_left",
+  "border_left",
 }
 
 ---@alias jin.Glyphs table<string, string>
@@ -63,7 +75,11 @@ M.PRESETS = {
     commit = u(0xF417), -- nf-oct-git_commit
     author = u(0xF007), -- nf-fa-user
     date = u(0xF017), -- nf-fa-clock_o
+    files = u(0xF016), -- nf-fa-file_o
     file = u(0xF4A5), -- nf-oct-file
+    added = "+",
+    removed = "-",
+    state = u(0xF024), -- nf-fa-flag
     dot = "",
     ellipsis = "…",
     workspace = u(0xF401), -- nf-oct-repo
@@ -72,6 +88,14 @@ M.PRESETS = {
     alert = u(0xF421), -- nf-oct-alert
     line = u(0xE0A1), -- nf-pl-line_number
     separator = u(0xE0B3), -- nf-pl-right_soft_divider
+    border_top_left = "╭",
+    border_top = "─",
+    border_top_right = "╮",
+    border_right = "│",
+    border_bottom_right = "╯",
+    border_bottom = "─",
+    border_bottom_left = "╰",
+    border_left = "│",
   },
   unicode = {
     view = "",
@@ -82,7 +106,11 @@ M.PRESETS = {
     commit = "◉",
     author = "",
     date = "",
+    files = "",
     file = "",
+    added = "+",
+    removed = "-",
+    state = "⚐",
     dot = "·",
     ellipsis = "…",
     workspace = "⌂",
@@ -91,6 +119,14 @@ M.PRESETS = {
     alert = "⚠",
     line = "",
     separator = "│",
+    border_top_left = "╭",
+    border_top = "─",
+    border_top_right = "╮",
+    border_right = "│",
+    border_bottom_right = "╯",
+    border_bottom = "─",
+    border_bottom_left = "╰",
+    border_left = "│",
   },
   ascii = {
     view = "",
@@ -101,7 +137,11 @@ M.PRESETS = {
     commit = "",
     author = "",
     date = "",
+    files = "",
     file = "",
+    added = "+",
+    removed = "-",
+    state = "",
     dot = "-",
     ellipsis = "...",
     workspace = "",
@@ -110,6 +150,14 @@ M.PRESETS = {
     alert = "!",
     line = "",
     separator = "|",
+    border_top_left = "+",
+    border_top = "-",
+    border_top_right = "+",
+    border_right = "|",
+    border_bottom_right = "+",
+    border_bottom = "-",
+    border_bottom_left = "+",
+    border_left = "|",
   },
 }
 
@@ -118,7 +166,8 @@ M.DEFAULT_PRESET = "nerdfont"
 
 ---The glyphs to draw with now: those of g:jin_glyph_preset, or of the
 ---default preset when it names none there is, with what g:jin_glyphs sets
----in place of each.
+---in place of each. A border glyph is taken only a cell wide, as the detail
+---panel is laid out for.
 ---@param host jin.Host
 ---@return jin.Glyphs
 function M.resolve(host)
@@ -128,11 +177,31 @@ function M.resolve(host)
     glyphs[name] = value
   end
   for name, value in pairs(host.setting_dict("glyphs") or {}) do
-    if preset[name] and type(value) == "string" then
+    if
+      preset[name]
+      and type(value) == "string"
+      and (not name:find("^border_") or host.width(value) == 1)
+    then
       glyphs[name] = value
     end
   end
   return glyphs
+end
+
+---The border of a detail panel in `glyphs`, clockwise from its top-left corner.
+---@param glyphs jin.Glyphs
+---@return string[]
+function M.border(glyphs)
+  return {
+    glyphs.border_top_left,
+    glyphs.border_top,
+    glyphs.border_top_right,
+    glyphs.border_right,
+    glyphs.border_bottom_right,
+    glyphs.border_bottom,
+    glyphs.border_bottom_left,
+    glyphs.border_left,
+  }
 end
 
 ---`value` followed by a space to set it off from what follows, or nothing

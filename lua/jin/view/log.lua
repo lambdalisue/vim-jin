@@ -34,6 +34,7 @@ return {
   template = support.logged("log", "builtin_log_compact"),
   actions = actions,
   current_entries = true,
+  detail = require("jin.view.change_detail").detail(),
   primary = "show",
   secondary = "diff",
   yank = "yank:change",

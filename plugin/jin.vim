@@ -45,6 +45,16 @@ function! s:highlight() abort
   highlight default link JinCursorChange CursorLine
   highlight default link JinSelected Visual
   highlight default link JinSelectedSign Special
+  highlight default link JinDetailBody Normal
+  call s:detail_border()
+  highlight default link JinDetailTitle Title
+  highlight default link JinDetailChange Identifier
+  highlight default link JinDetailCommit Function
+  highlight default link JinDetailDim Comment
+  highlight default link JinDetailRef Special
+  highlight default link JinDetailAlert WarningMsg
+  execute 'highlight default link JinDetailAdded' (hlexists('Added') ? 'Added' : 'DiffAdd')
+  execute 'highlight default link JinDetailRemoved' (hlexists('Removed') ? 'Removed' : 'DiffDelete')
   highlight default link JinStatusline StatusLine
   highlight default link JinStatuslineView PmenuSel
   highlight default link JinStatuslineEdit Search
@@ -55,6 +65,18 @@ function! s:highlight() abort
   highlight default link JinStatuslineAlert WarningMsg
   highlight default link JinStatuslineSelected Special
   call s:inks()
+endfunction
+
+" The border of the detail panel in the color of FloatBorder, which Vim
+" lacks, on the background of Normal, as the panel's body is: FloatBorder often has a
+" background of its own, which no link can leave out.
+function! s:detail_border() abort
+  let l:spec = 'highlight default JinDetailBorder'
+  for l:mode in ['gui', 'cterm']
+    let l:spec .= printf(' %sfg=%s %sbg=%s', l:mode, s:color('FloatBorder', 'fg', l:mode),
+          \ l:mode, s:color('Normal', 'bg', l:mode))
+  endfor
+  execute l:spec
 endfunction
 
 " The color of a group: its text, or with 'reverse', what it is drawn on.
@@ -225,6 +247,14 @@ augroup jin_plugin
         \ call luaeval('require("jin.host.entry").cursor_moved(_A)', bufnr())
   autocmd BufWinEnter jin://*
         \ call luaeval('require("jin.host.entry").buffer_shown(_A)', str2nr(expand('<abuf>')))
+  autocmd BufEnter,WinEnter jin://*
+        \ call luaeval('require("jin.host.entry").detail_entered(_A)', bufnr())
+  autocmd WinLeave,BufLeave jin://*
+        \ call luaeval('require("jin.host.entry").detail_left(_A)', bufnr())
+  " Their <amatch> is the window, not the buffer.
+  autocmd WinClosed *
+        \ call luaeval('require("jin.host.entry").window_closed(_A)', str2nr(expand('<amatch>')))
+  autocmd WinScrolled,VimResized * call luaeval('require("jin.host.entry").windows_scrolled()')
   autocmd ColorScheme * call s:highlight()
   autocmd BufWriteCmd jin://*
         \ call luaeval('require("jin.host.entry").write_buffer(_A)', str2nr(expand('<abuf>')))

@@ -3,6 +3,7 @@ local common = require("jin.host.common")
 ---@class jin.VimHost: jin.Host
 local M = {
   name = "vim",
+  detail_footer = false,
   cwd = common.cwd,
   bufname = common.bufname,
   realpath = common.realpath,
@@ -16,6 +17,7 @@ local M = {
   cd = common.cd,
   mark_saved = common.mark_saved,
   vertical = common.vertical,
+  width = common.width,
   setting = common.setting,
 }
 
@@ -239,12 +241,111 @@ function M.jump(bufnr, lnum)
   common.jump(bufnr, lnum)
 end
 
+function M.window(bufnr)
+  return common.window_geometry(bufnr, M.list)
+end
+
 function M.line(bufnr)
   return common.line(bufnr, M.list)
 end
 
 function M.lines(bufnr)
   return common.lines(bufnr, M.list)
+end
+
+-- Per buffer, the popup of its detail panel.
+---@type table<integer, integer>
+local details = {}
+
+function M.open_detail(bufnr, panel)
+  local lines = {}
+  for i, line in ipairs(panel.lines) do
+    local parts, props, col = {}, {}, 1
+    for j, chunk in ipairs(line) do
+      if vim.fn.empty(vim.fn.prop_type_get(chunk.group)) == 1 then
+        vim.fn.prop_type_add(chunk.group, vim.dict({ highlight = chunk.group }))
+      end
+      if chunk.text ~= "" then
+        props[#props + 1] = vim.dict({ col = col, length = #chunk.text, type = chunk.group })
+      end
+      parts[j] = chunk.text
+      col = col + #chunk.text
+    end
+    lines[i] = vim.dict({ text = table.concat(parts), props = vim.list(props) })
+  end
+  local top = M.list(vim.fn.win_screenpos(panel.window))
+  local place = {
+    line = top[1] + panel.row,
+    col = top[2] + panel.col,
+    minwidth = panel.width - 2,
+    maxwidth = panel.width - 2,
+    minheight = panel.height - 2,
+    maxheight = panel.height - 2,
+  }
+  -- Vim takes the sides first, then the corners, each from the top on.
+  local b = panel.border
+  local borderchars = vim.list({ b[2], b[4], b[6], b[8], b[1], b[3], b[5], b[7] })
+  local id = details[bufnr]
+  if id and vim.fn.empty(vim.fn.popup_getpos(id)) == 0 then
+    vim.fn.popup_settext(id, vim.list(lines))
+    vim.fn.popup_move(id, vim.dict(place))
+    vim.fn.popup_setoptions(id, vim.dict({ borderchars = borderchars }))
+    return
+  end
+  place.pos = "topleft"
+  place.border = vim.list({ 1, 1, 1, 1 })
+  place.padding = vim.list({ 0, 0, 0, 0 })
+  place.highlight = "JinDetailBody"
+  place.borderhighlight = vim.list({ "JinDetailBorder" })
+  place.wrap = false
+  place.borderchars = borderchars
+  place.scrollbar = false
+  place.fixed = true
+  place.zindex = 50
+  details[bufnr] = vim.fn.popup_create(vim.list(lines), vim.dict(place))
+end
+
+function M.close_detail(bufnr)
+  local id = details[bufnr]
+  details[bufnr] = nil
+  if id then
+    vim.fn.popup_close(id)
+  end
+end
+
+-- The text property type of the room made for the detail panel.
+local ROOM = "JinDetailRoom"
+
+function M.detail_padding(bufnr, room)
+  if vim.fn.empty(vim.fn.prop_type_get(ROOM)) == 1 then
+    vim.fn.prop_type_add(ROOM, vim.dict({}))
+  end
+  vim.fn.prop_remove(vim.dict({ type = ROOM, bufnr = bufnr, all = true }))
+  if not room then
+    return
+  end
+  local rows = room.above or room.below
+  if rows then
+    -- A virtual text of its own for each row, as one never takes more.
+    local lnum = room.above and 1 or M.list(vim.fn.getbufinfo(bufnr))[1].linecount
+    local align = room.above and "above" or "below"
+    for _ = 1, rows do
+      vim.fn.prop_add(
+        lnum,
+        0,
+        vim.dict({ type = ROOM, bufnr = bufnr, text = " ", text_align = align })
+      )
+    end
+  elseif room.right then
+    local pad = (" "):rep(room.right)
+    for i, text in ipairs(M.list(vim.fn.getbufline(bufnr, 1, "$"))) do
+      vim.fn.prop_add(i, #text + 1, vim.dict({ type = ROOM, bufnr = bufnr, text = pad }))
+    end
+  end
+end
+
+function M.detail_keep(winid, room)
+  common.detail_keep(winid, room, M.list)
 end
 
 -- Text properties highlight only the text, while the line highlight of a

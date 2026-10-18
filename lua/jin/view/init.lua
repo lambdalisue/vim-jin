@@ -61,6 +61,7 @@ local VIEWS = {
 ---@field entries_span_lines? boolean an entry, such as a change of the log, takes several lines, all highlighted while the cursor is on one
 ---@field scattered_changes? boolean the lines a change wrote lie apart, as in an annotation, and are all highlighted while the cursor is on one
 ---@field blocks? fun(meta: jin.ViewMeta): integer[] the first lines of the blocks ]] and [[ move between, in order, as jin.view.block finds them
+---@field detail? jin.ViewDetail what the detail panel tells of the entry under the cursor, as jin.view.detail shows it
 ---@field revision? fun(argv: string[]): string the one revision whose content the view shows, whose change and commit are asked of jj once per read for the statusline, as its lines stand for no entry
 
 ---What a read left behind for actions to use.
@@ -500,6 +501,9 @@ function M.read(jin, host, bufnr, name)
           motions = require("jin.view.block").keys(view),
         })
       end
+      -- What it told of may be gone from what was read. After the mappings,
+      -- as it names the key that hides it.
+      require("jin.view.detail").reread(jin, host, bufnr)
       if s.line then
         local lnum = cursor_line(meta, s.line)
         if lnum then
@@ -756,6 +760,9 @@ function M.forget(host, bufnr)
   if s then
     s.generation = s.generation + 1
     per_host[bufnr] = nil
+  end
+  if per_host then
+    require("jin.view.detail").forget(host, bufnr)
   end
 end
 

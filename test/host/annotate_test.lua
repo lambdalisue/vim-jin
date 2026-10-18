@@ -36,7 +36,7 @@ local function settle()
   return view.meta(host, bufnr)
 end
 
-local NOT_ANNOTATIONS = { JinSelectedColumn = true, JinSelectedSign = true }
+local NOT_ANNOTATIONS = { JinDetailRoom = true, JinSelectedColumn = true, JinSelectedSign = true }
 
 ---Per line of the current buffer, the virtual texts shown before it, each
 ---as { text, group }: extmarks in Neovim, text properties in Vim.
@@ -58,7 +58,8 @@ local function annotations()
     for lnum = 1, count do
       local props = {}
       for prop in vim.fn.prop_list(lnum, vim.dict({ bufnr = bufnr }))() do
-        -- The selection column is no annotation.
+        -- The room the detail panel makes and the selection column are no
+        -- annotation.
         if prop.text and not NOT_ANNOTATIONS[prop.type] then
           props[#props + 1] = { prop.text, prop.type == "JinAnnotation" and "" or prop.type }
         end

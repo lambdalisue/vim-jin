@@ -147,6 +147,12 @@ return {
   current_entries = true,
   scattered_changes = true,
   blocks = require("jin.view.block").changes,
+  -- Nothing to tell where the annotation could not be told from the file.
+  detail = require("jin.view.change_detail").detail({
+    available = function(meta)
+      return meta.data.annotations ~= nil
+    end,
+  }),
   needs_path = true,
   primary = "show",
   secondary = "parent",

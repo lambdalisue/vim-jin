@@ -45,6 +45,10 @@ annotation; without one, the view sets it to 1, in place of the editor's
 20, so that a wrapped line goes on beside the annotation however narrow
 the window.
 
+In the log, the pick, the conflicts and the annotation, the
+[detail panel](#detail-panel) tells more of the change of the line under
+the cursor than the line itself does.
+
 ## Commands
 
 `:JinLog [args]`
@@ -472,6 +476,9 @@ operation added or removed stands for that version of the change:
 `log:file`
 : The file view's `log`.
 
+`detail`
+: Show or hide the [detail panel](#detail-panel) in the current window.
+
 ### Pick
 
 What `parent` and `child` of a file or annotate view open when there are
@@ -540,10 +547,91 @@ The actions of the log, and:
   working copy, with the cursor on its first conflict; `diff` shows the
   diff of the path in the change.
 
+## Detail panel
+
+A view whose lines stand for changes, the log, the pick, the conflicts
+and the annotation (the change that wrote the line), tells more of the
+change under the cursor than its line holds in a panel docked at an edge
+of the view's window, each value after a label and its glyph. The panel
+is drawn in a border of [glyphs](#glyphs) on the background of `Normal`,
+and takes no focus. It tells, in this order: the first line of the
+change's description as the title, its change and commit IDs eight
+characters long with the shortest prefixes jj accepts in color, its
+author's name and email, when it was committed as jj formats a time and
+as how long ago, the rest of its description between blank rows, its
+bookmarks and tags, whether it is empty, immutable, divergent, conflicted
+or hidden, and the files it changes, with the lines each adds and removes
+and their sum, then the paths it leaves in conflict. What its author
+wrote comes before the lists, which can be long enough to be cut.
+
+A value too long for its row is cut with the `ellipsis` glyph, or for a
+description, wrapped.
+
+The panel stays open while the view is shown in the current window, and
+only what it tells changes as the cursor moves: at once what the line
+itself shows, the rest once jj has told it. jj is asked once the cursor
+stays on an entry for a moment, never for the entries it only passes
+over, and once per entry for each read of the view, at the operation the
+view shows and without a snapshot; when jj fails, the panel keeps telling
+what the line shows. Its size does not change from line to line: rows it
+has nothing for are blank, and what does not fit is cut, its last row the
+`ellipsis` glyph. It closes when its window or its buffer is left, and
+shows again when they are entered. Where the view cannot tell its entries,
+as when an annotation could not be told from the file, there is no panel.
+
+`g:jin_detail_position` says where it is docked: `"bottom"`, the default,
+and `"top"`, as wide as the window and as high as its height setting
+says (a third of the window's rows unless set); `"auto"`, of the same
+size, at the bottom while the cursor is in the upper half of the window
+and at the top while it is in the lower half; `"right"`, as high as the
+window and as wide as its width setting says (50 columns unless set).
+Any other value is taken as the default.
+
+The height setting is `g:jin_{view}_detail_height` for the view
+`{view}`, named as for its [default key mappings](#default-key-mappings),
+or else `g:jin_detail_height`; the width setting is
+`g:jin_{view}_detail_width`, or else `g:jin_detail_width`. Each takes a
+whole number of rows or columns from 1, or a fraction above 0 and below
+1 of the window's rows, or of the columns it has for text, rounded down.
+A value of neither form is passed over, as if unset. The panel, its
+border included, takes at least 3 rows or columns, so that a row of
+content fits, and at most half the window's rows or half the columns it
+has for text; it shows nowhere too small for that.
+
+Every line can be brought out from under the panel. At the bottom or the
+top, the view gets as many blank virtual lines after its last line, or
+before its first, as the panel is high, and the cursor is never left
+under it: a move of the cursor under it scrolls the view, and a scroll of
+the view over the cursor moves the cursor. At the right, a window that
+does not wrap lines gets as many virtual columns after every line as the
+panel is wide, and the cursor is kept to the left of the panel the same
+way; in a window that wraps lines, the text under the panel stays hidden.
+With `"auto"`, the panel moves out of the cursor's way instead, and adds
+nothing. The virtual lines and columns are never text of the buffer, so
+lines, entries and what yanking or searching sees stay as they are, and
+they go with the panel.
+
+The `detail` action, on `K`, hides the panel in the current window, or
+shows it again. Each window keeps its own: hidden, the panel stays hidden
+in that window, whichever view it shows and however the cursor moves,
+until `detail` shows it again, while other windows go on showing theirs.
+A window where it was never pressed starts as `g:jin_detail` says: shown,
+unless it is false or 0.
+
+The panel names, dimmed at its bottom right, the key that hides it: the
+key of Normal mode in the view's buffer that runs `detail`, `K` before any
+other, as "Press K to hide", or as "[K] hide" where the panel is too narrow
+for that. Neovim draws it in the bottom border; Vim, whose popups have no
+footer, gives it the last row inside the panel, so that row holds no
+content. Where no key runs `detail`, or the panel is too narrow even for
+the shorter form, it names none.
+
 ## Glyphs
 
-The statusline of a view draws with glyphs: an icon before each of its
-parts, and the separator between the parts on the right. The glyphs only add to the text and replace
+The statusline of a view and the detail panel draw with glyphs: an icon
+before each part of the statusline and each label of the panel, the
+separator between the parts on the right of the statusline, and the
+border of the panel. The glyphs only add to the text and replace
 none of it, so a view tells the same without them.
 
 `g:jin_glyph_preset` chooses where they come from:
@@ -557,9 +645,9 @@ none of it, so a view tells the same without them.
 Any other value is taken as the default, without a message. `g:jin_glyphs`,
 a dictionary, sets any glyph by its name in place of the preset's, the rest
 coming from the preset; an empty string draws no glyph and leaves no room
-for one. A name it does not know and a value that is not a string are
-ignored. Both are read each time the statusline is drawn, so a change
-shows on the next draw.
+for one. A name it does not know, a value that is not a string, and a
+border glyph not one cell wide are ignored. Both are read each time the
+statusline or the panel is drawn, so a change shows on the next draw.
 
 The glyphs, by name:
 
@@ -568,16 +656,19 @@ The glyphs, by name:
 | `view`, `edit` | the name of a view, or of a buffer to edit, in its badge |
 | `operation` | the operation a view stays at, and an operation under the cursor |
 | `selected` | how many changes are selected, and the selection column |
-| `change`, `commit` | the change under the cursor, or the one a file view shows, and its commit |
-| `author`, `date` | the author and how long ago |
+| `change`, `commit` | the change under the cursor, or the one a file view shows, and its commit, and their labels in the panel |
+| `author`, `date` | the author and how long ago, and their labels in the panel |
+| `files`, `added`, `removed` | the label of the files in the panel, and before the lines added and removed |
 | `file` | the file a file view shows |
+| `state` | the label of the state of a change in the panel |
 | `dot` | between the author and how long ago |
-| `ellipsis` | where a description too long for the statusline is cut |
-| `workspace`, `bookmark` | the workspace, its bookmarks, and a workspace or bookmark under the cursor |
+| `ellipsis` | where a description too long for the statusline or a value too long for a row of the panel is cut, and the last row of a panel too short |
+| `workspace`, `bookmark` | the workspace, its bookmarks, and a workspace or bookmark under the cursor; the bookmark one labels refs in the panel |
 | `traffic` | how far the bookmarks are from their remotes |
-| `alert` | the state of the workspace |
+| `alert` | the state of the workspace, and a path left in conflict in the panel |
 | `line` | the line of the cursor |
 | `separator` | between the parts on the right of the statusline |
+| `border_top_left`, `border_top`, `border_top_right`, `border_right`, `border_bottom_right`, `border_bottom`, `border_bottom_left`, `border_left` | the border of the panel |
 
 ## Default key mappings
 
@@ -589,7 +680,8 @@ buffer that is edited, a description buffer or the arrange buffer, maps no
 key, its actions reached only through `<Plug>(jin-action-{name})`. The
 keys follow rules rather than a list, and none of them changes what the
 key means in Vim. A key either keeps its meaning while the view tells
-what it applies to, as `yy` still yanks, `u` still undoes and `]]` still
+what it applies to, as `yy` still yanks, `u`
+still undoes, `K` still looks up what is under the cursor and `]]` still
 goes to the next section, or it is a key that edits text, which a
 read-only buffer has no use for, given the change closest to what it does
 to text. Vim's motions and marks keep working, and `=` stays Vim's
@@ -619,6 +711,7 @@ Not changing the repository:
   selected stand for.
 - `YY` yanks the commit IDs of the changes, in a view that has them, and `Y`
   in visual mode those of the lines selected.
+- `K` shows or hides the detail panel, in a view that has one.
 - `]]` and `[[` go to the first line of the next and the previous block,
   in a view that has blocks, as Vim's section motions go between
   sections: with a count, in visual and operator-pending mode too, and

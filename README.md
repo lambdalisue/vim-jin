@@ -79,13 +79,14 @@ exceptions:
 | `x` / `X` | select the change as the other side of an action / clear the selection |
 | `p` / `P` | move the selected changes in after / before the change of the line |
 | `yy` / `YY` | yank change IDs (or what the line stands for) / commit IDs |
+| `K` | show or hide the detail panel: the whole description, IDs, bookmarks and changed files of a change |
 | `]]` / `[[` | go to the next / previous block: change, file, or lines one change wrote |
 | `a`, `.`, `?` | choose an action by name (rebase and every other without a key), repeat it, list them all |
 
 Your own mappings of `<Plug>(jin-action-{name})` win over these. See
 [docs/spec/views.md](docs/spec/views.md).
 
-The statusline of a view is drawn with
+The statusline of a view and the detail panel are drawn with
 [Nerd Font](https://www.nerdfonts.com/) icons by default. Without a Nerd
 Font, choose plain Unicode symbols or ASCII instead, or set any glyph
 yourself (`:help jin-glyphs` names them):
@@ -93,6 +94,18 @@ yourself (`:help jin-glyphs` names them):
 ```vim
 let g:jin_glyph_preset = 'unicode'  " or 'ascii'
 let g:jin_glyphs = #{ separator: '|' }
+```
+
+The detail panel stays docked at the bottom of the window of a view and
+only changes what it tells as the cursor moves. Dock it elsewhere, size it
+in rows or as a fraction of the window, for every view or for one, or start
+with it hidden (`K` shows it):
+
+```vim
+let g:jin_detail_position = 'right'  " or 'top', 'auto'
+let g:jin_detail_height = 0.25        " a third of the window by default
+let g:jin_log_detail_height = 12
+let g:jin_detail = v:false
 ```
 
 Statusline components keep the working copy in sight without ever adding an

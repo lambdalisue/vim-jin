@@ -9,6 +9,7 @@ COMMANDS			|jin-commands|
 VIEWS				|jin-views|
   ACTIONS			|jin-actions|
   KEY MAPPINGS			|jin-mappings|
+  DETAIL PANEL			|jin-detail|
 HIGHLIGHT AND VARIABLES		|jin-highlight|
 GLYPHS				|jin-glyphs|
 COMPONENTS			|jin-components|
@@ -118,6 +119,11 @@ the installed jj offers.
 	too narrow for it a wrapped line goes on below the annotation;
 	without one it is set to 1, so that a wrapped line goes on beside
 	the annotation however narrow the window.
+
+	The detail panel (|jin-detail|) tells what the change of the line
+	under the cursor is about: its whole description, its change and
+	commit IDs, its author and email, and when it was committed and how
+	long ago.
 
 :JinBookmark [args]					*:JinBookmark*
 	`jj bookmark list`.
@@ -242,6 +248,8 @@ Annotate ~
 	log:file	Show the log of the changes that touched the file.
 	yank:change	Yank the change IDs of the lines.
 	yank:commit	Yank their commit IDs.
+	detail		Show or hide the detail panel in this window
+			(|jin-detail|).
 
 Pick ~
 What parent and child of a file or annotate view open when there are
@@ -399,8 +407,9 @@ KEY MAPPINGS						*jin-mappings*
 
 Each view maps a few keys, by these rules, and none of them changes what
 the key means in Vim. A key either keeps its meaning while the view tells
-what it applies to, as |yy| still yanks, |u| still undoes, |]]| still goes
-to the next section and <CR> goes to what the line names as it does in the |quickfix-window|, or it is a
+what it applies to, as |yy| still yanks, |u| still undoes, |K| still looks
+up what is under the cursor, |]]| still goes to the next section and <CR>
+goes to what the line names as it does in the |quickfix-window|, or it is a
 key that edits text, which a read-only buffer has no use for, given the
 change closest to what it does to text. Vim's motions and marks keep
 working, and |=| stays Vim's operator. `a`, `.` and `?` are the deliberate
@@ -427,6 +436,7 @@ exceptions. A view maps only the keys of the actions it has.
 	X		Clear the selection of the workspace.
 	yy		Yank what the line stands for; `y` in visual mode.
 	YY		Yank commit IDs; `Y` in visual mode.
+	K		Show or hide the detail panel (|jin-detail|).
 	]] [[		Go to the first line of the next, or the previous,
 			block; see |jin-blocks|.
 
@@ -493,6 +503,106 @@ To map no key at all in a view, set this to 1, `{view}` being `log`,
 >vim
 	let g:jin_log_disable_default_mappings = 1
 <
+-----------------------------------------------------------------------------
+DETAIL PANEL						*jin-detail*
+
+A view whose lines stand for changes, |:JinLog|, |:JinConflicts|, the
+pick and |:JinAnnotate| (the change that wrote the line), tells more of
+the change under the cursor than its line holds in a panel docked at an
+edge of its window, each value after a label, in this order: the first
+line of its description, its change and commit IDs, its author, when it
+was committed, the rest of its description, its bookmarks and tags,
+whether it is empty, immutable, divergent, conflicted or hidden, the
+files it changes with the lines each adds and removes, and the paths it
+leaves in conflict.
+
+The other views and a buffer to edit have no panel. The panel takes no
+focus and stays open while the view is shown in the current window; as
+the cursor moves, only what it tells changes. It tells at once what the line itself shows, such as the first line of the
+description, the author and how long ago, and the rest once jj has told
+it: jj is asked once the cursor stays on an entry for a moment, and once
+per entry each time the view is read, at the operation the view shows
+and without a snapshot.
+Its size never changes from line to line: rows it has nothing for are
+left blank, and what does not fit is cut, the last row an ellipsis
+(|jin-glyphs|), as is a value too long for its row.
+
+`K`, the detail action, hides the panel in the current window, and shows
+it again. Hidden, it stays hidden in that window however the cursor moves
+and whichever view the window shows, until `K` again; every other window
+keeps its own. A new window starts as |g:jin_detail| says. The panel
+closes when its window or its buffer is left, and shows again when they
+are entered.
+
+At its bottom right, dimmed, the panel names the key that hides it, as
+"Press K to hide": the key mapped to `<Plug>(jin-action-detail)` in the
+buffer, `K` before any other. Where the panel is too narrow for that, it
+reads "[K] hide", and where it is too narrow even for that, nothing.
+Neovim draws it in the bottom border; Vim, whose popups have no footer, on
+the last row inside the panel. With no key mapped to the action, it names
+none.
+
+So that every line can still be read, the panel at the bottom or the top
+gets as many blank virtual lines after the last line of the view, or
+before its first, as it is high, and the cursor is kept out from under
+it: moving the cursor there scrolls the view, and scrolling the view over
+the cursor, as with |CTRL-Y|, moves the cursor. At the right, a window
+with 'nowrap' gets as many virtual columns after every line as the panel
+is wide, and the cursor is kept to the left of the panel in the same way;
+in a window that wraps lines, the text under the panel stays hidden. The
+virtual lines and columns are no text of the buffer, and go with the
+panel.
+
+							*g:jin_detail*
+g:jin_detail		Whether the panel shows in a window where `K` was
+			never pressed; |v:true| by default. Set it to
+			|v:false| or 0 to start hidden:
+>vim
+	let g:jin_detail = v:false
+<
+							*g:jin_detail_position*
+g:jin_detail_position	Where the panel is docked:
+			"bottom"	at the bottom, as wide as the window;
+					the default
+			"top"		at the top, as wide as the window
+			"auto"		at the bottom while the cursor is in
+					the upper half of the window, at the
+					top while it is in the lower half,
+					with no virtual lines
+			"right"		at the right, as high as the window
+			Any other value is taken as the default.
+>vim
+	let g:jin_detail_position = 'right'
+<
+							*g:jin_detail_height*
+g:jin_detail_height	How many rows the panel takes at the bottom or the
+			top, its border included: a whole number from 1, or
+			a fraction of the window's rows above 0 and below 1,
+			rounded down. A third of the window by default; at
+			least 3, and at most half the window.
+>vim
+	let g:jin_detail_height = 12
+	let g:jin_detail_height = 0.25
+<
+							*g:jin_detail_width*
+g:jin_detail_width	How many columns the panel takes at the right, its
+			border included: a whole number from 1, or a fraction
+			of the columns the window has for text above 0 and
+			below 1, rounded down. 50 by default; at least 3, and
+			at most half the columns the window has for text.
+
+					*g:jin_{view}_detail_height*
+					*g:jin_{view}_detail_width*
+g:jin_{view}_detail_height
+g:jin_{view}_detail_width
+			The same, for the view `{view}` alone, named as for
+			|g:jin_{view}_disable_default_mappings|; it goes
+			before |g:jin_detail_height| or |g:jin_detail_width|.
+			A value that is neither a whole number from 1 nor a
+			fraction is passed over, as if unset.
+>vim
+	let g:jin_log_detail_height = 0.5
+<
 
 =============================================================================
 HIGHLIGHT AND VARIABLES					*jin-highlight*
@@ -506,6 +616,30 @@ JinCursorEntry		The lines of the change, version or operation under
 JinCursorChange		In |:JinAnnotate|, every line written by the change
 			of the line under the cursor; a selected line shows
 			as selected. Links to |hl-CursorLine| by default.
+
+							*hl-JinDetailBody*
+JinDetailBody		The detail panel (|jin-detail|), and the author and
+			the time in it. Links to |hl-Normal| by default, so
+			that it lies on the background of the file. Within
+			it, by default linked to:
+
+	JinDetailTitle	|hl-Title|	the first line of the description
+	JinDetailChange	|hl-Identifier|	the shortest prefix of the change
+	JinDetailCommit	|hl-Function|	the shortest prefix of the commit
+	JinDetailRef	|hl-Special|	bookmarks and tags
+	JinDetailAlert	|hl-WarningMsg|	a conflict, a divergent change
+	JinDetailAdded	`Added`		lines added, an added file
+	JinDetailRemoved `Removed`	lines removed, a removed file
+	JinDetailDim	|hl-Comment|	the labels, the rest of each ID,
+					a missing description, and the key
+					that hides the panel
+
+			JinDetailAdded and JinDetailRemoved link to
+			|hl-DiffAdd| and |hl-DiffDelete| where the
+			colorscheme has no Added and Removed.
+			Its border, JinDetailBorder, has the color of the
+			text of `FloatBorder` (Neovim) or |hl-Normal| (Vim)
+			on the background of |hl-Normal| by default.
 
 							*hl-JinSelected*
 JinSelected		The lines of a selected change, shown over
@@ -583,11 +717,12 @@ b:jin_title		A short title of a vim-jin buffer, such as
 =============================================================================
 GLYPHS							*jin-glyphs*
 
-The statusline of a view (|g:jin_statusline|) draws with glyphs: icons
-before its parts, and the separator between the parts on the right. They
-come from a preset, and each can be set on its own. Both variables are
-read every time the statusline is drawn, so a change shows the next time
-it is.
+The statusline of a view (|g:jin_statusline|) and the detail panel
+(|jin-detail|) draw with glyphs: icons before the parts of the statusline
+and the labels of the panel, the separator between the parts on the right
+of the statusline, and the border of the panel. They come from a preset,
+and each can be set on its own. Both variables are read every time the
+statusline or the panel is drawn, so a change shows the next time it is.
 
 							*g:jin_glyph_preset*
 g:jin_glyph_preset	The glyphs to draw with:
@@ -605,8 +740,9 @@ g:jin_glyph_preset	The glyphs to draw with:
 g:jin_glyphs		A |Dictionary| of glyphs, by the names below, to
 			draw in place of the preset's; the rest are the
 			preset's. An empty string draws none, and takes no
-			room. A name not below, or a value not a string, is
-			ignored.
+			room. A border glyph must take one cell, or the
+			preset's is drawn. A name not below, or a value not a
+			string, is ignored.
 >vim
 	let g:jin_glyphs = #{ change: '~', separator: '' }
 <
@@ -628,37 +764,62 @@ g:jin_glyphs		A |Dictionary| of glyphs, by the names below, to
 			column before the first line of a selected change.
 			U+F435 nf-oct-pin	●	*
 	change		Before the change under the cursor, or the one a
-			file view shows.
+			file view shows, and the label of the change in
+			the detail panel.
 			U+F440 nf-oct-diff	○	none
-	commit		Before its commit.
+	commit		Before its commit, and the label of the commit.
 			U+F417 nf-oct-git_commit	◉	none
-	author		Before the author.
+	author		Before the author, and the label of the author.
 			U+F007 nf-fa-user	none	none
-	date		Before how long ago.
+	date		Before how long ago, and the label of the date.
 			U+F017 nf-fa-clock_o	none	none
+	files		The label of the files in the detail panel.
+			U+F016 nf-fa-file_o	none	none
 	file		Before the file a file view shows.
 			U+F4A5 nf-oct-file	none	none
+	added		Before the lines added in the detail panel.
+			+			+	+
+	removed		Before the lines removed in the detail panel.
+			-			-	-
+	state		The label of the state of a change in the detail
+			panel.
+			U+F024 nf-fa-flag	⚐	none
 	dot		Between the author and how long ago; none leaves
 			two spaces.
 			none			·	-
-	ellipsis	Where a description too long for the statusline
-			is cut.
+	ellipsis	Where a description or a value of the detail
+			panel too long is cut, and the last row of a
+			detail panel too short.
 			…			…	...
 	workspace	Before the workspace, and a workspace under the
 			cursor.
 			U+F401 nf-oct-repo	⌂	none
-	bookmark	Before the bookmarks of the workspace, and a
-			bookmark under the cursor.
+	bookmark	Before the bookmarks of the workspace, a
+			bookmark under the cursor, and the label of
+			refs in the detail panel.
 			U+F02E nf-fa-bookmark	⚑	none
 	traffic		Before how far bookmarks are from their remotes.
 			U+F46A nf-oct-sync	none	none
-	alert		Before the state of the workspace.
+	alert		Before the state of the workspace, and a path
+			left in conflict in the detail panel.
 			U+F421 nf-oct-alert	⚠	!
 	line		Before the cursor's line.
 			U+E0A1 nf-pl-line_number	none	none
 	separator	Between the parts on the right of the statusline;
 			none leaves three spaces.
 			U+E0B3 nf-pl-right_soft_divider	│	|
+
+	The border of the detail panel is drawn the same in
+	the "nerdfont" and "unicode" presets, with rounded corners:
+
+	border_top_left		╭	+
+	border_top		─	-
+	border_top_right	╮	+
+	border_right		│	|
+	border_bottom_right	╯	+
+	border_bottom		─	-
+	border_bottom_left	╰	+
+	border_left		│	|
 
 =============================================================================
 COMPONENTS						*jin-components*

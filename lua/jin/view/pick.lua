@@ -41,6 +41,7 @@ return {
   template = log.template,
   actions = actions,
   current_entries = true,
+  detail = log.detail,
   primary = "pick",
   secondary = "show",
   yank = "yank:change",

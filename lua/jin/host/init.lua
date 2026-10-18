@@ -2,6 +2,9 @@
 ---main loop, where the editor can be used freely.
 ---@class jin.Host
 ---@field name "nvim"|"vim"
+---Whether `open_detail` draws the `footer` of a panel in its bottom border;
+---where it does not, the core draws it on the last row inside.
+---@field detail_footer boolean
 ---Run `argv` without a shell; `on_exit` receives its whole output. `env`
 ---adds to the editor's environment, and `stdin` is written to the process
 ---whole, which otherwise gets no input at all.
@@ -84,10 +87,29 @@
 ---Highlight `lnums` of `bufnr` whole, as JinCursorChange, in place of
 ---those highlighted before.
 ---@field highlight_change fun(bufnr: integer, lnums: integer[])
+---The window showing `bufnr`, the current one when it does: its size in
+---cells, the columns before the text (the sign, number and fold columns),
+---the row of the cursor in it counted from 1, whether it wraps lines, and
+---whether it is the current window; nil when no window shows it.
+---@field window fun(bufnr: integer): { id: any, height: integer, width: integer, textoff: integer, row: integer, wrap: boolean, current: boolean }?
+---The number of cells `text` takes on the screen.
+---@field width fun(text: string): integer
 ---The value of g:jin_{name} as a string, nil when it is unset.
 ---@field setting fun(name: string): string?
 ---The value of g:jin_{name} when it is a dictionary, nil otherwise.
 ---@field setting_dict fun(name: string): table<string, any>?
+---Show `panel` in a window floating over the window `panel.window`, which
+---takes no focus, in place of the one shown for `bufnr` before.
+---@field open_detail fun(bufnr: integer, panel: jin.DetailPanel)
+---Close the window `open_detail` showed for `bufnr`.
+---@field close_detail fun(bufnr: integer)
+---Make `room` around the lines of `bufnr` as virtual lines or columns, in
+---place of the room made before; nil makes none.
+---@field detail_padding fun(bufnr: integer, room?: jin.DetailRoom)
+---Bring the cursor of the window `winid` out from under the panel `room`
+---is made for: the view scrolls after the cursor moved, and the cursor
+---moves after only the view scrolled.
+---@field detail_keep fun(winid: any, room: jin.DetailRoom)
 ---Turn a list handed over by the editor into a Lua table.
 ---@field list fun(value: any): any[]
 ---Turn a Lua table into a list to hand back to the editor.

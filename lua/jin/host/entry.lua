@@ -117,6 +117,7 @@ end
 ---@param bufnr integer
 function M.cursor_moved(bufnr)
   report(require("jin.view").cursor_moved, host, bufnr)
+  report(require("jin.view.detail").cursor_moved, jin, host, bufnr)
 end
 
 ---Make the lines of a jin:// buffer shown in a window wrap after its
@@ -124,6 +125,32 @@ end
 ---@param bufnr integer
 function M.buffer_shown(bufnr)
   report(require("jin.host.common").wrap_after_annotation, bufnr, host.list)
+end
+
+---Show the detail panel again in a jin:// buffer's window entered
+---(BufEnter, WinEnter).
+---@param bufnr integer
+function M.detail_entered(bufnr)
+  report(require("jin.view.detail").entered, jin, host, bufnr)
+end
+
+---Close the detail panel of a jin:// buffer whose window or buffer is left
+---(WinLeave, BufLeave).
+---@param bufnr integer
+function M.detail_left(bufnr)
+  report(require("jin.view.detail").close, host, bufnr)
+end
+
+---Forget whether the detail panel shows in the window `winid`, closed
+---(WinClosed).
+---@param winid integer
+function M.window_closed(winid)
+  report(require("jin.view.detail").window_closed, host, winid)
+end
+
+---Put the detail panels shown back in place (WinScrolled, VimResized).
+function M.windows_scrolled()
+  report(require("jin.view.detail").scrolled, jin, host)
 end
 
 ---Read views again when jj changed the repository outside the editor: those

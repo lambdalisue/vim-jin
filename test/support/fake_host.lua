@@ -247,6 +247,39 @@ function M.new(opts)
     host.change_highlighted[bufnr] = lnums
   end
 
+  -- Per buffer, the window showing it, as `window` tells it, or false for
+  -- none; by default the current one, of 24 rows and 80 columns with
+  -- nothing before the text, the cursor on the row of its line, wrapping
+  -- lines.
+  host.windows = {}
+
+  function host.window(bufnr)
+    local win = host.windows[bufnr]
+    if win == false then
+      return nil
+    end
+    win = win or {}
+    return {
+      id = win.id or (1000 + bufnr),
+      height = win.height or 24,
+      width = win.width or 80,
+      textoff = win.textoff or 0,
+      row = win.row or host.line(bufnr),
+      wrap = win.wrap ~= false,
+      current = win.current ~= false,
+    }
+  end
+
+  -- A character takes a cell, but a CJK ideograph two.
+  function host.width(text)
+    local cells = 0
+    for char in text:gmatch("[%z\1-\127\194-\244][\128-\191]*") do
+      local byte = char:byte()
+      cells = cells + ((byte >= 0xE4 and byte <= 0xE9) and 2 or 1)
+    end
+    return cells
+  end
+
   -- The g:jin_* variables set, by name without the prefix.
   host.settings = {}
 
@@ -259,6 +292,40 @@ function M.new(opts)
 
   function host.setting_dict(name)
     return host.dict_settings[name]
+  end
+
+  -- Per buffer, the detail panel shown, and how many times one was drawn
+  -- or closed.
+  host.details = {}
+  host.detail_draws = 0
+  host.detail_closes = 0
+
+  function host.open_detail(bufnr, panel)
+    host.details[bufnr] = panel
+    host.detail_draws = host.detail_draws + 1
+  end
+
+  function host.close_detail(bufnr)
+    host.details[bufnr] = nil
+    host.detail_closes = host.detail_closes + 1
+  end
+
+  -- Per buffer, the room made around its lines for the detail panel, and
+  -- how many times it was made.
+  host.rooms = {}
+  host.room_makes = 0
+
+  function host.detail_padding(bufnr, room)
+    host.rooms[bufnr] = room
+    host.room_makes = host.room_makes + 1
+  end
+
+  -- Each time the cursor was kept out from under the panel: the window
+  -- and the room.
+  host.kept = {}
+
+  function host.detail_keep(winid, room)
+    host.kept[#host.kept + 1] = { window = winid, room = room }
   end
 
   ---The number of the loaded buffer named `name`.

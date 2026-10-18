@@ -3,6 +3,7 @@ local common = require("jin.host.common")
 ---@class jin.NvimHost: jin.Host
 local M = {
   name = "nvim",
+  detail_footer = true,
   cwd = common.cwd,
   bufname = common.bufname,
   realpath = common.realpath,
@@ -16,6 +17,7 @@ local M = {
   cd = common.cd,
   mark_saved = common.mark_saved,
   vertical = common.vertical,
+  width = common.width,
   setting = common.setting,
 }
 
@@ -146,6 +148,10 @@ function M.jump(bufnr, lnum)
   common.jump(bufnr, lnum)
 end
 
+function M.window(bufnr)
+  return common.window_geometry(bufnr, M.list)
+end
+
 function M.line(bufnr)
   return common.line(bufnr, M.list)
 end
@@ -201,6 +207,119 @@ function M.highlight_change(bufnr, lnums)
       line_hl_group = "JinCursorChange",
     })
   end
+end
+
+-- Per buffer, the floating window of its detail panel and the buffer it shows.
+---@type table<integer, { win: integer, buf: integer }>
+local details = {}
+local detail_ns = vim.api.nvim_create_namespace("jin-detail")
+
+function M.open_detail(bufnr, panel)
+  local texts = {}
+  for i, line in ipairs(panel.lines) do
+    local parts = {}
+    for j, chunk in ipairs(line) do
+      parts[j] = chunk.text
+    end
+    texts[i] = table.concat(parts)
+  end
+  local config = {
+    relative = "win",
+    win = panel.window,
+    row = panel.row,
+    col = panel.col,
+    width = panel.width - 2,
+    height = panel.height - 2,
+    -- Given rather than left to 'winborder', which may draw no border or
+    -- a shadow of other widths than the box was made for.
+    border = vim.deepcopy(panel.border),
+    focusable = false,
+    zindex = 50,
+  }
+  if panel.footer then
+    -- Set off by a space from the line of the border on either side.
+    local footer = { { " ", "JinDetailBorder" } }
+    for _, chunk in ipairs(panel.footer) do
+      footer[#footer + 1] = { chunk.text, chunk.group }
+    end
+    footer[#footer + 1] = { " ", "JinDetailBorder" }
+    config.footer = footer
+    config.footer_pos = "right"
+  else
+    config.footer = ""
+  end
+  local shown = details[bufnr]
+  if shown and vim.api.nvim_win_is_valid(shown.win) then
+    vim.api.nvim_buf_set_lines(shown.buf, 0, -1, false, texts)
+    vim.api.nvim_win_set_config(shown.win, config)
+  else
+    local buf = vim.api.nvim_create_buf(false, true)
+    vim.bo[buf].bufhidden = "wipe"
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, texts)
+    config.style = "minimal"
+    config.noautocmd = true
+    local win = vim.api.nvim_open_win(buf, false, config)
+    vim.wo[win].winhighlight =
+      "Normal:JinDetailBody,NormalFloat:JinDetailBody,FloatBorder:JinDetailBorder"
+    vim.wo[win].wrap = false
+    shown = { win = win, buf = buf }
+    details[bufnr] = shown
+  end
+  vim.api.nvim_buf_clear_namespace(shown.buf, detail_ns, 0, -1)
+  for i, line in ipairs(panel.lines) do
+    local col = 0
+    for _, chunk in ipairs(line) do
+      if chunk.text ~= "" then
+        vim.api.nvim_buf_set_extmark(shown.buf, detail_ns, i - 1, col, {
+          end_col = col + #chunk.text,
+          hl_group = chunk.group,
+        })
+      end
+      col = col + #chunk.text
+    end
+  end
+end
+
+function M.close_detail(bufnr)
+  local shown = details[bufnr]
+  details[bufnr] = nil
+  if shown and vim.api.nvim_win_is_valid(shown.win) then
+    vim.api.nvim_win_close(shown.win, true)
+  end
+end
+
+local room_ns = vim.api.nvim_create_namespace("jin-detail-room")
+
+function M.detail_padding(bufnr, room)
+  vim.api.nvim_buf_clear_namespace(bufnr, room_ns, 0, -1)
+  if not room then
+    return
+  end
+  local rows = room.above or room.below
+  if rows then
+    local virt_lines = {}
+    for i = 1, rows do
+      virt_lines[i] = { { "", "" } }
+    end
+    local last = vim.api.nvim_buf_line_count(bufnr) - 1
+    vim.api.nvim_buf_set_extmark(bufnr, room_ns, room.above and 0 or last, 0, {
+      virt_lines = virt_lines,
+      virt_lines_above = room.above ~= nil,
+    })
+  elseif room.right then
+    -- Inline, as text after the end of a line is not scrolled to.
+    local pad = { { (" "):rep(room.right), "" } }
+    for i, text in ipairs(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)) do
+      vim.api.nvim_buf_set_extmark(bufnr, room_ns, i - 1, #text, {
+        virt_text = pad,
+        virt_text_pos = "inline",
+      })
+    end
+  end
+end
+
+function M.detail_keep(winid, room)
+  common.detail_keep(winid, room, M.list)
 end
 
 function M.to_list(items)

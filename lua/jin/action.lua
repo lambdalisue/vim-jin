@@ -120,6 +120,17 @@ local function actions_of(view_def)
       end,
     }
   end
+  if view_def.detail then
+    all.detail = {
+      desc = "show or hide the detail panel in this window",
+      fn = function(ctx)
+        -- Required here: the views require this module.
+        if not require("jin.view.detail").toggle(ctx.jin, ctx.host, ctx.bufnr) then
+          M.nothing(ctx, "jin: nothing to tell of the lines here")
+        end
+      end,
+    }
+  end
   return all
 end
 
@@ -197,6 +208,9 @@ function M.keys(view_def, vertical)
     keys[#keys + 1] = { "x", "select" }
     keys[#keys + 1] = { "x", "select", "x" }
     keys[#keys + 1] = { "X", "select:clear" }
+  end
+  if all.detail then
+    keys[#keys + 1] = { "K", "detail" }
   end
   if view_def.yank then
     keys[#keys + 1] = { "yy", view_def.yank }

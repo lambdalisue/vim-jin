@@ -542,6 +542,119 @@ function M.window(bufnr, list)
   return list(vim.fn.win_findbuf(bufnr))[1]
 end
 
+---The window showing `bufnr` as the host's `window` tells it.
+---@param bufnr integer
+---@param list fun(value: any): any[]
+---@return { id: integer, height: integer, width: integer, textoff: integer, row: integer, wrap: boolean, current: boolean }?
+function M.window_geometry(bufnr, list)
+  local winid = vim.fn.bufnr() == bufnr and vim.fn.win_getid() or M.window(bufnr, list)
+  if not winid then
+    return nil
+  end
+  local info = list(vim.fn.getwininfo(winid))[1]
+  return {
+    id = winid,
+    height = info.height,
+    width = info.width,
+    textoff = info.textoff,
+    row = tonumber(vim.fn.win_execute(winid, "echon winline()")),
+    wrap = vim.fn.getwinvar(winid, "&wrap") ~= 0,
+    current = winid == vim.fn.win_getid(),
+  }
+end
+
+---Where the cursor of the window `winid` is in its buffer and on the
+---screen, and how its view is scrolled.
+---@param winid integer
+---@return { cursor: string, view: string, row: integer, col: integer, leftcol: integer }
+local function whereabouts(winid)
+  local said = vim.fn.win_execute(
+    winid,
+    "echon join([line('.'), col('.'), winsaveview().topline,"
+      .. " get(winsaveview(), 'topfill', 0), winsaveview().leftcol, winline(), wincol()])"
+  )
+  local n = {}
+  for word in said:gmatch("%-?%d+") do
+    n[#n + 1] = tonumber(word)
+  end
+  return {
+    cursor = n[1] .. " " .. n[2],
+    view = n[3] .. " " .. n[4] .. " " .. n[5],
+    leftcol = n[5],
+    row = n[6],
+    col = n[7],
+  }
+end
+
+-- The keys that scroll the view a line down and up, and move the cursor so.
+local SCROLL_DOWN, SCROLL_UP = "\5", "\25"
+
+---Bring the cursor of the window `winid` out from under the detail panel
+---`room` is made for. After the cursor moved, the view scrolls to bring
+---it out, as 'scrolloff' would; after only the view scrolled, as by
+---CTRL-Y, the cursor moves instead, or the two would undo each other.
+---'scrolloff' itself is no help: it keeps as many lines on both sides,
+---counts no virtual line, and Neovim scrolls no virtual line after the
+---last into view for it.
+---@param winid integer
+---@param room jin.DetailRoom
+---@param list fun(value: any): any[]
+function M.detail_keep(winid, room, list)
+  local info = list(vim.fn.getwininfo(winid))[1]
+  if not info then
+    return
+  end
+  local now = whereabouts(winid)
+  local last = vim.fn.getwinvar(winid, "jin_detail_kept", "")
+  local scrolled = last ~= ""
+    and last:match("^[^|]*") == now.cursor
+    and last ~= now.cursor .. "|" .. now.view
+  ---Run `keys` until `done` holds, or they change nothing more.
+  local function until_done(keys, done)
+    for _ = 1, info.height + (room.above or 0) + (room.below or 0) do
+      if done(now) then
+        return
+      end
+      local before = now.cursor .. "|" .. now.view
+      vim.fn.win_execute(winid, "normal! " .. keys)
+      now = whereabouts(winid)
+      if now.cursor .. "|" .. now.view == before then
+        return
+      end
+    end
+  end
+  if room.below then
+    local limit = info.height - room.below
+    until_done(scrolled and "k" or SCROLL_DOWN, function(at)
+      return at.row <= limit
+    end)
+  elseif room.above then
+    until_done(scrolled and "j" or SCROLL_UP, function(at)
+      return at.row > room.above
+    end)
+  elseif room.right then
+    local limit = info.width - room.right
+    if now.col > limit then
+      if scrolled then
+        until_done("h", function(at)
+          return at.col <= limit
+        end)
+      else
+        vim.fn.win_execute(
+          winid,
+          ("call winrestview({'leftcol': %d})"):format(now.leftcol + now.col - limit)
+        )
+        now = whereabouts(winid)
+      end
+    end
+  end
+  vim.fn.setwinvar(winid, "jin_detail_kept", now.cursor .. "|" .. now.view)
+end
+
+function M.width(text)
+  return vim.fn.strdisplaywidth(text)
+end
+
 ---@param name string
 ---@param list fun(value: any): any[]
 ---@return table<string, any>?

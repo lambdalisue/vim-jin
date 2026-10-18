@@ -55,6 +55,7 @@ return {
   template = log.template,
   prepare = prepare,
   current_entries = true,
+  detail = log.detail,
   actions = actions,
   primary = "files",
   yank = "yank:change",
