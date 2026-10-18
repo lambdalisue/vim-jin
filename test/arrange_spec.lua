@@ -128,7 +128,7 @@ describe("the arrange buffer", function()
     for _, now in ipairs({
       -- Reordered meanwhile, as by a rebase from the log.
       "ccc\naaa\nbbb\n",
-      -- A change added in it, as by a split.
+      -- A change added in it, as by a split in the diff editor.
       "ccc\nddd\nbbb\naaa\n",
       -- One gone from it, as by an abandon.
       "ccc\naaa\n",

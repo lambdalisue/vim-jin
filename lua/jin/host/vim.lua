@@ -16,6 +16,17 @@ local M = {
   yank = common.yank,
   cd = common.cd,
   mark_saved = common.mark_saved,
+  fifo = common.fifo,
+  answer = common.answer,
+  read_file = common.read_file,
+  write_file = common.write_file,
+  link = common.link,
+  make_directory = common.make_directory,
+  make_link = common.make_link,
+  executable = common.executable,
+  set_executable = common.set_executable,
+  delete_file = common.delete_file,
+  wipe = common.wipe,
   vertical = common.vertical,
   width = common.width,
   setting = common.setting,
@@ -23,6 +34,14 @@ local M = {
 
 function M.leave(bufnr, previous)
   common.leave(bufnr, previous, M.list)
+end
+
+function M.open_panes(left, output, right)
+  common.open_panes(left, output, right, vim.dict)
+end
+
+function M.close_tab(bufnr, back)
+  common.close_tab(bufnr, back, M.list)
 end
 
 function M.setting_dict(name)
@@ -103,7 +122,15 @@ function M.render(bufnr, content)
   local filetype = content.filetype
     or (content.detect and common.detect_filetype(bufnr, content.detect, M.list))
     or "jin-file"
-  common.finish(bufnr, filetype, content.title, content.editable, content.fresh)
+  common.finish(
+    bufnr,
+    filetype,
+    content.title,
+    content.editable,
+    content.fresh,
+    content.writable,
+    content.modified
+  )
   if content.folds then
     common.folds(bufnr, content.folds, M.list, closed or nil)
   end
@@ -116,10 +143,17 @@ end
 function M.run(argv, opts, on_exit)
   local stdout, stderr = {}, {}
   local code, closed, stdin_file
+  local feed, flush
+  if opts.on_stderr then
+    feed, flush = common.line_splitter(opts.on_stderr)
+  end
   local function finish()
     -- exit_cb may come before the last output is read, so the result is
     -- complete only once the channel has closed as well.
     if code ~= nil and closed then
+      if flush then
+        flush()
+      end
       if stdin_file then
         vim.fn.delete(stdin_file)
       end
@@ -135,6 +169,9 @@ function M.run(argv, opts, on_exit)
     end,
     err_cb = function(_, msg)
       stderr[#stderr + 1] = msg
+      if feed then
+        feed(msg)
+      end
     end,
     exit_cb = function(_, status)
       code = status
@@ -251,6 +288,14 @@ end
 
 function M.lines(bufnr)
   return common.lines(bufnr, M.list)
+end
+
+function M.replace_lines(bufnr, first, last, lines)
+  common.replace_lines(bufnr, first, last, lines, M.to_list)
+end
+
+function M.files(dir)
+  return common.files(dir, M.list)
 end
 
 -- Per buffer, the popup of its detail panel.

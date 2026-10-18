@@ -8,7 +8,9 @@
 ---Run `argv` without a shell; `on_exit` receives its whole output. `env`
 ---adds to the editor's environment, and `stdin` is written to the process
 ---whole, which otherwise gets no input at all.
----@field run fun(argv: string[], opts: { cwd?: string, env?: table<string, string>, stdin?: string }, on_exit: fun(result: jin.RunResult))
+---`on_stderr` receives each line of stderr as soon as it is printed, as well
+---as the whole of it in the result.
+---@field run fun(argv: string[], opts: { cwd?: string, env?: table<string, string>, stdin?: string, on_stderr?: fun(line: string) }, on_exit: fun(result: jin.RunResult))
 ---Process events until `cond` holds or `timeout` ms pass; false on timeout.
 ---@field wait fun(timeout: integer, cond: fun(): boolean): boolean
 ---Show `text`, which may span lines, and record it in the message history.
@@ -32,8 +34,9 @@
 ---defines, and make the buffer a read-only scratch buffer of `filetype`.
 ---Windows showing the buffer keep their view.
 ---@field render fun(bufnr: integer, content: jin.Content)
----The loaded buffers and their names.
----@field buffers fun(): { bufnr: integer, name: string }[]
+---The loaded buffers, their names, as absolute paths too, and whether they
+---hold edits not written.
+---@field buffers fun(): { bufnr: integer, name: string, path?: string, modified: boolean }[]
 ---The name of `bufnr` while it is loaded, nil otherwise.
 ---@field buffer_name fun(bufnr: integer): string?
 ---Map <Plug>(jin-action-{name}) on `bufnr` for each name, in normal and
@@ -64,10 +67,46 @@
 ---Move the cursor of the current window, when it shows `bufnr`, to line
 ---`lnum` as a motion would, leaving where it was in the jumplist.
 ---@field jump fun(bufnr: integer, lnum: integer)
----The lines of `bufnr`.
+---The lines of `bufnr`, none when it is empty.
 ---@field lines fun(bufnr: integer): string[]
+---Put `lines` in place of lines `first` to `last` of `bufnr`.
+---@field replace_lines fun(bufnr: integer, first: integer, last: integer, lines: string[])
 ---Mark `bufnr` as written, as a :w that succeeded does.
 ---@field mark_saved fun(bufnr: integer)
+---Make a named pipe and return its path.
+---@field fifo fun(): string
+---Write `text` to the named pipe at `path`, which a process is reading.
+---@field answer fun(path: string, text: string)
+---The files under `dir`, by path relative to it, hidden ones included.
+---@field files fun(dir: string): string[]
+---What the file at `path` holds, or nil when there is none.
+---@field read_file fun(path: string): string?
+---Make the file at `path` hold `content`, making its directory as needed.
+---@field write_file fun(path: string, content: string)
+---@field delete_file fun(path: string)
+---Make the directory `path`, and those above it, as needed.
+---@field make_directory fun(path: string)
+---What the symbolic link at `path` points at, as written, or nil when
+---`path` is no link.
+---@field link fun(path: string): string?
+---Make `path` a symbolic link to `target`, in place of what is there.
+---@field make_link fun(path: string, target: string)
+---Whether the file at `path` has its executable bit set.
+---@field executable fun(path: string): boolean
+---Set or clear the executable bit of the file at `path`.
+---@field set_executable fun(path: string, on: boolean)
+---Open `output` between `left` and `right`, all three in diff mode in a new
+---tab page, the cursor in `output`, each pane named by its title and what
+---it tells in its statusline, or its winbar where the statusline is the
+---user's (g:jin_statusline). The sides are read-only, and map dp to put the
+---hunk of the line into `output`, unless the default mappings of the view
+---`output` shows are off.
+---@field open_panes fun(left: jin.Pane, output: jin.Pane, right: jin.Pane)
+---Close the tab page of the window showing `bufnr`, wiping out the buffers
+---it showed, and go to the window showing `back`, if any.
+---@field close_tab fun(bufnr: integer, back?: integer)
+---Wipe out the buffer `bufnr`.
+---@field wipe fun(bufnr: integer)
 ---Stop showing `bufnr` and wipe it out: a window showing it shows the buffer
 ---named `previous` instead, read again as :edit reads it, when given;
 ---otherwise each window showing it closes, and the tab page it was the last
@@ -123,9 +162,17 @@
 ---@field detect? string a path to take the filetype from, when `filetype` is nil
 ---@field title? string a short name for the buffer, kept in b:jin_title
 ---@field editable? boolean make the buffer one to edit, which :w hands back through BufWriteCmd
+---@field writable? boolean make the buffer one :w hands back through BufWriteCmd, though not to edit
+---@field modified? boolean leave the buffer modified, so that leaving it asks first
 ---@field fresh? boolean the first content since the buffer was loaded, which its filetype has to be set up for anew
 ---@field folds? { [1]: integer, [2]: integer }[] line ranges to fold, left open
 ---@field annotations? { text: string, group?: string }[][] per line, text shown before it as virtual text, not part of the line, padded so that the lines after it start in one column
+
+---A pane of a tab page that `open_panes` opens.
+---@class jin.Pane
+---@field path string the file it shows, or the name of a vim-jin buffer
+---@field title string its name, such as BEFORE
+---@field about string what it is, or what to do with it
 
 ---@class jin.RunResult
 ---@field code integer

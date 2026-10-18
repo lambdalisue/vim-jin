@@ -24,9 +24,9 @@ where a change, a version or an operation takes several lines, all the
 lines of the one under the cursor are highlighted, across the window, with
 `JinCursorEntry`, which links to `CursorLine` unless defined otherwise.
 Lines of the graph alone, such as `~` below the last change shown, are not
-part of it. In the status, the bookmarks, the workspaces and the conflicted
-paths, where each line stands for one thing, the line under the cursor is
-highlighted the same way.
+part of it. In the status, the bookmarks, the workspaces, the conflicted
+paths and the diff editor, where each line stands for one thing, the line
+under the cursor is highlighted the same way.
 
 In the annotation, every line written by the change of the line under the
 cursor is highlighted, across the window, with `JinCursorChange`, which
@@ -45,8 +45,8 @@ annotation; without one, the view sets it to 1, in place of the editor's
 20, so that a wrapped line goes on beside the annotation however narrow
 the window.
 
-In every view but a buffer to edit, the file view and the raw view, the
-[detail panel](#detail-panel) tells more of what the line
+In every view but a buffer to edit, the file view, the raw view and the
+diff editor, the [detail panel](#detail-panel) tells more of what the line
 under the cursor stands for than the line itself does.
 
 ## Commands
@@ -249,6 +249,10 @@ meanwhile: the view is read again instead, and says so.
   descriptions of both sides, joined by a blank line, as jj would offer
   them to edit; one selected change at most.
 
+`squash:interactive`
+: Squash as `squash` does, only what is left on the right side of the diff
+  editor.
+
 `rebase`
 : Rebase the changes of the lines, with their descendants, onto the selected
   changes.
@@ -282,11 +286,58 @@ meanwhile: the view is read again instead, and says so.
 `bookmark`
 : Set a bookmark, named when asked, to the change of the line.
 
+`split`
+: Split the change of the line in two, choosing in the diff editor what
+  goes into the first part, which keeps the description.
+
+`diffedit`
+: Edit the diff of the change of the line in the diff editor.
+
 `next`, `prev`
 : Move the working copy to the next or the previous change.
 
 `next:edit`, `prev:edit`
 : Make the next or the previous change itself the working copy.
+
+The diff editor is a list of the files that differ, as `M` modified, `A`
+added or `D` removed, in a new window at the bottom, and jj waits on it.
+jj hands it the change's parent, the change as it is, and an output to
+fill, a copy of the change to begin with, which is what jj takes. `open` shows a file in three panes in a new
+tab page, all in diff mode: BEFORE, the parent, and AFTER, the change, both
+read-only, around RESULT, the output to edit. Each pane says in its
+statusline, or, in Neovim where `g:jin_statusline` leaves the statusline to
+the user, in its winbar, what it is, and RESULT what `:w` makes of it for the command
+that asked: the first change for `split`, the change for `diffedit`, what
+is squashed for `squash:interactive`. `:w` in RESULT writes it, closes the
+tab page and goes back to the list, which marks the file edited.
+
+In RESULT, the keys of Vim's diff mode get a hunk, telling which pane it
+comes from, as a third buffer leaves Vim's own `do` without one: `dol` from
+BEFORE, `dor` from AFTER, `doa` both, BEFORE first, `doA` both, AFTER first,
+and `do` as `doa`, as taking both and deleting what is not to stay is how
+part of a hunk goes into the result. `do` waits for a letter that may
+follow, as long as `'timeoutlen'`. In BEFORE and AFTER, `dp` puts the hunk
+of the line into RESULT. They are mapped unless
+`g:jin_result_disable_default_mappings` is set, to
+`<Plug>(jin-action-diffget)`, `<Plug>(jin-action-diffget-l)`,
+`<Plug>(jin-action-diffget-r)`, `<Plug>(jin-action-diffget-all)`,
+`<Plug>(jin-action-diffget-all-reversed)` and `<Plug>(jin-diffput)`.
+
+The list answers jj as a buffer is written: `:w` hands jj what the output
+holds, refusing while a RESULT is edited but not written, and closes the
+list and its panes. Leaving the list in any other way, as `:q`, `:bdelete`
+or closing its window, leaves the change as it was, and so does the editor
+exiting, so jj never waits for nobody; while a file is edited, the list is
+modified, so leaving it is refused, as for any buffer holding an edit, until
+forced (`:q!`). `ZZ` and `ZQ` keep their meaning: `:x` and `:q!`. `take:left`
+on a line takes none of the change of the files of the lines, making their
+output the parent's, unless a RESULT of one is edited but not written. A
+hint at the bottom of the list names the key that opens a file and how to
+answer. A symbolic link is compared and taken as what it points at, and
+`open` refuses it, as editing it would write wherever it points; a file
+under a directory that is a link on one side is neither opened nor taken
+until that link is. Windows has no named pipes to answer through, so there
+the diff editor says so and runs nothing.
 
 The operation log has, besides:
 
@@ -777,7 +828,8 @@ Not changing the repository:
 
 Changing the repository:
 
-- `u` undoes the latest operation and `CTRL-R` redoes it, in every view.
+- `u` undoes the latest operation and `CTRL-R` redoes it, in every view
+  but the diff editor list, where jj waits.
 - `dd` abandons the changes of the line, and `d` in visual mode those of
   the lines selected; in the bookmark view they delete the bookmarks.
 - `o` inserts a new change below the change of the line, as the log lists
@@ -787,35 +839,43 @@ Changing the repository:
 - `cc` commits the working copy, and `cw` describes the change.
 - `J` squashes the change, or in visual mode those of the lines selected,
   into the selected change, or into its parent.
+- `gS` splits the change.
 - `p` and `P` move the selected changes in after or before the change of
   the line (`put:after`, `put:before`).
 - `gb` sets a bookmark, named when asked, to the change.
+- In the diff editor list, `dol` takes the left side of the files of the
+  lines (`take:left`), as it takes the left side of a hunk in a pane.
+- In the diff editor, the pane to edit gets hunks with
+  `do` and a letter, and the panes around it put them there with `dp`, as
+  Vim's diff mode does, telling which pane a hunk comes from.
 
 Keys that start others, as `d`, `c`, `g` and `CTRL-W` do, wait as long as
 `'timeoutlen'` for the rest. Every other action, such as `rebase`,
-`duplicate`, `revert`, `absorb`, `parallelize`, `restore`, `next` and
-`prev`, the bookmark view's `forget`, `track`, `untrack` and
+`duplicate`, `revert`, `absorb`, `parallelize`, `restore`, `diffedit`,
+`next` and `prev`, the bookmark view's `forget`, `track`, `untrack` and
 `move`, the workspace view's `update-stale`, the openers that have no key
-of their own, and every variant, such as `{name}:tab`, is reached through
-`a` or by mapping `<Plug>(jin-action-{name})`.
+of their own, and every variant, such as `{name}:tab` or
+`squash:interactive`, is reached through `a` or by mapping
+`<Plug>(jin-action-{name})`.
 
 | View | `<CR>` | `<S-CR>` | `g` keys | Changes | `yy` | `YY` |
 | --- | --- | --- | --- | --- | --- | --- |
-| log | show | diff | `gd` `gb` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
-| show | jump | | `gp` `gc` `gb` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
+| log | show | diff | `gd` `gS` `gb` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
+| show | jump | | `gp` `gc` `gS` `gb` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
 | diff | jump | | | `u` `<C-r>` | | |
 | interdiff | jump | | | `u` `<C-r>` | | |
 | file | annotate | log | `gp` `gc` | `u` `<C-r>` | | |
 | oplog | show | log | | `u` `<C-r>` | yank:operation | |
 | opshow | show | diff | `gd` | `u` `<C-r>` | yank:change | yank:commit |
-| evolog | interdiff | show | `gd` `gb` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
+| evolog | interdiff | show | `gd` `gS` `gb` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
 | status | inspect | open | `gf` `gd` | `u` `<C-r>` `cc` | yank:path | |
-| annotate | show | parent | `gf` `gd` `gp` `gc` `gb` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
-| pick | pick | show | `gd` `gb` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
+| annotate | show | parent | `gf` `gd` `gp` `gc` `gS` `gb` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
+| pick | pick | show | `gd` `gS` `gb` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
 | bookmark | log | show | | `u` `<C-r>` `dd` | yank:bookmark | |
 | workspace | tcd | log | | `u` `<C-r>` | | |
-| conflicts | files | | `gd` `gb` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
+| conflicts | files | | `gd` `gS` `gb` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
 | resolve | edit | | `gf` `gd` | `u` `<C-r>` | | |
+| diffedit | open | | | `dol` | | |
 
 `pick` is the choice of parents or children that `parent` and `child` of a
 file or annotate view open. `resolve` is the list of conflicted paths

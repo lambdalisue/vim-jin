@@ -172,8 +172,8 @@ view of the workspace is given `--ignore-working-copy` or `--at-op`.
 In the log, the pick, the evolog, the operation log and the conflicts, all
 the lines of the change, version or operation under the cursor are
 highlighted with |hl-JinCursorEntry|; in the status, the bookmarks, the
-workspaces and the conflicted paths, one thing to a line, the line under
-the cursor is. In the annotation, every line the change of
+workspaces, the conflicted paths and the diff editor, one thing to a line,
+the line under the cursor is. In the annotation, every line the change of
 the line under the cursor wrote is highlighted with |hl-JinCursorChange|.
 
 A buffer that was left and read again on coming back to it, as with
@@ -309,6 +309,56 @@ Workspace ~
 	update-stale	Update the workspace's working copy once another
 			workspace rewrote it.
 
+Diff editor ~
+						*jin-diff-editor*
+split, diffedit and squash:interactive edit a diff in a list of the files
+that differ (M, A, D), in a new window at the bottom, while jj waits. jj
+hands over the change's parent, the change as it is, and an output to
+fill, a copy of the change to begin with: what jj takes. The list's
+actions, mapped unless g:jin_diffedit_disable_default_mappings is set:
+
+	open		<CR>	Open the file in three panes in diff mode in a new
+				tab page: BEFORE, the parent, RESULT, the output
+				to edit, and AFTER, the change; BEFORE and AFTER
+				are read-only.
+	take:left	dol	Take the left side of the files of the lines,
+				none of their change.
+
+The list answers jj as a buffer is written. |:w| hands jj what the output
+holds, once every RESULT edited is written, and closes the list and its
+panes. Leaving the list otherwise, |:q|, |:bdelete| or closing its window,
+or the editor exiting, leaves the change as it was. While a file is
+edited, the list is 'modified', so leaving it is refused until forced, as
+`:q!` does; |ZZ| and |ZQ| are |:x| and `:q!`. The list marks each file
+edited, and its last line tells the key that opens a file and how to
+answer. A symbolic link is compared and taken as what it points at, and
+never opened; a file under a linked directory waits until that link is
+taken. On Windows, which has no named pipes to answer through, it runs
+nothing.
+
+Each pane names itself in its statusline, or, in Neovim with
+|g:jin_statusline| set to 0, in its winbar, and tells what it is; RESULT
+tells what |:w| makes of it: the first change of split, the change of
+diffedit, what squash:interactive squashes. |:w| in RESULT writes it,
+closes the tab page and goes back to the list. RESULT gets hunks as Vim's
+diff mode does, telling which pane they come from, as a third buffer
+leaves Vim's own |do| without one; BEFORE and AFTER put them into RESULT.
+Mapped unless g:jin_result_disable_default_mappings is set:
+
+	dol	diffget-l	Take BEFORE's side of the hunk of the line.
+	dor	diffget-r	Take AFTER's side.
+	doa	diffget-all	Take both, BEFORE first.
+	doA	diffget-all-reversed
+				Take both, AFTER first.
+	do	diffget		Take both, BEFORE first, as doa: delete what is
+				not to stay, to keep part of a hunk.
+	dp	<Plug>(jin-diffput)
+				In BEFORE or AFTER: put the hunk of the line
+				into RESULT.
+
+The keys after |do| are mapped to `<Plug>(jin-action-{name})`. `do` waits
+'timeoutlen' for a letter that may follow.
+
 							*jin-selection*
 Selection ~
 The log, pick, show, evolog, annotate and operation show views select
@@ -349,6 +399,9 @@ again and says so.
 	squash		Squash the changes of the lines into the selected
 			change, one at most, or, with none selected, the change into its
 			parent, keeping both descriptions.
+	squash:interactive
+			Squash only what is left on the right side of the
+			diff editor.
 	rebase		Rebase the changes of the lines, with their
 			descendants, onto the selected changes.
 	rebase:revisions, rebase:branch
@@ -367,6 +420,9 @@ again and says so.
 			that last touched those lines.
 	parallelize	Make the changes of the lines siblings.
 	bookmark	Set a bookmark, named when asked, to the change.
+	split		Split the change in two, choosing in the diff editor
+			what goes first.
+	diffedit	Edit the diff of the change in the diff editor.
 	next, prev	Move the working copy to the next or previous change.
 	next:edit, prev:edit
 			Make the next or previous change the working copy.
@@ -442,7 +498,8 @@ exceptions. A view maps only the keys of the actions it has.
 
 These change the repository:
 
-	u		undo, without asking.
+	u		undo, without asking; not in the diff editor list,
+			where jj waits.
 	<C-r>		redo, likewise.
 	dd		abandon; delete in the bookmarks. `d` in visual mode
 			for the lines selected.
@@ -454,13 +511,20 @@ These change the repository:
 	cc		commit
 	cw		describe
 	J		squash; `J` in visual mode for the lines selected.
+	gS		split
 	p P		put:after, put:before: move the selected changes in
 			after, or before, the change of the line.
 	gb		bookmark
+	dol		take:left, in the diff editor list.
+	do{letter}	In the pane to edit of the diff editor, take a hunk
+			from the pane `l` left or `r` right of it, `a` both,
+			`A` both the other way round; `dp` in a pane around
+			it puts one there
+			(|jin-diff-editor|).
 
 Keys that start others, as `d`, `c`, `g` and CTRL-W do, wait 'timeoutlen'
 for the rest. The other actions, such as rebase, duplicate, revert,
-absorb, parallelize, restore, next and prev, the bookmarks'
+absorb, parallelize, restore, diffedit, next and prev, the bookmarks'
 forget, track, untrack and move, update-stale of the workspaces, the
 openers without a key, and the variants have no key: reach them with `a`,
 or map their <Plug>.
@@ -499,7 +563,9 @@ to keys of your own:
 To map no key at all in a view, set this to 1, `{view}` being `log`,
 `show`, `diff`, `interdiff`, `file`, `oplog`, `opshow`, `evolog`,
 `status`, `annotate`, `pick`, `bookmark`, `workspace`, `conflicts`,
-`resolve` (the conflicted paths `files` lists) or `buffer` (|:JinBuffer|):
+`resolve` (the conflicted paths `files` lists), `diffedit` (the list of the
+diff editor), `result` (its pane to edit) or `buffer`
+(|:JinBuffer|):
 >vim
 	let g:jin_log_disable_default_mappings = 1
 <
@@ -547,9 +613,9 @@ after a label. What it tells depends on the line:
   or in sync.
 - A workspace, in |:JinWorkspace|: its root and its working-copy change.
 
-A buffer to edit, |:JinFile| and |:JinBuffer| have no panel. The panel
-takes no focus and stays open while the view is shown in the current
-window; as the cursor moves, only what it tells changes. It
+A buffer to edit, |:JinFile|, |:JinBuffer| and the diff editor have no
+panel. The panel takes no focus and stays open while the view is shown in
+the current window; as the cursor moves, only what it tells changes. It
 tells at once what the line itself shows, such as the first line of the
 description, the author and how long ago, and the rest once jj has told
 it: jj is asked once the cursor stays on an entry for a moment, and once
@@ -919,13 +985,15 @@ jin.jj({argv} [, {opts} [, {on_exit}]])
 	firing no event. With {on_exit}, return at once and call it with
 	the result. `opts.color` asks for ANSI colors, `opts.env` adds
 	environment variables. `opts.stdin` is written to jj's standard
-	input, as `jj describe --stdin` reads it.
+	input, as `jj describe --stdin` reads it. `opts.on_stderr` is called
+	with each line of jj's standard error as jj prints it.
 
 						*jin.command()*
 jin.command({argv} [, {opts} [, {on_exit}]])
-	Do what |:Jin| does. `opts.wait` stands for `++wait`. `opts.stdin` is
-	handed to jj as for |jin.jj()|. `opts.quiet` echoes nothing unless
-	jj fails.
+	Do what |:Jin| does. `opts.wait` stands for `++wait`. `opts.silent`
+	echoes nothing at all. `opts.stdin` is
+	handed to jj as for |jin.jj()|. `opts.quiet` echoes
+	nothing unless jj fails.
 
 						*jin.buffer()*
 jin.buffer({argv} [, {opts}])

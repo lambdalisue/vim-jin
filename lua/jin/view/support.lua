@@ -929,6 +929,15 @@ function M.change_actions(actions)
       change_with_selected(ctx, squash_argv(ctx))
     end,
   }
+  actions["squash:interactive"] = {
+    desc = "squash, choosing in the diff editor what of the changes goes",
+    changes = true,
+    fn = function(ctx)
+      local argv = join(squash_argv(ctx), { "-i" })
+      local opts = { cwd = ctx.meta.parsed.root, on_exit = M.clear_selected_on_success(ctx) }
+      require("jin.diffedit").run(ctx.jin, ctx.host, argv, opts)
+    end,
+  }
   ---Rebase the changes of `ctx`, each after `which`, to the selected changes,
   ---each after `where`.
   local function rebase(which, where, desc)
@@ -1014,6 +1023,25 @@ function M.change_actions(actions)
       if name then
         change(ctx, { "bookmark", "set", name, "-r", rev })
       end
+    end,
+  }
+  actions.split = {
+    desc = "split the change in two, choosing in the diff editor what goes first",
+    changes = true,
+    fn = function(ctx)
+      local rev = changed(ctx)[1]
+      -- -m: jj would otherwise open an editor for the first part's
+      -- description, which nobody can answer from here.
+      local argv = { "split", "-i", "-r", rev, "-m", description_of(ctx, rev) }
+      require("jin.diffedit").run(ctx.jin, ctx.host, argv, { cwd = ctx.meta.parsed.root })
+    end,
+  }
+  actions.diffedit = {
+    desc = "edit the diff of the change in the diff editor",
+    changes = true,
+    fn = function(ctx)
+      local argv = { "diffedit", "-r", changed(ctx)[1] }
+      require("jin.diffedit").run(ctx.jin, ctx.host, argv, { cwd = ctx.meta.parsed.root })
     end,
   }
   for _, step in ipairs({ "next", "prev" }) do

@@ -16,6 +16,17 @@ local M = {
   yank = common.yank,
   cd = common.cd,
   mark_saved = common.mark_saved,
+  fifo = common.fifo,
+  answer = common.answer,
+  read_file = common.read_file,
+  write_file = common.write_file,
+  link = common.link,
+  make_directory = common.make_directory,
+  make_link = common.make_link,
+  executable = common.executable,
+  set_executable = common.set_executable,
+  delete_file = common.delete_file,
+  wipe = common.wipe,
   vertical = common.vertical,
   width = common.width,
   setting = common.setting,
@@ -23,6 +34,16 @@ local M = {
 
 function M.leave(bufnr, previous)
   common.leave(bufnr, previous, M.list)
+end
+
+function M.open_panes(left, output, right)
+  common.open_panes(left, output, right, function(value)
+    return value
+  end)
+end
+
+function M.close_tab(bufnr, back)
+  common.close_tab(bufnr, back, M.list)
 end
 
 function M.setting_dict(name)
@@ -75,7 +96,15 @@ function M.render(bufnr, content)
   local filetype = content.filetype
     or (content.detect and common.detect_filetype(bufnr, content.detect, M.list))
     or "jin-file"
-  common.finish(bufnr, filetype, content.title, content.editable, content.fresh)
+  common.finish(
+    bufnr,
+    filetype,
+    content.title,
+    content.editable,
+    content.fresh,
+    content.writable,
+    content.modified
+  )
   if content.folds then
     common.folds(bufnr, content.folds, M.list, closed or nil)
   end
@@ -87,9 +116,27 @@ end
 
 function M.run(argv, opts, on_exit)
   local system_opts = { cwd = opts.cwd, env = opts.env, stdin = opts.stdin, text = true }
+  local stderr, feed, flush = {}, nil, nil
+  if opts.on_stderr then
+    feed, flush = common.line_splitter(opts.on_stderr)
+    -- A function takes stderr as it comes, and vim.system then keeps none of
+    -- it, so it is gathered here as well.
+    system_opts.stderr = function(_, data)
+      if data then
+        stderr[#stderr + 1] = data
+        vim.schedule(function()
+          feed(data)
+        end)
+      end
+    end
+  end
   local ok, err = pcall(vim.system, argv, system_opts, function(obj)
     vim.schedule(function()
-      on_exit({ code = obj.code, stdout = obj.stdout or "", stderr = obj.stderr or "" })
+      if flush then
+        flush()
+      end
+      local text = flush and table.concat(stderr) or obj.stderr or ""
+      on_exit({ code = obj.code, stdout = obj.stdout or "", stderr = text })
     end)
   end)
   if not ok then
@@ -158,6 +205,14 @@ end
 
 function M.lines(bufnr)
   return common.lines(bufnr, M.list)
+end
+
+function M.replace_lines(bufnr, first, last, lines)
+  common.replace_lines(bufnr, first, last, lines, M.to_list)
+end
+
+function M.files(dir)
+  return common.files(dir, M.list)
 end
 
 local cursor_entry = vim.api.nvim_create_namespace("jin-cursor-entry")

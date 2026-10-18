@@ -51,6 +51,9 @@ function M.buffers()
       buffers[#buffers + 1] = {
         bufnr = bufnr,
         name = vim.fn.bufname(bufnr),
+        -- bufname() is relative to the current directory when it can be.
+        path = vim.fn.fnamemodify(vim.fn.bufname(bufnr), ":p"),
+        modified = vim.fn.getbufvar(bufnr, "&modified") == 1,
       }
     end
   end
@@ -182,7 +185,41 @@ end
 ---@param list fun(value: any): any[]
 ---@return string[]
 function M.lines(bufnr, list)
-  return list(vim.fn.getbufline(bufnr, 1, "$"))
+  local lines = list(vim.fn.getbufline(bufnr, 1, "$"))
+  -- An empty buffer reads as one empty line; only its byte count, which
+  -- wordcount() takes in a window showing it, tells the two apart.
+  if #lines == 1 and lines[1] == "" then
+    local winid = M.window(bufnr, list)
+    if winid and vim.fn.win_execute(winid, "echon wordcount().bytes") == "0" then
+      return {}
+    end
+  end
+  return lines
+end
+
+---@param bufnr integer
+---@param first integer
+---@param last integer
+---@param lines string[]
+---@param to_list fun(items: any[]): any
+function M.replace_lines(bufnr, first, last, lines, to_list)
+  local old, new = last - first + 1, #lines
+  local head, tail = {}, {}
+  for i, line in ipairs(lines) do
+    if i <= old then
+      head[#head + 1] = line
+    else
+      tail[#tail + 1] = line
+    end
+  end
+  if #head > 0 then
+    vim.fn.setbufline(bufnr, first, to_list(head))
+  end
+  if new < old then
+    vim.fn.deletebufline(bufnr, first + new, last)
+  elseif #tail > 0 then
+    vim.fn.appendbufline(bufnr, last, to_list(tail))
+  end
 end
 
 ---Whether the user splits diffs vertically ('diffopt' has "vertical").
@@ -215,6 +252,239 @@ function M.input(prompt, completion)
   return answer
 end
 
+---Make a named pipe and return its path.
+---@return string
+function M.fifo()
+  if vim.fn.has("win32") == 1 then
+    error("jin: the diff editor needs named pipes, which Windows does not have", 0)
+  end
+  local path = vim.fn.tempname()
+  vim.fn.system("mkfifo " .. vim.fn.shellescape(path))
+  if vim.fn.getftype(path) ~= "fifo" then
+    error("jin: could not make a named pipe at " .. path, 0)
+  end
+  return path
+end
+
+---Write `content` to `path` byte for byte, as writefile() in binary mode
+---takes lines.
+---@param path string
+---@param content string
+local function write_bytes(path, content)
+  vim.fn.writefile(vim.fn.split(content, "\n", 1), path, "b")
+end
+
+function M.answer(path, text)
+  write_bytes(path, text)
+end
+
+---@param dir string
+---@param list fun(value: any): any[]
+---@return string[]
+function M.files(dir, list)
+  local found = {}
+  local function walk(rel)
+    local base = rel == "" and dir or dir .. "/" .. rel
+    for _, name in ipairs(list(vim.fn.readdir(base))) do
+      local path = rel == "" and name or rel .. "/" .. name
+      -- getftype() rather than isdirectory(), which follows a symbolic link:
+      -- a link to a directory is a file of the diff, and one to an ancestor
+      -- would be walked forever.
+      if vim.fn.getftype(dir .. "/" .. path) == "dir" then
+        walk(path)
+      else
+        found[#found + 1] = path
+      end
+    end
+  end
+  if vim.fn.isdirectory(dir) == 1 then
+    walk("")
+  end
+  table.sort(found)
+  return found
+end
+
+-- Files are read and written with io rather than readfile() and
+-- writefile(), which turn a NUL into a newline and back, so that a binary
+-- file would come out changed.
+
+---@param path string
+---@return string?
+function M.read_file(path)
+  if vim.fn.filereadable(path) ~= 1 then
+    return nil
+  end
+  local f = io.open(path, "rb")
+  if not f then
+    return nil
+  end
+  local content = f:read("*a")
+  f:close()
+  return content
+end
+
+function M.write_file(path, content)
+  vim.fn.mkdir(vim.fn.fnamemodify(path, ":h"), "p")
+  -- Opening a symbolic link writes where it points, which may lie outside
+  -- the directory jj handed over.
+  if vim.fn.getftype(path) == "link" then
+    vim.fn.delete(path)
+  elseif vim.fn.getftype(path) == "dir" and vim.fn.delete(path, "rf") ~= 0 then
+    -- A directory where a file is to be goes with what it holds.
+    error("jin: could not remove " .. path, 0)
+  end
+  local f = assert(io.open(path, "wb"))
+  assert(f:write(content))
+  assert(f:close())
+end
+
+function M.make_directory(path)
+  vim.fn.mkdir(path, "p")
+end
+
+-- Vim has no function that reads a link as written; resolve() follows it
+-- to the end. The diff editor runs through a POSIX shell anyway.
+function M.link(path)
+  if vim.fn.getftype(path) ~= "link" then
+    return nil
+  end
+  local target = vim.fn.system("readlink " .. vim.fn.shellescape(path))
+  if vim.v.shell_error ~= 0 then
+    error("jin: could not read the link " .. path, 0)
+  end
+  return (target:gsub("\n$", ""))
+end
+
+function M.make_link(path, target)
+  vim.fn.mkdir(vim.fn.fnamemodify(path, ":h"), "p")
+  -- A directory goes with what it holds; ln would make the link inside it.
+  if vim.fn.getftype(path) == "dir" and vim.fn.delete(path, "rf") ~= 0 then
+    error("jin: could not remove " .. path, 0)
+  end
+  vim.fn.delete(path)
+  -- --: a target starting with a dash is still a target, not an option.
+  vim.fn.system("ln -s -- " .. vim.fn.shellescape(target) .. " " .. vim.fn.shellescape(path))
+  if vim.v.shell_error ~= 0 then
+    error("jin: could not make the link " .. path, 0)
+  end
+end
+
+function M.executable(path)
+  return vim.fn.getfperm(path):sub(3, 3) == "x"
+end
+
+function M.set_executable(path, on)
+  local perm = vim.fn.getfperm(path)
+  local bits = on and { "x", "x", "x" } or { "-", "-", "-" }
+  local new = perm:sub(1, 2)
+    .. bits[1]
+    .. perm:sub(4, 5)
+    .. (perm:sub(4, 4) == "r" and bits[2] or "-")
+    .. perm:sub(7, 8)
+    .. (perm:sub(7, 7) == "r" and bits[3] or "-")
+  vim.fn.setfperm(path, new)
+end
+
+function M.delete_file(path)
+  vim.fn.delete(path)
+end
+
+-- What the statusline or the winbar of a pane draws.
+local PANE_LINE = "%!jin#statusline#pane()"
+
+---Whether the default mappings of the view the buffer `name` shows are off.
+---@param name string
+---@return boolean
+local function mappings_disabled(name)
+  local parsed = require("jin.bufname").parse(name)
+  local view = parsed and parsed.params.view
+  return type(view) == "string"
+    and vim.fn.eval(("!!get(g:, 'jin_%s_disable_default_mappings')"):format(view)) == 1
+end
+
+---@param left jin.Pane
+---@param output jin.Pane
+---@param right jin.Pane
+---@param to_dict fun(value: table): any
+function M.open_panes(left, output, right, to_dict)
+  M.ex("silent tabnew " .. vim.fn.fnameescape(output.path))
+  local middle, middle_win = vim.fn.bufnr(), vim.fn.win_getid()
+  M.ex("silent leftabove vsplit " .. vim.fn.fnameescape(left.path))
+  local left_win = vim.fn.win_getid()
+  vim.fn.win_gotoid(middle_win)
+  M.ex("silent rightbelow vsplit " .. vim.fn.fnameescape(right.path))
+  local right_win = vim.fn.win_getid()
+  -- The statusline is the user's where they keep it in views; the winbar,
+  -- where there is one, then names the pane instead.
+  local option = (vim.fn.exists("+winbar") == 1 and M.setting("statusline") == "0") and "winbar"
+    or "statusline"
+  local disabled = mappings_disabled(output.path)
+  for _, pane in ipairs({
+    { left_win, left, "left" },
+    { middle_win, output },
+    { right_win, right, "right" },
+  }) do
+    local winid, spec, side = pane[1], pane[2], pane[3]
+    vim.fn.setbufvar(
+      vim.fn.winbufnr(winid),
+      "jin_pane",
+      to_dict({ title = spec.title, about = spec.about, editable = not side })
+    )
+    vim.fn.setwinvar(winid, "&" .. option, PANE_LINE)
+    if side then
+      vim.fn.win_execute(winid, "setlocal readonly nomodifiable bufhidden=wipe")
+      vim.fn.win_execute(
+        winid,
+        ("nnoremap <buffer><silent> <Plug>(jin-diffput) <Cmd>call luaeval(%s, [%d, '%s', line('.')])<CR>"):format(
+          [["require('jin.host.entry').diffput(_A[1], _A[2], _A[3])"]],
+          middle,
+          side
+        )
+      )
+      if not disabled then
+        vim.fn.win_execute(
+          winid,
+          "if !get(maparg('dp', 'n', 0, 1), 'buffer', 0) | execute 'nmap <buffer> dp <Plug>(jin-diffput)' | endif"
+        )
+      end
+    end
+  end
+  for _, winid in ipairs({ left_win, middle_win, right_win }) do
+    vim.fn.win_execute(winid, "silent diffthis")
+  end
+  vim.fn.win_gotoid(middle_win)
+end
+
+function M.close_tab(bufnr, back, list)
+  local winid = list(vim.fn.win_findbuf(bufnr))[1]
+  if winid then
+    local tabnr = list(vim.fn.win_id2tabwin(winid))[1]
+    local buffers = list(vim.fn.tabpagebuflist(tabnr))
+    if vim.fn.tabpagenr("$") > 1 then
+      M.ex("silent tabclose! " .. tabnr)
+    else
+      vim.fn.win_gotoid(winid)
+      M.ex("silent only!")
+    end
+    for _, buf in ipairs(buffers) do
+      if buf ~= back and vim.fn.bufexists(buf) == 1 and #list(vim.fn.win_findbuf(buf)) == 0 then
+        M.ex("silent bwipeout! " .. buf)
+      end
+    end
+  end
+  if vim.fn.bufexists(bufnr) == 1 then
+    M.ex("silent bwipeout! " .. bufnr)
+  end
+  local back_win = back and list(vim.fn.win_findbuf(back))[1]
+  if back_win then
+    vim.fn.win_gotoid(back_win)
+  end
+end
+
+function M.wipe(bufnr)
+  M.ex("bwipeout! " .. bufnr)
+end
+
 ---@param bufnr integer
 ---@param previous? string
 ---@param list fun(value: any): any[]
@@ -231,6 +501,34 @@ function M.leave(bufnr, previous, list)
   if vim.fn.bufexists(bufnr) == 1 then
     M.ex("bwipeout " .. bufnr)
   end
+end
+
+---Split the chunks a process prints into lines, handing each whole one to
+---`on_line` as soon as it is complete; `flush` hands over what is left once
+---the process ended, a last line without a newline.
+---@param on_line fun(line: string)
+---@return fun(chunk: string) feed
+---@return fun() flush
+function M.line_splitter(on_line)
+  local pending = ""
+  local function feed(chunk)
+    pending = pending .. chunk
+    while true do
+      local line, rest = pending:match("^(.-)\n(.*)$")
+      if not line then
+        break
+      end
+      pending = rest
+      on_line(line)
+    end
+  end
+  local function flush()
+    if pending ~= "" then
+      on_line(pending)
+      pending = ""
+    end
+  end
+  return feed, flush
 end
 
 function M.confirm(prompt)
@@ -280,15 +578,17 @@ end
 ---@param filetype string
 ---@param title? string
 ---@param editable? boolean
-function M.finish(bufnr, filetype, title, editable, fresh)
+---@param writable? boolean one :w hands back, though not to edit
+---@param modified? boolean left modified, so that leaving it asks first
+function M.finish(bufnr, filetype, title, editable, fresh, writable, modified)
   if title then
     vim.fn.setbufvar(bufnr, "jin_title", title)
   end
-  vim.fn.setbufvar(bufnr, "&buftype", editable and "acwrite" or "nofile")
+  vim.fn.setbufvar(bufnr, "&buftype", (editable or writable) and "acwrite" or "nofile")
   vim.fn.setbufvar(bufnr, "&bufhidden", editable and "hide" or "unload")
   vim.fn.setbufvar(bufnr, "&swapfile", 0)
   vim.fn.setbufvar(bufnr, "&modifiable", editable and 1 or 0)
-  vim.fn.setbufvar(bufnr, "&modified", 0)
+  vim.fn.setbufvar(bufnr, "&modified", modified and 1 or 0)
   -- Unloading takes the syntax and what plugins set up along, but keeps
   -- 'filetype': a buffer loaded again sets it anew, for FileType to run.
   if fresh or vim.fn.getbufvar(bufnr, "&filetype") ~= filetype then
@@ -431,6 +731,37 @@ function M.statusline(parts, active, glyphs)
   end
   gap()
   put("Dim", lead("line") .. "%l/%L ")
+  return table.concat(out)
+end
+
+---A 'statusline' format naming a pane of the diff editor: its title as a
+---badge, the edit badge for the pane to edit and the view badge for a side,
+---then what it is or what to do with it, drawn with `glyphs`; only an
+---`active` window gets colors.
+---@param pane { title: string, about: string, editable: boolean }
+---@param active boolean
+---@param glyphs jin.Glyphs
+---@return string
+function M.pane_statusline(pane, active, glyphs)
+  local function text(value)
+    return (tostring(value):gsub("%%", "%%%%"))
+  end
+  local out = {}
+  if active then
+    out[#out + 1] = "%#JinStatuslineInk" .. (pane.editable and "Edit" or "View") .. "#"
+  end
+  out[#out + 1] = " "
+    .. text(require("jin.glyph").lead(glyphs[pane.editable and "edit" or "view"]))
+    .. text(pane.title)
+    .. " "
+  if active then
+    out[#out + 1] = "%#JinStatusline#"
+  end
+  out[#out + 1] = "%< " .. text(pane.about) .. (pane.editable and " %m" or "") .. "%="
+  if active then
+    out[#out + 1] = "%#JinStatuslineInkDim#"
+  end
+  out[#out + 1] = " %l/%L "
   return table.concat(out)
 end
 

@@ -99,6 +99,13 @@ describe("jin.jj.run", function()
     assert.equal("feat: x\n", host.runs[1].stdin)
   end)
 
+  it("hands over the lines of stderr as jj prints them", function()
+    local host = fake_host.new()
+    local function on_stderr() end
+    jj.run(host, { "split", "-i" }, { on_stderr = on_stderr }, function() end)
+    assert.equal(on_stderr, host.runs[1].on_stderr)
+  end)
+
   it("passes env on to the process", function()
     local host = fake_host.new()
     jj.run(host, { "status" }, { env = { JJ_USER = "x" } }, function() end)

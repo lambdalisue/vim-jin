@@ -331,6 +331,7 @@ describe("jin.action.keys", function()
       cc = "commit",
       cw = "describe",
       J = "squash",
+      gS = "split",
       p = "put:after",
       P = "put:before",
       gb = "bookmark",
@@ -344,6 +345,7 @@ describe("jin.action.keys", function()
       cc = lookup(log, "cc"),
       cw = lookup(log, "cw"),
       J = lookup(log, "J"),
+      gS = lookup(log, "gS"),
       p = lookup(log, "p"),
       P = lookup(log, "P"),
       gb = lookup(log, "gb"),
@@ -357,6 +359,21 @@ describe("jin.action.keys", function()
     assert.same({ "delete", "delete" }, { lookup(keys, "dd"), lookup(keys, "d", "x") })
   end)
 
+  it(
+    "takes the left side of whole files in the diff editor list with dol, as a pane does",
+    function()
+      assert.equal("take:left", lookup(action.keys(view.get("diffedit"), false), "dol"))
+    end
+  )
+
+  it(
+    "leaves u and CTRL-R to Vim in the diff editor list, where jj waits on what is edited",
+    function()
+      local keys = action.keys(view.get("diffedit"), false)
+      assert.same({}, { lookup(keys, "u"), lookup(keys, "<C-r>") })
+    end
+  )
+
   it("leaves the other changes to a, and = to Vim", function()
     local wrong = {}
     for _, name in ipairs(VIEWS) do
@@ -369,6 +386,7 @@ describe("jin.action.keys", function()
           absorb = true,
           parallelize = true,
           restore = true,
+          diffedit = true,
           new = true,
           forget = true,
           track = true,
@@ -433,6 +451,7 @@ describe("jin.action.keys", function()
     ["^P$"] = "P puts text before the cursor",
     ["^gp$"] = "gp puts text",
     ["^gc$"] = "gc comments lines out, in Neovim; Vim gives it nothing",
+    ["^gS$"] = "Vim gives gS nothing",
     ["^gb$"] = "Vim gives gb nothing",
     ["^x$"] = "x deletes a character",
     ["^X$"] = "X deletes a character",
@@ -447,6 +466,7 @@ describe("jin.action.keys", function()
     ["^gd$"] = "goes to what defines what is under the cursor",
     ["^u$"] = "undoes",
     ["^<C%-r>$"] = "redoes",
+    ["^dol$"] = "gets from the left, as do does in diff mode",
     ["^yy$"] = "yanks",
     ["^y$"] = "yanks",
     ["^YY$"] = "yanks",
@@ -478,7 +498,11 @@ describe("jin.action.keys", function()
 
   it("maps only actions the view has, each key once, none whose Vim meaning it changes", function()
     local wrong = {}
+    local names = { "diffedit" }
     for _, name in ipairs(VIEWS) do
+      names[#names + 1] = name
+    end
+    for _, name in ipairs(names) do
       local def = view.get(name)
       local actions, seen = {}, {}
       for _, n in ipairs(action.names(def)) do

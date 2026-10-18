@@ -43,7 +43,9 @@ local caches = setmetatable({}, { __mode = "k" })
 ---@field cwd? string a directory in the workspace to run in; by default the current buffer's or directory's
 ---@field wait? boolean return only after jj has finished
 ---@field stdin? string written to jj's standard input
+---@field on_stderr? fun(line: string) called with each line of jj's standard error as soon as jj prints it
 ---@field quiet? boolean echo nothing unless jj fails, as for a command whose result shows elsewhere
+---@field silent? boolean echo nothing at all, failures included, for a caller that tells them itself
 
 ---Run jj with `argv` the way :Jin does: echo what it prints, then fire
 ---User JinCommandPost. `on_exit` receives the result after the echo.
@@ -53,11 +55,12 @@ local caches = setmetatable({}, { __mode = "k" })
 ---@param on_exit? fun(result: jin.RunResult)
 function M.run(host, argv, opts, on_exit)
   local done = false
-  jj.run(host, argv, { cwd = opts.cwd, stdin = opts.stdin }, function(result)
+  local jj_opts = { cwd = opts.cwd, stdin = opts.stdin, on_stderr = opts.on_stderr }
+  jj.run(host, argv, jj_opts, function(result)
     done = true
     caches[host] = nil
     local text = output(result)
-    if text ~= "" and not (opts.quiet and result.code == 0) then
+    if text ~= "" and not opts.silent and not (opts.quiet and result.code == 0) then
       host.echo(text, result.code ~= 0 and "ErrorMsg" or nil)
     end
     post(host)

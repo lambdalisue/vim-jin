@@ -35,6 +35,7 @@ function M.new(opts)
       cwd = run_opts.cwd,
       env = run_opts.env,
       stdin = run_opts.stdin,
+      on_stderr = run_opts.on_stderr,
       on_exit = on_exit,
     }
   end
@@ -350,6 +351,113 @@ function M.new(opts)
 
   function host.lines(bufnr)
     return host.contents[host.buffer_name(bufnr) or ""] or {}
+  end
+
+  function host.replace_lines(bufnr, first, last, lines)
+    local name = host.buffer_name(bufnr) or ""
+    local old_lines, new = host.contents[name] or {}, {}
+    for i = 1, first - 1 do
+      new[#new + 1] = old_lines[i]
+    end
+    for _, line in ipairs(lines) do
+      new[#new + 1] = line
+    end
+    for i = last + 1, #old_lines do
+      new[#new + 1] = old_lines[i]
+    end
+    host.contents[name] = new
+  end
+
+  -- Files, by absolute path, for what a diff editor hands over; the named
+  -- pipes made, what was written to them, the panes opened and the buffers
+  -- wiped.
+  host.fs = {}
+  host.fifos = 0
+  host.answered = {}
+  host.panes = {}
+  host.wiped = {}
+
+  function host.fifo()
+    host.fifos = host.fifos + 1
+    return "/tmp/jin" .. host.fifos .. ".fifo"
+  end
+
+  function host.answer(path, text)
+    host.answered[path] = text
+  end
+
+  -- Symbolic links, by absolute path, to what they point at.
+  host.links = {}
+
+  function host.files(dir)
+    local found = {}
+    for _, tree in ipairs({ host.fs, host.links }) do
+      for path in pairs(tree) do
+        if path:sub(1, #dir + 1) == dir .. "/" then
+          found[#found + 1] = path:sub(#dir + 2)
+        end
+      end
+    end
+    table.sort(found)
+    return found
+  end
+
+  function host.read_file(path)
+    return host.fs[path]
+  end
+
+  function host.write_file(path, content)
+    host.links[path] = nil
+    host.fs[path] = content
+  end
+
+  function host.delete_file(path)
+    host.fs[path] = nil
+    host.links[path] = nil
+    host.executables[path] = nil
+  end
+
+  -- The directories made, in order.
+  host.made = {}
+
+  function host.make_directory(path)
+    host.made[#host.made + 1] = path
+  end
+
+  function host.link(path)
+    return host.links[path]
+  end
+
+  function host.make_link(path, target)
+    host.fs[path] = nil
+    host.links[path] = target
+  end
+
+  -- The files whose executable bit is set, by absolute path.
+  host.executables = {}
+
+  function host.executable(path)
+    return host.executables[path] == true
+  end
+
+  function host.set_executable(path, on)
+    host.executables[path] = on or nil
+  end
+
+  function host.open_panes(left, output, right)
+    host.panes[#host.panes + 1] = { left = left, output = output, right = right }
+  end
+
+  -- The tab pages closed, each by the buffer it showed and the one to go
+  -- back to.
+  host.closed_tabs = {}
+
+  function host.close_tab(bufnr, back)
+    host.closed_tabs[#host.closed_tabs + 1] = { bufnr = bufnr, back = back }
+  end
+
+  function host.wipe(bufnr)
+    host.wiped[#host.wiped + 1] = bufnr
   end
 
   -- The buffers left, each with the buffer shown in its place, if any.

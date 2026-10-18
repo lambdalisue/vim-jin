@@ -23,7 +23,8 @@ the main loop. Without, it blocks until jj finishes and returns the result.
 
 `opts.env` adds environment variables for jj. `opts.stdin` is written to
 jj's standard input, as `jj describe --stdin` reads it; without it jj reads
-no input.
+no input. `opts.on_stderr` is called with each line of jj's standard
+error as soon as jj prints it, while the result still holds all of it.
 
 ## `jin.command(argv, opts?, on_exit?)`
 
@@ -32,10 +33,12 @@ fires `User JinCommandPost`. Use it for commands that change the
 repository, so that everything showing the repository refreshes.
 
 It returns at once unless `opts.wait` is true. `opts.stdin` is handed to jj
-as for `jin.jj()`. `opts.quiet` echoes nothing unless jj fails, for a
-command whose result shows elsewhere. `on_exit`, if given, receives the
-result after the echo. `argv` is handed to jj as is: `++` options exist
-only on the `:Jin` command line, and `opts` takes their place here.
+as for `jin.jj()`. So is `opts.on_stderr`. `opts.quiet` echoes nothing
+unless jj fails, for a command whose result shows elsewhere. `opts.silent`
+echoes nothing at all, failures included, for a caller that tells them
+itself. `on_exit`, if given, receives the result after the echo. `argv` is
+handed to jj as is: `++` options exist only on the `:Jin` command line, and
+`opts` takes their place here.
 
 ## `jin.buffer(argv, opts?)`
 

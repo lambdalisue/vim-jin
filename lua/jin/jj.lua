@@ -10,6 +10,7 @@ M.WAIT_FOREVER = 2 ^ 31 - 1
 ---@field env? table<string, string> added to the environment jj inherits
 ---@field color? boolean ask jj for ANSI colors instead of plain text
 ---@field stdin? string written to jj's standard input, as `jj describe --stdin` reads it
+---@field on_stderr? fun(line: string) called with each line of jj's standard error as soon as jj prints it
 
 ---The directory `path` stands for: itself when it is a directory (such as a
 ---directory buffer), else the one it is in. Relative paths are taken from
@@ -87,7 +88,9 @@ function M.run(host, argv, opts, on_exit)
   end
 
   local result
-  host.run(cmd, { cwd = M.cwd(host, opts.cwd), env = opts.env, stdin = opts.stdin }, function(r)
+  local run_opts =
+    { cwd = M.cwd(host, opts.cwd), env = opts.env, stdin = opts.stdin, on_stderr = opts.on_stderr }
+  host.run(cmd, run_opts, function(r)
     result = r
     if on_exit then
       on_exit(r)

@@ -178,9 +178,12 @@ local CHANGES = {
   commit = { "cc" },
   describe = { "cw" },
   squash = { "J", "J" },
+  split = { "gS" },
   ["put:after"] = { "p" },
   ["put:before"] = { "P" },
   bookmark = { "gb" },
+  -- The diff editor list's, as dol takes the left side in a pane.
+  ["take:left"] = { "dol" },
 }
 
 ---The default keys of `view_def` as { lhs, action, mode }, in normal mode
@@ -224,6 +227,11 @@ function M.keys(view_def, vertical)
     -- Apart, as a name may stand for both: edit opens a file in the status but
     -- makes a change the working copy in the log.
     local change = all[name].changes and CHANGES[name]
+    -- A view written to answer jj, as the diff editor list, is one jj waits
+    -- on: u there reads as undoing what was taken in it, not an operation.
+    if view_def.write and (name == "undo" or name == "redo") then
+      change = nil
+    end
     if change then
       keys[#keys + 1] = { change[1], name }
       if change[2] then

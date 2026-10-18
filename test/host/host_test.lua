@@ -70,6 +70,36 @@ return {
     end,
   },
   {
+    "run hands each line of stderr over as it is printed, before the process ends",
+    function()
+      local lines = {}
+      local result
+      host.run({ "sh", "-c", "printf 'one\\ntw' >&2; sleep 0.2; printf 'o\\nthree' >&2; read _" }, {
+        stdin = "go\n",
+        on_stderr = function(line)
+          lines[#lines + 1] = line
+        end,
+      }, function(r)
+        result = r
+      end)
+      h.truthy(
+        host.wait(5000, function()
+          return #lines >= 1
+        end),
+        "no line before the end"
+      )
+      h.eq({ "one" }, lines)
+      h.truthy(
+        host.wait(5000, function()
+          return result ~= nil
+        end),
+        "the process did not finish"
+      )
+      h.eq({ "one", "two", "three" }, lines)
+      h.eq("one\ntwo\nthree", result.stderr)
+    end,
+  },
+  {
     "run gives a process no stdin unless asked, so that reading it ends at once",
     function()
       h.eq({ code = 0, stdout = "", stderr = "" }, run({ "cat" }))
@@ -195,6 +225,125 @@ return {
       end)
       h.eq(true, fired)
       h.eq(false, cancelled)
+    end,
+  },
+  {
+    "write_file and read_file keep every byte of a binary file",
+    function()
+      local path = h.tempdir() .. "/sub/bin"
+      local bytes = "a\0b\nc\0\n\0"
+      host.write_file(path, bytes)
+      local f = assert(io.open(path, "rb"))
+      h.eq(bytes, f:read("*a"))
+      f:close()
+      h.eq(bytes, host.read_file(path))
+    end,
+  },
+  {
+    "files lists a symbolic link as a file, never walking into what it points at",
+    function()
+      local dir = h.tempdir()
+      host.write_file(dir .. "/sub/a.txt", "a\n")
+      vim.fn.system(host.to_list({ "ln", "-s", ".", dir .. "/sub/self" }))
+      h.eq({ "sub/a.txt", "sub/self" }, host.files(dir))
+    end,
+  },
+  {
+    "write_file replaces a symbolic link rather than writing where it points",
+    function()
+      local dir = h.tempdir()
+      host.write_file(dir .. "/target", "kept\n")
+      vim.fn.system(host.to_list({ "ln", "-s", dir .. "/target", dir .. "/link" }))
+      host.write_file(dir .. "/link", "new\n")
+      h.eq("kept\n", host.read_file(dir .. "/target"))
+      h.eq("new\n", host.read_file(dir .. "/link"))
+      h.eq("file", vim.fn.getftype(dir .. "/link"))
+      host.write_file(dir .. "/sub/inner", "x\n")
+      host.write_file(dir .. "/sub", "a file now\n")
+      h.eq("a file now\n", host.read_file(dir .. "/sub"))
+    end,
+  },
+  {
+    "link reads what a symbolic link points at, as written, and make_link makes one",
+    function()
+      local dir = h.tempdir()
+      host.write_file(dir .. "/file", "x\n")
+      h.eq(nil, host.link(dir .. "/file"))
+      host.make_link(dir .. "/file", "../elsewhere")
+      h.eq("link", vim.fn.getftype(dir .. "/file"))
+      h.eq("../elsewhere", host.link(dir .. "/file"))
+      host.make_link(dir .. "/file", "other")
+      h.eq("other", host.link(dir .. "/file"))
+      h.eq(nil, host.link(dir .. "/missing"))
+      host.make_link(dir .. "/dash", "--help")
+      h.eq("--help", host.link(dir .. "/dash"))
+      host.write_file(dir .. "/sub/inner", "x\n")
+      host.make_link(dir .. "/sub", "/elsewhere")
+      h.eq("/elsewhere", host.link(dir .. "/sub"))
+    end,
+  },
+  {
+    "set_executable sets and clears the executable bit executable reads",
+    function()
+      local path = h.tempdir() .. "/run.sh"
+      host.write_file(path, "x\n")
+      h.eq(false, host.executable(path))
+      host.set_executable(path, true)
+      h.eq(true, host.executable(path))
+      host.set_executable(path, false)
+      h.eq(false, host.executable(path))
+    end,
+  },
+  {
+    "replace_lines puts lines in place of a range, fewer, as many or more",
+    function()
+      for _, case in ipairs({
+        { {}, { "a", "e" } },
+        { { "x" }, { "a", "x", "e" } },
+        { { "x", "y", "z" }, { "a", "x", "y", "z", "e" } },
+        { { "x", "y", "z", "w" }, { "a", "x", "y", "z", "w", "e" } },
+      }) do
+        h.ex("enew!")
+        local bufnr = vim.fn.bufnr()
+        vim.fn.setline(1, host.to_list({ "a", "b", "c", "d", "e" }))
+        host.replace_lines(bufnr, 2, 4, case[1])
+        h.eq(case[2], host.lines(bufnr))
+      end
+    end,
+  },
+  {
+    "lines tells an empty buffer from one holding an empty line",
+    function()
+      h.ex("enew!")
+      local bufnr = vim.fn.bufnr()
+      h.eq({}, host.lines(bufnr))
+      vim.fn.setline(1, host.to_list({ "a", "b" }))
+      host.replace_lines(bufnr, 1, 2, {})
+      h.eq({}, host.lines(bufnr))
+      vim.fn.setline(1, host.to_list({ "" }))
+      host.replace_lines(bufnr, 1, 1, { "" })
+      h.eq({ "" }, host.lines(bufnr))
+    end,
+  },
+  {
+    "lines tells an empty buffer that no window shows, as :wall writes it",
+    function()
+      h.ex("enew!")
+      local bufnr = vim.fn.bufnr()
+      h.ex("setlocal buftype=acwrite bufhidden=hide")
+      h.ex("file jin-test-empty")
+      vim.fn.setline(1, host.to_list({ "a" }))
+      host.replace_lines(bufnr, 1, 1, {})
+      vim.g.jin_written = vim.NIL
+      h.ex(
+        "autocmd BufWriteCmd jin-test-empty lua vim.g.jin_written = #require('jin.host').lines("
+          .. bufnr
+          .. ")"
+      )
+      h.ex("enew!")
+      h.ex("silent! wall")
+      h.ex("autocmd! BufWriteCmd jin-test-empty")
+      h.eq(0, vim.g.jin_written)
     end,
   },
   {

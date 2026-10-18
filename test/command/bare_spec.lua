@@ -90,6 +90,13 @@ describe("jin.command.bare.run", function()
       bare.run(host, { "describe", "--stdin" }, { stdin = "feat: x\n" })
       assert.equal("feat: x\n", host.runs[1].stdin)
     end)
+
+    it("hands over the lines of stderr as jj prints them", function()
+      local host = fake_host.new()
+      local function on_stderr() end
+      bare.run(host, { "split", "-i" }, { on_stderr = on_stderr })
+      assert.equal(on_stderr, host.runs[1].on_stderr)
+    end)
   end)
 
   describe("what it shows", function()
@@ -117,6 +124,13 @@ describe("jin.command.bare.run", function()
       bare.run(host, { "describe", "--stdin" }, { quiet = true })
       host.finish({ code = 1, stdout = "", stderr = "Error: no such change\n" })
       assert.same({ { text = "Error: no such change", hl = "ErrorMsg" } }, host.messages)
+    end)
+
+    it("echoes nothing at all with silent, failures included, for the caller to tell", function()
+      local host = fake_host.new()
+      bare.run(host, { "split", "-i" }, { silent = true })
+      host.finish({ code = 1, stdout = "", stderr = "Error: Failed to edit diff\n" })
+      assert.same({}, host.messages)
     end)
 
     it("echoes nothing when jj prints nothing", function()

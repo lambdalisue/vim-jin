@@ -113,6 +113,31 @@ function M.statusline(winid, active)
   )
 end
 
+---Put the hunk at line `lnum` of the side pane `side` into the middle pane
+---`bufnr` (dp in a side pane).
+---@param bufnr integer
+---@param side "left"|"right"
+---@param lnum integer
+function M.diffput(bufnr, side, lnum)
+  report(require("jin.view.middle").put, host, bufnr, side, lnum)
+end
+
+---The statusline of a pane of the diff editor (b:jin_pane) as a
+---'statusline' format, highlighted when `active`. It never fails.
+---@param pane { title: string, about: string, editable: boolean }
+---@param active boolean
+---@return string
+function M.pane_statusline(pane, active)
+  local glyph = require("jin.glyph")
+  local glyphs_ok, glyphs = pcall(glyph.resolve, host)
+  local ok, line = pcall(require("jin.host.common").pane_statusline, {
+    title = tostring(pane.title),
+    about = tostring(pane.about),
+    editable = pane.editable == true or pane.editable == 1,
+  }, active, glyphs_ok and glyphs or glyph.PRESETS[glyph.DEFAULT_PRESET])
+  return ok and line or " %f%=%l/%L "
+end
+
 ---Follow the cursor of a jin:// buffer (CursorMoved).
 ---@param bufnr integer
 function M.cursor_moved(bufnr)
@@ -165,6 +190,12 @@ end
 ---@param bufnr integer
 function M.write_buffer(bufnr)
   report(require("jin.view").write, jin, host, bufnr)
+end
+
+---Answer abort to every diff jj still waits on (VimLeavePre): nobody is
+---left to answer it.
+function M.abort_edits()
+  pcall(require("jin.diffedit").abort_all, host)
 end
 
 ---Refresh every loaded jin:// buffer (User JinCommandPost).

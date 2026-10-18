@@ -265,4 +265,5 @@ augroup jin_plugin
   autocmd BufEnter jin://*
         \ call luaeval('require("jin.host.entry").refresh_buffers(_A)', str2nr(expand('<abuf>')))
   autocmd FocusGained * call luaeval('require("jin.host.entry").refresh_buffers(0)')
+  autocmd VimLeavePre * call luaeval('require("jin.host.entry").abort_edits()')
 augroup END

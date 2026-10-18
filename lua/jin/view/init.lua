@@ -33,6 +33,8 @@ local VIEWS = {
   workspace = true,
   conflicts = true,
   resolve = true,
+  diffedit = true,
+  result = true,
   arrange = true,
   describe = true,
   commit = true,
@@ -40,7 +42,7 @@ local VIEWS = {
 
 ---How a view reads jj and makes sense of what it prints.
 ---@class jin.View
----@field command string[] jj words that precede the user's arguments, such as { "log" }
+---@field command? string[] jj words that precede the user's arguments, such as { "log" }; none for a view with a `source`
 ---@field filetype string
 ---@field template? { key: string, default: string, fields: string[], about?: integer, short?: integer, config?: boolean } wrap the configured templates.<key> (or the user's -T) with markers carrying `fields`, of which those from `about` on tell what an entry is about, as support.about makes them, and the two from `short` on the shortest prefixes of its change and commit IDs, as support.shortest makes them; with `config`, hand it to jj as that setting rather than as -T, for a command that prints it within its own output
 ---@field config? string[] extra `--config` values, such as "ui.log-word-wrap=false"
@@ -54,8 +56,12 @@ local VIEWS = {
 ---@field prepare? fun(argv: string[]): string[] rewrite the user's arguments before they reach jj
 ---@field needs_path? boolean refuse to open without the path of a file in the arguments
 ---@field current_entries? boolean its lines show the latest version of their changes, so a change rewritten since the view was read is not acted on
----@field editable? boolean a buffer to edit and hand back with `write`: read without colors, mapping no keys, and never read again by itself, which would lose what is being written
----@field write? fun(jin: jin.Api, host: jin.Host, bufnr: integer, parsed: jin.Bufname) hand what an editable buffer holds back to jj
+---@field source? fun(host: jin.Host, parsed: jin.Bufname): string the text of the buffer, made by vim-jin rather than by running jj
+---@field forget? fun(host: jin.Host, parsed: jin.Bufname) called when the buffer is unloaded or read no more
+---@field modified? fun(host: jin.Host, parsed: jin.Bufname): boolean whether the buffer stands for an edit not handed back yet, after its `source` was read, so that leaving it asks first as for a buffer edited
+---@field editable? boolean a buffer to edit and hand back with `write`: read without colors, mapping no keys but `keys`, and never read again by itself, which would lose what is being written
+---@field keys? { [1]: string, [2]: string }[] the default keys of an editable buffer, as { lhs, action }, which editing must leave alone
+---@field write? fun(jin: jin.Api, host: jin.Host, bufnr: integer, parsed: jin.Bufname) hand what the buffer holds back to jj on :w, which a buffer not `editable` holds as read
 ---@field title? string[] the jj words its title names in place of `command`
 ---@field line_items? boolean each line stands for one thing, so the line under the cursor is highlighted as an entry would be
 ---@field entries_span_lines? boolean an entry, such as a change of the log, takes several lines, all highlighted while the cursor is on one
@@ -286,7 +292,7 @@ end
 ---@return string[]
 local function command_line(view, user_argv, template)
   local argv = {}
-  for _, word in ipairs(view.command) do
+  for _, word in ipairs(view.command or {}) do
     argv[#argv + 1] = word
   end
   for _, value in ipairs(view.config or {}) do
@@ -360,7 +366,11 @@ function M.read(jin, host, bufnr, name)
     end
     local argv = command_line(view, user_argv, template)
     local color = not parsed.params.monochrome and not view.editable
-    local run = jin.jj
+    local run = view.source
+        and function(_, _, on_exit)
+          on_exit({ code = 0, stdout = view.source(host, parsed), stderr = "" })
+        end
+      or jin.jj
     local revealed
     if view.revision then
       local inner = run
@@ -487,14 +497,17 @@ function M.read(jin, host, bufnr, name)
         folds = meta.data.folds,
         annotations = annotations,
         editable = view.editable,
+        writable = view.write ~= nil and not view.editable or nil,
+        modified = view.modified and view.modified(host, parsed) or nil,
         fresh = not previous,
       })
       -- The mappings stay while the buffer is loaded; an unload forgets the
       -- previous read, so they are made again after it.
-      -- An editable buffer maps no keys, as its text is there to be edited,
-      -- but all its actions are there for the user to map.
+      -- An editable buffer maps only the keys it names, as its text is there
+      -- to be edited, but all its actions are there for the user to map.
       if not previous then
-        local keys = view.editable and {} or require("jin.action").keys(view, host.vertical())
+        local keys = view.editable and (view.keys or {})
+          or require("jin.action").keys(view, host.vertical())
         host.define_actions(bufnr, require("jin.action").names(view), {
           view = view_name,
           keys = keys,
@@ -758,6 +771,10 @@ function M.forget(host, bufnr)
   local per_host = states[host]
   local s = per_host and per_host[bufnr]
   if s then
+    local view = s.meta and view_of(s.meta.parsed)
+    if view and view.forget then
+      view.forget(host, s.meta.parsed)
+    end
     s.generation = s.generation + 1
     per_host[bufnr] = nil
   end
