@@ -734,10 +734,10 @@ function M.statusline(parts, active, glyphs)
   return table.concat(out)
 end
 
----A 'statusline' format naming a pane of the diff editor: its title as a
----badge, the edit badge for the pane to edit and the view badge for a side,
----then what it is or what to do with it, drawn with `glyphs`; only an
----`active` window gets colors.
+---A 'statusline' format naming a pane of the diff editor or the merge
+---tool: its title as a badge, the edit badge for the pane to edit and the
+---view badge for a side, then what it is or what to do with it, drawn with
+---`glyphs`; only an `active` window gets colors.
 ---@param pane { title: string, about: string, editable: boolean }
 ---@param active boolean
 ---@param glyphs jin.Glyphs

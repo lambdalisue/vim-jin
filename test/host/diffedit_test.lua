@@ -104,6 +104,34 @@ local function open(lnum, view_name)
   return wins
 end
 
+---Resolve a conflict of f.txt between "left" and "right", and wait for
+---the list of the conflicted files.
+---@return string dir
+local function resolving()
+  local dir = h.tempdir()
+  h.eq(0, jin.jj({ "git", "init" }, { cwd = dir }).code)
+  h.ex("cd " .. vim.fn.fnameescape(dir))
+  local function write(text)
+    local f = assert(io.open(dir .. "/f.txt", "w"))
+    f:write(text)
+    f:close()
+  end
+  write("base\n")
+  h.eq(0, jin.jj({ "new", "-m", "left" }).code)
+  write("left\n")
+  local left = current()
+  h.eq(0, jin.jj({ "new", "-m", "right", "@--" }).code)
+  write("right\n")
+  local right = current()
+  h.eq(0, jin.jj({ "new", "-m", "merge", left, right }).code)
+  h.ex("JinConflicts")
+  settle()
+  act("resolve", line_of("merge"))
+  listed()
+  h.eq({ "C f.txt", HINT }, h.lines())
+  return dir
+end
+
 return {
   {
     "split keeps what :w on the list leaves in the result as the first change",
@@ -169,6 +197,7 @@ return {
       }) do
         h.eq("<Plug>(jin-action-" .. plug .. ")", vim.fn.maparg(key, "n"))
       end
+      h.eq("", vim.fn.maparg("dob", "n"))
       -- do waits for a letter that may follow.
       h.eq(0, vim.fn.maparg("do", "n", 0, 1).nowait)
       h.ex("normal doa")
@@ -281,6 +310,36 @@ return {
         return "base has " .. files(base)
       end)
       h.eq("b.txt\n", files(both))
+    end,
+  },
+  {
+    "the merge tool takes a side of the conflict in its output and hands it to jj",
+    function()
+      local dir = resolving()
+      local wins = open(1, "merge")
+      local expected = { "LEFT", "OUTPUT", "RIGHT" }
+      for i, winid in ipairs(wins) do
+        local drawn = statusline_of(winid)
+        h.truthy(drawn:find(expected[i], 1, true), drawn)
+      end
+      h.eq("<Plug>(jin-action-diffget-base)", vim.fn.maparg("dob", "n"))
+      vim.fn.cursor(line_of("<<<<<<<"), 1)
+      h.ex("normal dol")
+      h.eq({ "left" }, h.lines())
+      h.ex("write")
+      h.eventually(function()
+        return vim.fn.bufname():find(";view=diffedit#", 1, true) ~= nil
+          and h.lines()[1] == "C f.txt" .. EDITED
+      end, function()
+        return vim.fn.bufname() .. ": " .. table.concat(h.lines(), "\n")
+      end)
+      h.ex("write")
+      h.eventually(function()
+        return jin.jj({ "file", "show", "-r", "@", "f.txt" }).stdout == "left\n"
+      end, function()
+        return "f.txt is " .. jin.jj({ "file", "show", "-r", "@", "f.txt" }).stdout
+      end)
+      h.eq("left\n", assert(io.open(dir .. "/f.txt")):read("*a"))
     end,
   },
   {

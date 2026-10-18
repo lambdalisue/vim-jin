@@ -9,8 +9,11 @@ local M = {}
 
 ---@class jin.DiffEdit
 ---@field id integer
----@field output string what jj takes: the directory to fill, a copy of `right` to begin with
+---@field kind "diff"|"merge"
+---@field base? string the base of a conflict, for a merge
+---@field output string what jj takes: the directory to fill for a diff, a copy of `right` to begin with, or the result of a merge, holding jj's conflict markers to edit
 ---@field operation string the jj command that asked, such as "split"
+---@field initial? string what jj wrote to the result of a merge, before any edit
 ---@field root string
 ---@field fifo string
 ---@field left string
@@ -20,7 +23,7 @@ local M = {}
 ---@field on_abort? fun() called once the session is answered abort
 
 ---@class jin.DiffEditFile
----@field status string M modified, A added, D removed
+---@field status string M modified, A added, D removed, C conflicted
 ---@field path string
 ---@field edited boolean what jj takes of it is no longer what it was handed
 
@@ -72,6 +75,12 @@ end
 ---@param session jin.DiffEdit
 ---@return jin.DiffEditFile[]
 function M.files(host, session)
+  if session.kind == "merge" then
+    -- jj names the files of a conflict output_<name>, base_<name> and so on.
+    local name = session.output:match("output_([^/]*)$") or session.output
+    local edited = host.read_file(session.output) ~= session.initial
+    return { { status = "C", path = name, edited = edited } }
+  end
   local seen, paths = {}, {}
   for _, dir in ipairs({ session.left, session.right }) do
     for _, path in ipairs(host.files(dir)) do
@@ -96,6 +105,13 @@ function M.files(host, session)
   return files
 end
 
+---The view of the pane in the middle, where what jj takes is edited.
+---@param session jin.DiffEdit
+---@return "merge"|"result"
+function M.pane_view(session)
+  return session.kind == "merge" and "merge" or "result"
+end
+
 ---The middle panes of `session` that are loaded, each with the path of its
 ---file, by buffer.
 ---@param host jin.Host
@@ -107,7 +123,7 @@ function M.panes(host, session)
     local parsed = require("jin.bufname").parse(buf.name)
     if
       parsed
-      and parsed.params.view == "result"
+      and parsed.params.view == M.pane_view(session)
       and parsed.argv[1] == tostring(session.id)
       and parsed.argv[2]
     then
@@ -196,11 +212,19 @@ end
 ---@param jin jin.Api
 ---@param host jin.Host
 ---@param argv string[]
----@param opts { cwd: string, on_exit?: fun(result: jin.RunResult) } `on_exit` receives jj's result once it has exited
+---@param opts { cwd: string, merge?: boolean, on_exit?: fun(result: jin.RunResult) } `merge` for vim-jin's merge tool, as jj resolve runs; `on_exit` receives jj's result once it has exited
 function M.run(jin, host, argv, opts)
   local fifo = host.fifo()
-  local full = {}
-  for _, list in ipairs({ argv, tool.args(fifo) }) do
+  local full, paths = {}, {}
+  for _, word in ipairs(argv) do
+    -- After --, jj takes every word for a path, the tool's options included.
+    if word == "--" or #paths > 0 then
+      paths[#paths + 1] = word
+    else
+      full[#full + 1] = word
+    end
+  end
+  for _, list in ipairs({ opts.merge and tool.merge_args(fifo) or tool.args(fifo), paths }) do
     for _, word in ipairs(list) do
       full[#full + 1] = word
     end
@@ -220,12 +244,15 @@ function M.run(jin, host, argv, opts)
       registered.last = registered.last + 1
       local session = {
         id = registered.last,
+        kind = ask.kind,
         root = opts.cwd,
         fifo = ask.fifo,
         left = ask.left,
         right = ask.right,
+        base = ask.base,
         output = ask.output,
         operation = argv[1],
+        initial = ask.kind == "merge" and host.read_file(ask.output) or nil,
       }
       session.on_abort = function()
         aborted = true

@@ -1,6 +1,6 @@
 " The statusline of vim-jin views, which plugin/jin.vim sets on their
 " windows unless g:jin_statusline is 0, and that of the panes of the diff
-" editor, which the host sets as it opens them.
+" editor and the merge tool, which the host sets as it opens them.
 "
 "   let g:jin_statusline = 0     " keep your own statusline in views
 
@@ -91,8 +91,8 @@ function! jin#statusline#render() abort
         \ [l:winid, l:winid == s:current ? v:true : v:false])
 endfunction
 
-" The 'statusline' or the winbar of a pane of the diff editor, naming it,
-" or the user's own once the window shows another buffer.
+" The 'statusline' or the winbar of a pane of the diff editor or the merge
+" tool, naming it, or the user's own once the window shows another buffer.
 function! jin#statusline#pane() abort
   let l:winid = get(g:, 'statusline_winid', win_getid())
   let l:pane = getbufvar(winbufnr(l:winid), 'jin_pane', {})

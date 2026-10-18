@@ -571,6 +571,7 @@ local function changed(ctx)
   end
   return revs
 end
+M.changed = changed
 
 ---The words of every list in turn.
 ---@param ... string[]

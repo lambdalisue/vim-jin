@@ -122,8 +122,8 @@ function M.diffput(bufnr, side, lnum)
   report(require("jin.view.middle").put, host, bufnr, side, lnum)
 end
 
----The statusline of a pane of the diff editor (b:jin_pane) as a
----'statusline' format, highlighted when `active`. It never fails.
+---The statusline of a pane of the diff editor or the merge tool (b:jin_pane)
+---as a 'statusline' format, highlighted when `active`. It never fails.
 ---@param pane { title: string, about: string, editable: boolean }
 ---@param active boolean
 ---@return string

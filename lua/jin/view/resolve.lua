@@ -32,6 +32,22 @@ action.openers(actions, "edit", "open the file with its conflict", function(ctx,
   support.open(ctx, "file", { "-r", rev, support.fileset(path) }, opener, status.CONFLICT)
 end)
 
+actions.resolve = {
+  desc = "resolve the conflict of the path in the merge tool",
+  changes = true,
+  fn = function(ctx)
+    support.refuse_at_op(ctx)
+    local rev, path = path_of(ctx)
+    local argv = { "resolve", "-r", rev, "--", support.fileset(path) }
+    require("jin.diffedit").run(
+      ctx.jin,
+      ctx.host,
+      argv,
+      { cwd = ctx.meta.parsed.root, merge = true }
+    )
+  end,
+}
+
 action.openers(actions, "diff", "show the diff of the path in the change", function(ctx, opener)
   local rev, path = path_of(ctx)
   support.open(ctx, "diff", { "-r", rev, "--", support.fileset(path) }, opener)
@@ -56,4 +72,5 @@ return {
   end),
   actions = actions,
   primary = "edit",
+  secondary = "resolve",
 }

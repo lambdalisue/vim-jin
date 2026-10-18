@@ -978,7 +978,7 @@ end)
 
 describe("the detail panel", function()
   it("is no part of a buffer to edit, nor of the diff editor", function()
-    for _, name in ipairs({ "describe", "commit", "diffedit", "arrange" }) do
+    for _, name in ipairs({ "describe", "commit", "diffedit", "merge", "arrange" }) do
       assert.equal(nil, view.get(name).detail, name)
     end
   end)

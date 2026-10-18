@@ -423,4 +423,16 @@ describe("a change from a view read before the change was rewritten", function()
     assert.equal(4, #host.runs)
     assert.same("log", words(host.runs[4])[1])
   end)
+
+  it("does not resolve, in the conflicts view, a change rewritten since", function()
+    local host, jin = setup()
+    local bufnr = log(host, jin, "jin:///repo;view=conflicts#")
+    host.results = { ok("kkk c9\n") }
+    assert.has_error(function()
+      action.run(jin, host, bufnr, "resolve", 1, 1, { key = true })
+    end, "jin: kkk changed since the view was read, so it is read again; look before acting again")
+    for _, run in ipairs(host.runs) do
+      assert.are_not.equal("resolve", words(run)[1])
+    end
+  end)
 end)

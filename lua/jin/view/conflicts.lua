@@ -11,6 +11,20 @@ for name, a in pairs(log.actions) do
   actions[name] = a
 end
 
+actions.resolve = {
+  desc = "resolve the conflicts of the change in the merge tool, path by path",
+  changes = true,
+  fn = function(ctx)
+    local argv = { "resolve", "-r", support.changed(ctx)[1] }
+    require("jin.diffedit").run(
+      ctx.jin,
+      ctx.host,
+      argv,
+      { cwd = ctx.meta.parsed.root, merge = true }
+    )
+  end,
+}
+
 action.openers(actions, "files", "list the conflicted paths of the change", function(ctx, opener)
   support.open(ctx, "resolve", { "-r", support.revision(action.entry(ctx)) }, opener)
 end)
@@ -58,5 +72,6 @@ return {
   detail = log.detail,
   actions = actions,
   primary = "files",
+  secondary = "resolve",
   yank = "yank:change",
 }

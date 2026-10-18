@@ -282,6 +282,8 @@ describe("jin.action.keys", function()
       annotate = "parent",
       bookmark = "show",
       workspace = "log",
+      conflicts = "resolve",
+      resolve = "resolve",
     }
     for _, name in ipairs(VIEWS) do
       local keys = action.keys(view.get(name), false)

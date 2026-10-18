@@ -23,6 +23,7 @@ describe("jin.tool.parse", function()
   it("reads the line the diff editor writes on stderr", function()
     assert.same(
       {
+        kind = "diff",
         fifo = "/tmp/jin.fifo",
         left = "/tmp/jj-diff/left",
         right = "/tmp/jj-diff/right",
@@ -36,5 +37,26 @@ describe("jin.tool.parse", function()
 
   it("takes any other line of stderr for jj's own", function()
     assert.is_nil(tool.parse("Warning: All changes have been selected"))
+  end)
+end)
+
+describe("the merge tool", function()
+  it("is passed with its conflict markers in the output to edit", function()
+    local argv = require("jin.tool").merge_args("/tmp/jin.fifo")
+    assert.same({ "--tool", "jin" }, { argv[1], argv[2] })
+    local joined = table.concat(argv, " ")
+    assert.truthy(joined:find("merge-tools.jin.merge-tool-edits-conflict-markers=true", 1, true))
+    assert.truthy(joined:find("'/tmp/jin.fifo', '$base', '$left', '$right', '$output'%]"))
+  end)
+
+  it("asks for the four files of a conflict", function()
+    assert.same({
+      kind = "merge",
+      fifo = "/f",
+      base = "/b",
+      left = "/l",
+      right = "/r",
+      output = "/o",
+    }, require("jin.tool").parse("\30jin-merge\31/f\31/b\31/l\31/r\31/o"))
   end)
 end)

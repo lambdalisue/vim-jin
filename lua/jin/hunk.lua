@@ -1,6 +1,6 @@
 -- The hunks between lines of text, and the hunk of a result between two
 -- sides, for taking both sides of it at once as the panes of a diff editor
--- do.
+-- and a merge tool do.
 
 local M = {}
 

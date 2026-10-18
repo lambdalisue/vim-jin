@@ -598,6 +598,30 @@ The actions of the log, and:
   working copy, with the cursor on its first conflict; `diff` shows the
   diff of the path in the change.
 
+`resolve`
+: Resolve the conflicts of the change of the line in the editor, or, on a
+  path of the list `files` opens, of that path (`jj resolve`).
+
+`resolve` runs jj with a merge tool of vim-jin's, which lists each file jj
+asks to be resolved as `C` in the diff editor's list, answered as that list
+is. `open` shows the file in three panes in a new tab page, in diff mode:
+OUTPUT, the file as jj writes it, conflict markers included, to edit,
+between LEFT and RIGHT, the sides of the conflict, read-only, each named in
+its statusline as in the diff editor. `:w` in OUTPUT writes what jj takes
+once the list is written, and goes back to the list, which marks the file
+edited. The list's `take:left` refuses a conflict, whose sides OUTPUT takes
+instead.
+
+OUTPUT takes the type of the file it stands for. Its keys are those of
+RESULT, and take from the conflict of the line, markers and all, whichever
+style jj writes them in, where there is one, and from the hunk of the line
+otherwise: `dol` the left side, `dor` the right, `dob` the base the sides
+started from, `doa` and `do` both sides, the left first, `doA` both, the
+right first. `dp` in LEFT or RIGHT puts that side into OUTPUT, in place of
+the whole conflict its hunk lies in. They are mapped unless
+`g:jin_merge_disable_default_mappings` is set, `dob` to
+`<Plug>(jin-action-diffget-base)`.
+
 ## Detail panel
 
 A view that has more to tell of the entry under the cursor than its line
@@ -778,10 +802,10 @@ Each view maps keys to its actions and motions unless
 in the first column below (`buffer` for `:JinBuffer`). A key the buffer
 already maps itself, as an ftplugin of the user may, is left alone. A
 buffer that is edited, a description buffer or the arrange buffer, maps no
-key, its actions reached only through `<Plug>(jin-action-{name})`. The
-keys follow rules rather than a list, and none of them changes what the
-key means in Vim. A key either keeps its meaning while the view tells
-what it applies to, as `yy` still yanks, `u`
+key, its actions reached only through `<Plug>(jin-action-{name})`; the merge
+buffer maps only its own. The keys follow rules rather than a list, and
+none of them changes what the key means in Vim. A key either keeps its
+meaning while the view tells what it applies to, as `yy` still yanks, `u`
 still undoes, `K` still looks up what is under the cursor and `]]` still
 goes to the next section, or it is a key that edits text, which a
 read-only buffer has no use for, given the change closest to what it does
@@ -797,8 +821,9 @@ Not changing the repository:
   opening the file of a diff line, annotating the file of a file view, the
   interdiff of an evolog line, the diff of a status line.
 - `<S-CR>` and `<C-CR>` serve what the view is opened for next most often,
-  such as the diff of a log line or the log of the file of a file view.
-  Both are mapped, as a terminal may pass on only one of them.
+  such as the diff of a log line, the log of the file of a file view, or
+  resolving the conflicts of a conflicts line. Both are mapped, as a
+  terminal may pass on only one of them.
 - `<C-w><CR>` opens what `<CR>` opens in a new window, where it opens a
   view or a file, split vertically
   when `'diffopt'` holds `vertical` and horizontally otherwise.
@@ -845,7 +870,7 @@ Changing the repository:
 - `gb` sets a bookmark, named when asked, to the change.
 - In the diff editor list, `dol` takes the left side of the files of the
   lines (`take:left`), as it takes the left side of a hunk in a pane.
-- In the diff editor, the pane to edit gets hunks with
+- In the diff editor and the merge tool, the pane to edit gets hunks with
   `do` and a letter, and the panes around it put them there with `dp`, as
   Vim's diff mode does, telling which pane a hunk comes from.
 
@@ -873,8 +898,8 @@ of their own, and every variant, such as `{name}:tab` or
 | pick | pick | show | `gd` `gS` `gb` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
 | bookmark | log | show | | `u` `<C-r>` `dd` | yank:bookmark | |
 | workspace | tcd | log | | `u` `<C-r>` | | |
-| conflicts | files | | `gd` `gS` `gb` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
-| resolve | edit | | `gf` `gd` | `u` `<C-r>` | | |
+| conflicts | files | resolve | `gd` `gS` `gb` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
+| resolve | edit | resolve | `gf` `gd` | `u` `<C-r>` | | |
 | diffedit | open | | | `dol` | | |
 
 `pick` is the choice of parents or children that `parent` and `child` of a

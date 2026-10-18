@@ -359,6 +359,24 @@ Mapped unless g:jin_result_disable_default_mappings is set:
 The keys after |do| are mapped to `<Plug>(jin-action-{name})`. `do` waits
 'timeoutlen' for a letter that may follow.
 
+resolve lists each file jj asks to be resolved as C in the same list,
+answered the same way. <CR> opens the file in three panes in diff mode in
+a new tab page: OUTPUT, the file as jj writes it, conflict markers
+included, to edit, between LEFT and RIGHT, the sides of the conflict,
+read-only. |:w| in OUTPUT writes what jj takes once the list is written,
+and goes back to the list. OUTPUT has the keys of RESULT, which take from
+the conflict of the line, in any marker style, where there is one, and
+from the hunk of the line otherwise, and one more; `dp` in LEFT or RIGHT
+puts that side in place of the whole conflict its hunk lies in. Mapped
+unless g:jin_merge_disable_default_mappings is set:
+
+	dol	diffget-l	Take the left side.
+	dor	diffget-r	Take the right side.
+	dob	diffget-base	Take the base the sides started from.
+	doa	diffget-all	Take both sides, the left first; `do` too.
+	doA	diffget-all-reversed
+				Take both sides, the right first.
+
 							*jin-selection*
 Selection ~
 The log, pick, show, evolog, annotate and operation show views select
@@ -423,6 +441,9 @@ again and says so.
 	split		Split the change in two, choosing in the diff editor
 			what goes first.
 	diffedit	Edit the diff of the change in the diff editor.
+	resolve		(conflicts) Resolve the conflicts of the change, or of
+			the path of the line, in the editor. See
+			|jin-diff-editor|.
 	next, prev	Move the working copy to the next or previous change.
 	next:edit, prev:edit
 			Make the next or previous change the working copy.
@@ -479,8 +500,9 @@ exceptions. A view maps only the keys of the actions it has.
 			evolog, inspect in the status, pick in the pick, and
 			so on.
 	<S-CR> <C-CR>	What it is opened for next most often, such as diff
-			in the log or log in a file view. Both are mapped,
-			as a terminal may pass on only one of them.
+			in the log, log in a file view or resolve in the
+			conflicts. Both are mapped, as a terminal may pass on
+			only one of them.
 	<C-w><CR>	What <CR> opens, in a new window, split vertically
 			when 'diffopt' holds "vertical".
 	gf		The file: |:JinFile|, or the file itself in the
@@ -516,10 +538,10 @@ These change the repository:
 			after, or before, the change of the line.
 	gb		bookmark
 	dol		take:left, in the diff editor list.
-	do{letter}	In the pane to edit of the diff editor, take a hunk
-			from the pane `l` left or `r` right of it, `a` both,
-			`A` both the other way round; `dp` in a pane around
-			it puts one there
+	do{letter}	In the pane to edit of the diff editor and the merge
+			tool, take a hunk from the pane `l` left or `r` right
+			of it, `a` both, `A` both the other way round, `b`
+			the base; `dp` in a pane around it puts one there
 			(|jin-diff-editor|).
 
 Keys that start others, as `d`, `c`, `g` and CTRL-W do, wait 'timeoutlen'
@@ -564,7 +586,7 @@ To map no key at all in a view, set this to 1, `{view}` being `log`,
 `show`, `diff`, `interdiff`, `file`, `oplog`, `opshow`, `evolog`,
 `status`, `annotate`, `pick`, `bookmark`, `workspace`, `conflicts`,
 `resolve` (the conflicted paths `files` lists), `diffedit` (the list of the
-diff editor), `result` (its pane to edit) or `buffer`
+diff editor), `result` and `merge` (its panes to edit) or `buffer`
 (|:JinBuffer|):
 >vim
 	let g:jin_log_disable_default_mappings = 1

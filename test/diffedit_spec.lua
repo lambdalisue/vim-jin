@@ -591,3 +591,91 @@ describe("split and diffedit", function()
     assert.same({ "split" }, { keys.gS, keys.E })
   end)
 end)
+
+describe("the merge tool", function()
+  local CONFLICTS = "jin:///repo;view=resolve#-r kkk"
+
+  local function resolving(host, jin)
+    diffedit.run(jin, host, { "resolve", "-r", "kkk" }, { cwd = "/repo", merge = true })
+    host.runs[1].on_stderr(
+      "\30jin-merge\31/tmp/jin1.fifo\31/t/base_a.lua\31/t/left_a.lua\31/t/right_a.lua\31/t/output_a.lua"
+    )
+    local bufnr = assert(host.buffer_bufnr(LIST))
+    view.read(jin, host, bufnr, LIST)
+    return bufnr
+  end
+
+  it("runs jj with vim-jin's merge tool", function()
+    local host, jin = setup()
+    resolving(host, jin)
+    local argv = words(host.runs[1])
+    assert.same({ "resolve", "-r", "kkk", "--tool", "jin" }, {
+      argv[1],
+      argv[2],
+      argv[3],
+      argv[4],
+      argv[5],
+    })
+  end)
+
+  it("lists the conflicted file, opens its sides around the output, and answers on :w", function()
+    local host, jin = setup()
+    local bufnr = resolving(host, jin)
+    assert.same({ "C a.lua", HINT }, host.rendered[bufnr].lines)
+    action.run(jin, host, bufnr, "open", 1, 1)
+    assert.same({
+      {
+        left = {
+          path = "/t/left_a.lua",
+          title = "LEFT",
+          about = "read-only: one side of the conflict",
+        },
+        output = {
+          path = "jin:///repo;view=merge#1 a.lua",
+          title = "OUTPUT",
+          about = "Edit this and :w to resolve the conflict",
+        },
+        right = {
+          path = "/t/right_a.lua",
+          title = "RIGHT",
+          about = "read-only: the other side of the conflict",
+        },
+      },
+    }, host.panes)
+    view.write(jin, host, bufnr)
+    assert.equal("done\n", host.answered["/tmp/jin1.fifo"])
+  end)
+
+  it("marks the conflicted file edited once its output differs from what jj wrote", function()
+    local host, jin = setup()
+    host.fs = { ["/t/output_a.lua"] = "<<<<<<<\n" }
+    local bufnr = resolving(host, jin)
+    assert.is_falsy(host.rendered[bufnr].modified)
+    host.fs["/t/output_a.lua"] = "resolved\n"
+    view.read(jin, host, bufnr, LIST)
+    assert.same({ "C a.lua  edited", HINT }, host.rendered[bufnr].lines)
+    assert.is_true(host.rendered[bufnr].modified)
+  end)
+
+  it("resolves the conflicted path of the line, or every one of the change", function()
+    local host, jin = setup()
+    local bufnr = host.load(CONFLICTS)
+    view.read(jin, host, bufnr, CONFLICTS)
+    host.finish(ok("a.lua    2-sided conflict\n"))
+    action.run(jin, host, bufnr, "resolve", 1, 1)
+    local argv = words(host.runs[#host.runs])
+    assert.same({ "resolve", "-r", "kkk", "--tool", "jin" }, {
+      argv[1],
+      argv[2],
+      argv[3],
+      argv[4],
+      argv[5],
+    })
+    assert.same({ "--", "a.lua" }, { argv[#argv - 1], argv[#argv] })
+    local keys = {}
+    for _, key in ipairs(action.keys(view.get("resolve"), false)) do
+      keys[key[1]] = key[2]
+    end
+    assert.equal("resolve", keys["<S-CR>"])
+  end)
+end)

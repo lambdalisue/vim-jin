@@ -1,6 +1,6 @@
--- The diff editor vim-jin passes jj: a shell one-liner that tells the
--- editor what to edit by a line on jj's standard error, then waits for the
--- answer on a named pipe and exits as it says
+-- The diff editor and merge tool vim-jin passes jj: shell one-liners that
+-- tell the editor what to edit by a line on jj's standard error, then wait
+-- for the answer on a named pipe and exit as it says
 -- (docs/adr/20261018-hand-jjs-tools-to-the-running-editor-as-three-panes-answered-by-writing-the-list.md).
 
 local M = {}
@@ -38,10 +38,31 @@ function M.args(fifo)
   return { "--tool", "jin", "--config", 'merge-tools.jin.program="sh"', "--config", edit }
 end
 
----What the diff editor asks for, from a line of jj's standard error, or nil
----for a line of jj's own.
+---The jj arguments that make it run vim-jin's merge tool, which edits the
+---output jj fills with its conflict markers.
+---@param fifo string
+---@return string[]
+function M.merge_args(fifo)
+  local merge = ("merge-tools.jin.merge-args=['-c', '%s', 'jin', '%s', '$base', '$left', '$right', '$output']"):format(
+    script("jin-merge", 5),
+    fifo
+  )
+  return {
+    "--tool",
+    "jin",
+    "--config",
+    'merge-tools.jin.program="sh"',
+    "--config",
+    "merge-tools.jin.merge-tool-edits-conflict-markers=true",
+    "--config",
+    merge,
+  }
+end
+
+---What a tool asks for, from a line of jj's standard error, or nil for a
+---line of jj's own.
 ---@param line string
----@return { fifo: string, left: string, right: string, output: string }?
+---@return { kind: "diff"|"merge", fifo: string, left: string, right: string, output: string, base?: string }?
 function M.parse(line)
   local kind, rest = line:match("^\30(jin[%-%a]*)\31(.*)$")
   local fields = {}
@@ -50,10 +71,20 @@ function M.parse(line)
   end
   if kind == "jin" and #fields == 4 then
     return {
+      kind = "diff",
       fifo = fields[1],
       left = fields[2],
       right = fields[3],
       output = fields[4],
+    }
+  elseif kind == "jin-merge" and #fields == 5 then
+    return {
+      kind = "merge",
+      fifo = fields[1],
+      base = fields[2],
+      left = fields[3],
+      right = fields[4],
+      output = fields[5],
     }
   end
   return nil

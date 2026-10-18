@@ -87,10 +87,21 @@ local function panes(ctx, session, file)
   local middle = require("jin.view").name(
     ctx.jin,
     ctx.host,
-    "result",
+    diffedit.pane_view(session),
     { tostring(session.id), file.path },
     { cwd = session.root }
   )
+  if session.kind == "merge" then
+    return { path = session.left, title = "LEFT", about = "read-only: one side of the conflict" }, {
+      path = middle,
+      title = "OUTPUT",
+      about = "Edit this and :w to resolve the conflict",
+    }, {
+      path = session.right,
+      title = "RIGHT",
+      about = "read-only: the other side of the conflict",
+    }
+  end
   return {
     path = session.left .. "/" .. file.path,
     title = "BEFORE",
@@ -129,17 +140,19 @@ actions.open = {
   fn = function(ctx)
     local session = session_of(ctx)
     local file = files_of(ctx)[1]
-    refuse_linked_parent(ctx, session, file)
-    -- Editing a symbolic link would write where it points, which may be
-    -- anywhere.
-    for _, dir in ipairs({ session.left, session.right, session.output }) do
-      if ctx.host.link(dir .. "/" .. file.path) then
-        error(
-          ("jin: %s is a symbolic link on one side, taken or left as a whole: take:left takes the left one"):format(
-            file.path
-          ),
-          0
-        )
+    if session.kind ~= "merge" then
+      refuse_linked_parent(ctx, session, file)
+      -- Editing a symbolic link would write where it points, which may be
+      -- anywhere.
+      for _, dir in ipairs({ session.left, session.right, session.output }) do
+        if ctx.host.link(dir .. "/" .. file.path) then
+          error(
+            ("jin: %s is a symbolic link on one side, taken or left as a whole: take:left takes the left one"):format(
+              file.path
+            ),
+            0
+          )
+        end
       end
     end
     ctx.host.open_panes(panes(ctx, session, file))
@@ -151,6 +164,9 @@ actions["take:left"] = {
   changes = true,
   fn = function(ctx)
     local session = session_of(ctx)
+    if session.kind == "merge" then
+      error("jin: a conflict has no left side to take; edit the result instead", 0)
+    end
     local files = files_of(ctx)
     -- Restoring under an edit not written would leave the edit to be
     -- written back over what was restored.
@@ -258,7 +274,7 @@ return {
     meta.data.files = {}
     -- The last line is the hint, whatever key it names.
     for lnum = 1, #meta.lines - 1 do
-      if meta.lines[lnum]:match("^[MAD] .") then
+      if meta.lines[lnum]:match("^[MADC] .") then
         meta.data.files[lnum] = true
       end
     end

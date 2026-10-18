@@ -34,6 +34,7 @@ local VIEWS = {
   conflicts = true,
   resolve = true,
   diffedit = true,
+  merge = true,
   result = true,
   arrange = true,
   describe = true,
