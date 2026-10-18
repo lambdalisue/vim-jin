@@ -365,6 +365,320 @@ return {
     end,
   },
   {
+    "a view tells in its statusline what it is and what is under the cursor",
+    function()
+      workspace()
+      h.ex("set statusline=mine")
+      h.ex("JinLog")
+      settle()
+      h.eq("%!jin#statusline#render()", vim.fn.eval("&l:statusline"))
+      h.ex(("call cursor(%d, 1)"):format(find("first change")))
+      local line = vim.fn.eval("jin#statusline#render()")
+      local nerdfont = require("jin.glyph").PRESETS.nerdfont
+      h.truthy(line:find("%#JinStatuslineInkView# " .. nerdfont.view .. " LOG ", 1, true), line)
+      -- The command is b:jin_title's, for a statusline of the user's own.
+      h.eq(nil, line:find("jj log", 1, true))
+      -- The shortest unique prefixes in colors, the rest of the 8
+      -- characters dimmed, as jj log shows them.
+      local change, change_rest, commit, commit_rest = line:match(
+        "%%#JinStatuslineInkEntry#"
+          .. nerdfont.change
+          .. " (%l+)%%#JinStatuslineInkDim#(%l+)"
+          .. "%%#JinStatuslineInkCommit# "
+          .. nerdfont.commit
+          .. " (%x+)%%#JinStatuslineInkDim#(%x+)"
+      )
+      h.truthy(change, line)
+      h.eq(8, #change + #change_rest)
+      h.eq(8, #commit + #commit_rest)
+      h.truthy(#change < 8 and #commit < 8, line)
+      h.eq(
+        "PmenuSel",
+        vim.fn.synIDattr(vim.fn.synIDtrans(vim.fn.hlID("JinStatuslineView")), "name")
+      )
+      h.eq(
+        "Function",
+        vim.fn.synIDattr(vim.fn.synIDtrans(vim.fn.hlID("JinStatuslineCommit")), "name")
+      )
+    end,
+  },
+  {
+    "a statusline colors the prefix of a divergent change as an alert, as jj log shows it red",
+    function()
+      local line = require("jin.host.common").statusline({
+        view = "log",
+        editable = false,
+        selected = 0,
+        entry = "kmkuslsw 30c5cb31",
+        prefixes = { 2, 3 },
+        divergent = true,
+      }, true, require("jin.glyph").PRESETS.ascii)
+      h.truthy(
+        line:find(
+          "%#JinStatuslineInkDim# %#JinStatuslineInkAlert#km%#JinStatuslineInkDim#kuslsw"
+            .. "%#JinStatuslineInkCommit# 30c%#JinStatuslineInkDim#5cb31",
+          1,
+          true
+        ),
+        line
+      )
+    end,
+  },
+  {
+    "a statusline told no prefixes of the change under the cursor colors its change alone",
+    function()
+      local line = require("jin.host.common").statusline({
+        view = "log",
+        editable = false,
+        selected = 0,
+        entry = "kmkuslsw 30c5cb31",
+      }, true, require("jin.glyph").PRESETS.ascii)
+      h.truthy(
+        line:find("%#JinStatuslineInkEntry#kmkuslsw%#JinStatuslineInkDim# 30c5cb31", 1, true),
+        line
+      )
+    end,
+  },
+  {
+    "a statusline names the file a view shows on the left, its change and commit on the right",
+    function()
+      local glyphs = require("jin.glyph").PRESETS.nerdfont
+      local line = require("jin.host.common").statusline({
+        view = "file",
+        editable = false,
+        selected = 0,
+        file = "src/100%.lua",
+        entry = "kmkuslsw 30c5cb31",
+        kind = "change",
+        prefixes = { 3, 4 },
+        divergent = true,
+      }, true, glyphs)
+      -- Right after the view, where a long path is cut first.
+      h.truthy(line:find("%<%#JinStatusline# " .. glyphs.file .. " src/100%%.lua", 1, true), line)
+      h.truthy(
+        line:find(
+          "%=%#JinStatuslineInkDim# %#JinStatuslineInkAlert#"
+            .. glyphs.change
+            .. " kmk%#JinStatuslineInkDim#uslsw"
+            .. "%#JinStatuslineInkCommit# "
+            .. glyphs.commit
+            .. " 30c5%#JinStatuslineInkDim#cb31",
+          1,
+          true
+        ),
+        line
+      )
+    end,
+  },
+  {
+    "a file view tells in its statusline the file and the change and commit it is shown at",
+    function()
+      workspace()
+      local nerdfont = require("jin.glyph").PRESETS.nerdfont
+      for _, case in ipairs({ { "JinFile f.lua", "@" }, { "JinFile -r @- f.lua", "@-" } }) do
+        h.ex(case[1])
+        settle()
+        local expected = jin.jj({
+          "log",
+          "--no-graph",
+          "-r",
+          case[2],
+          "-T",
+          'change_id.short(8) ++ " " ++ commit_id.short(8)',
+        }).stdout
+        local change, commit = expected:match("^(%l+) (%x+)$")
+        h.truthy(change, expected)
+        -- The text drawn, without the colors, which part each ID's prefix
+        -- from the rest of it.
+        local function drawn()
+          return (vim.fn.eval("jin#statusline#render()"):gsub("%%#%w+#", ""))
+        end
+        h.eventually(function()
+          local text = drawn()
+          return text:find("%< " .. nerdfont.file .. " f.lua", 1, true) ~= nil
+            and text:find(
+                "%= " .. nerdfont.change .. " " .. change .. " " .. nerdfont.commit .. " " .. commit,
+                1,
+                true
+              )
+              ~= nil
+        end, function()
+          return case[1] .. ": " .. drawn()
+        end)
+      end
+    end,
+  },
+  {
+    "a view turned off since gives its window the user's own statusline back",
+    function()
+      workspace()
+      h.ex("setglobal statusline=%!'mine'")
+      h.ex("JinLog")
+      settle()
+      h.ex("let g:jin_statusline = 0")
+      -- An expression is left to the editor, which evaluates it in the
+      -- script that set it.
+      h.eq("", vim.fn.eval("jin#statusline#render()"))
+      h.eventually(function()
+        return vim.fn.eval("&l:statusline") == ""
+      end, function()
+        return vim.fn.eval("&l:statusline")
+      end)
+      h.ex("unlet g:jin_statusline | set statusline&")
+    end,
+  },
+  {
+    "a view tells in its statusline what the change under the cursor is about, and the workspace",
+    function()
+      workspace()
+      h.ex("JinLog")
+      settle()
+      h.ex(("call cursor(%d, 1)"):format(find("first change")))
+      local line = vim.fn.eval("jin#statusline#render()")
+      h.truthy(line:find("first change%#JinStatuslineInkDim#  ", 1, true), line)
+      local nerdfont = require("jin.glyph").PRESETS.nerdfont
+      h.truthy(
+        line:find(
+          " " .. nerdfont.separator .. " %#JinStatuslineInkHere#" .. nerdfont.workspace .. " ",
+          1,
+          true
+        ),
+        line
+      )
+    end,
+  },
+  {
+    "the statusline of a view draws with the glyphs g:jin_glyph_preset names, from the next draw",
+    function()
+      workspace()
+      h.ex("JinLog")
+      settle()
+      h.ex(("call cursor(%d, 1)"):format(find("first change")))
+      h.ex("let g:jin_glyph_preset = 'unicode'")
+      local unicode = vim.fn.eval("jin#statusline#render()")
+      h.ex("let g:jin_glyph_preset = 'ascii'")
+      local ascii = vim.fn.eval("jin#statusline#render()")
+      h.ex("let g:jin_glyph_preset = 'no such preset'")
+      local unknown = vim.fn.eval("jin#statusline#render()")
+      h.ex("unlet g:jin_glyph_preset")
+      h.truthy(
+        unicode:find("%#JinStatuslineInkDim# │ %#JinStatuslineInkHere#⌂ ", 1, true),
+        unicode
+      )
+      h.truthy(unicode:find("%#JinStatuslineInkEntry#○ ", 1, true), unicode)
+      h.truthy(ascii:find("%#JinStatuslineInkDim# | %#JinStatuslineInkHere#", 1, true), ascii)
+      h.truthy(ascii:find("%#JinStatuslineInkView# LOG ", 1, true), ascii)
+      h.eq(vim.fn.eval("jin#statusline#render()"), unknown)
+    end,
+  },
+  {
+    "the statusline of a view takes each glyph g:jin_glyphs sets, ignoring one not a dictionary",
+    function()
+      workspace()
+      h.ex("JinLog")
+      settle()
+      h.ex("let g:jin_glyph_preset = 'ascii'")
+      h.ex("let g:jin_glyphs = {'view': 'V', 'separator': '/', 'line': '%'}")
+      local set = vim.fn.eval("jin#statusline#render()")
+      h.ex("let g:jin_glyphs = 'V'")
+      local wrong = vim.fn.eval("jin#statusline#render()")
+      h.ex("unlet g:jin_glyph_preset g:jin_glyphs")
+      h.truthy(set:find("%#JinStatuslineInkView# V LOG ", 1, true), set)
+      h.truthy(set:find(" / ", 1, true), set)
+      h.truthy(set:find("%% %l/%L ", 1, true), set)
+      h.truthy(wrong:find("%#JinStatuslineInkView# LOG ", 1, true), wrong)
+    end,
+  },
+  {
+    "only the window last entered draws the statusline of a view in colors",
+    function()
+      workspace()
+      h.ex("JinLog")
+      settle()
+      local log = vim.fn.win_getid()
+      h.ex("new")
+      -- As the editor does while drawing it: the window is made current.
+      h.ex("noautocmd call win_gotoid(" .. log .. ") | let g:statusline_winid = " .. log)
+      local line = vim.fn.eval("jin#statusline#render()")
+      h.ex("unlet g:statusline_winid")
+      h.eq(nil, line:find("%#", 1, true))
+      h.ex("noautocmd wincmd p | call win_gotoid(" .. log .. ")")
+      h.truthy(vim.fn.eval("jin#statusline#render()"):find("%#", 1, true))
+    end,
+  },
+  {
+    "the statusline of a view draws its text in the colors of a group over its own background",
+    function()
+      workspace()
+      -- Not reversed, as Vim's own StatusLine is, which would draw the text
+      -- on what it names as the color of the text.
+      h.ex("highlight StatusLine gui=NONE cterm=NONE guibg=#102030 ctermbg=4")
+      h.ex("highlight Comment guifg=#a0b0c0 ctermfg=7")
+      h.ex("doautocmd ColorScheme")
+      local function attr(what)
+        return vim.fn.synIDattr(vim.fn.hlID("JinStatuslineInkDim"), what, "gui")
+      end
+      h.eq("#a0b0c0", attr("fg#"))
+      h.eq("#102030", attr("bg#"))
+    end,
+  },
+  {
+    "the statusline of a view darkens text that would not stand out on a light background",
+    function()
+      workspace()
+      h.ex("highlight StatusLine gui=NONE cterm=NONE guifg=#000000 guibg=#d0d0d0 ctermbg=252")
+      h.ex("highlight Identifier gui=NONE cterm=NONE guifg=#ffaf00 ctermfg=214")
+      h.ex("doautocmd ColorScheme")
+      local id = vim.fn.hlID("JinStatuslineInkEntry")
+      local fg = vim.fn.synIDattr(id, "fg#", "gui")
+      local r, g, b =
+        tonumber(fg:sub(2, 3), 16), tonumber(fg:sub(4, 5), 16), tonumber(fg:sub(6, 7), 16)
+      -- Still orange, only darker.
+      h.truthy(r > g and g > b and r < 0xff, fg)
+      local cterm = tonumber(vim.fn.synIDattr(id, "fg", "cterm"))
+      h.truthy(cterm ~= 214 and cterm >= 16, tostring(cterm))
+    end,
+  },
+  {
+    "the statusline of a view stays readable on a reversed StatusLine",
+    function()
+      workspace()
+      h.ex("highlight StatusLine gui=reverse cterm=reverse guifg=#504945 guibg=#ebdbb2")
+      h.ex("highlight Identifier gui=NONE guifg=#ebdbb2")
+      h.ex("doautocmd ColorScheme")
+      local id = vim.fn.hlID("JinStatuslineInkEntry")
+      -- Drawn reversed: the text in what is named as the background.
+      h.eq("1", vim.fn.synIDattr(id, "reverse", "gui"))
+      h.eq("#504945", vim.fn.synIDattr(id, "fg#", "gui"))
+      h.eq("#ebdbb2", vim.fn.synIDattr(id, "bg#", "gui"))
+    end,
+  },
+  {
+    "a file shown in the window of a view keeps the statusline of its own",
+    function()
+      local root = workspace()
+      h.ex("setglobal statusline=GLOBAL")
+      h.ex("JinLog")
+      settle()
+      h.eq("%!jin#statusline#render()", vim.fn.eval("&l:statusline"))
+      -- None of its own: the global one, evaluated where the user set it.
+      h.ex("edit " .. vim.fn.fnameescape(root .. "/f.lua"))
+      h.eq("", vim.fn.eval("&l:statusline"))
+      h.ex("set statusline&")
+    end,
+  },
+  {
+    "g:jin_statusline set to 0 leaves the statusline of a view alone",
+    function()
+      workspace()
+      h.ex("let g:jin_statusline = 0")
+      h.ex("JinLog")
+      settle()
+      h.eq("", vim.fn.eval("&l:statusline"))
+      h.ex("unlet g:jin_statusline")
+    end,
+  },
+  {
     "JinStatus highlights the line under the cursor, each line being one thing",
     function()
       workspace()

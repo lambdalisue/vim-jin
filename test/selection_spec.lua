@@ -50,7 +50,7 @@ describe("the selection", function()
     assert.same({ "kkk" }, selection.list(host, "/repo"))
     assert.same({ 1, 2 }, host.selected[a])
     assert.same({ 1, 2 }, host.selected[b])
-    assert.is_nil(host.selected[elsewhere])
+    assert.same({}, host.selected[elsewhere])
   end)
 
   it("leave out a selected change, and select the changes of every line selected", function()
@@ -92,6 +92,49 @@ describe("the selection", function()
     action.run(jin, host, bufnr, "select:clear", 1, 1)
     assert.same({}, selection.list(host, "/repo"))
     assert.same({}, host.selected[bufnr])
+  end)
+
+  it(
+    "start every line of a view that can select with the selection column, though none is selected",
+    function()
+      local host, jin = setup()
+      local bufnr = log(host, jin, "jin:///repo;view=log#", true)
+      assert.same({}, host.selected[bufnr])
+      assert.same(
+        { lnums = {}, text = require("jin.glyph").PRESETS.nerdfont.selected },
+        host.selected_columns[bufnr]
+      )
+    end
+  )
+
+  it("show the selected glyph before the first line of each selected entry", function()
+    local host, jin = setup()
+    local bufnr = log(host, jin, "jin:///repo;view=log#", true)
+    action.run(jin, host, bufnr, "select", 1, 3)
+    assert.same(
+      { lnums = { 1, 3 }, text = require("jin.glyph").PRESETS.nerdfont.selected },
+      host.selected_columns[bufnr]
+    )
+  end)
+
+  it("show the selected glyph of the preset chosen, or the one g:jin_glyphs sets", function()
+    local host, jin = setup()
+    host.settings.glyph_preset = "ascii"
+    local bufnr = log(host, jin, "jin:///repo;view=log#", true)
+    action.run(jin, host, bufnr, "select", 3, 3)
+    assert.same({ lnums = { 3 }, text = "*" }, host.selected_columns[bufnr])
+    host.dict_settings.glyphs = { selected = "M" }
+    action.run(jin, host, bufnr, "select", 1, 1)
+    assert.same({ lnums = { 1, 3 }, text = "M" }, host.selected_columns[bufnr])
+  end)
+
+  it("show no glyph, and no column for it, when g:jin_glyphs makes it empty", function()
+    local host, jin = setup()
+    host.dict_settings.glyphs = { selected = "" }
+    local bufnr = log(host, jin, "jin:///repo;view=log#", true)
+    action.run(jin, host, bufnr, "select", 1, 1)
+    assert.same({ 1, 2 }, host.selected[bufnr])
+    assert.is_nil(host.selected_columns[bufnr])
   end)
 
   it("are toggled with x and cleared with X", function()

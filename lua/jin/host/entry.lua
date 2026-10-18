@@ -89,6 +89,30 @@ function M.forget_buffer(bufnr)
   require("jin.view").forget(host, bufnr)
 end
 
+---The statusline of the view in the window `winid` as a 'statusline' format, highlighted
+---and told the workspace of when `active`, the window of the current
+---buffer. It never fails: anything wrong gives the plain one.
+---@param winid integer the window drawn
+---@param active boolean
+---@return string
+function M.statusline(winid, active)
+  local bufnr = vim.fn.winbufnr(winid)
+  local ok, parts = pcall(
+    require("jin.statusline").parts,
+    host,
+    bufnr,
+    active and jin or nil,
+    vim.fn.line(".", winid)
+  )
+  local glyph = require("jin.glyph")
+  local glyphs_ok, glyphs = pcall(glyph.resolve, host)
+  return require("jin.host.common").statusline(
+    ok and parts or nil,
+    active,
+    glyphs_ok and glyphs or glyph.PRESETS[glyph.DEFAULT_PRESET]
+  )
+end
+
 ---Follow the cursor of a jin:// buffer (CursorMoved).
 ---@param bufnr integer
 function M.cursor_moved(bufnr)

@@ -45,6 +45,15 @@ support.commit_actions(actions)
 support.select_actions(actions)
 support.yank_actions(actions)
 
+local SHOW_FIELDS, SHOW_ABOUT = support.about({
+  support.CHANGE_FIELDS[1],
+  support.CHANGE_FIELDS[2],
+  support.CHANGE_FIELDS[3],
+  'if(current_working_copy, "wc", "-")',
+}, "self")
+local SHOW_SHORT
+SHOW_FIELDS, SHOW_SHORT = support.shortest(SHOW_FIELDS, "self")
+
 ---@type jin.View
 return {
   command = { "show" },
@@ -53,12 +62,9 @@ return {
   template = {
     key = "show",
     default = "builtin_log_detailed",
-    fields = {
-      support.CHANGE_FIELDS[1],
-      support.CHANGE_FIELDS[2],
-      support.CHANGE_FIELDS[3],
-      'if(current_working_copy, "wc", "-")',
-    },
+    fields = SHOW_FIELDS,
+    about = SHOW_ABOUT,
+    short = SHOW_SHORT,
   },
   decorate = support.decorate_diff,
   blocks = block.together(block.entries, block.files),

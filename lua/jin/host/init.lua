@@ -77,11 +77,17 @@
 ---@field highlight_lines fun(bufnr: integer, first?: integer, last?: integer)
 ---Highlight `lnums` of `bufnr` whole, as JinSelected, over JinCursorEntry and
 ---JinCursorChange where they fall on the same line, in place of those
----highlighted before.
----@field highlight_selected fun(bufnr: integer, lnums: integer[])
+---highlighted before. With `column`, put a column before every line, as
+---virtual text ahead of any other: `column.text` and a space, as
+---JinSelectedSign, on `column.lnums`, and as many blank cells on the others.
+---@field highlight_selected fun(bufnr: integer, lnums: integer[], column?: { lnums: integer[], text: string })
 ---Highlight `lnums` of `bufnr` whole, as JinCursorChange, in place of
 ---those highlighted before.
 ---@field highlight_change fun(bufnr: integer, lnums: integer[])
+---The value of g:jin_{name} as a string, nil when it is unset.
+---@field setting fun(name: string): string?
+---The value of g:jin_{name} when it is a dictionary, nil otherwise.
+---@field setting_dict fun(name: string): table<string, any>?
 ---Turn a list handed over by the editor into a Lua table.
 ---@field list fun(value: any): any[]
 ---Turn a Lua table into a list to hand back to the editor.

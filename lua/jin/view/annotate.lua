@@ -112,12 +112,14 @@ local function split(meta)
   return texts, annotations
 end
 
-local ANNOTATE_FIELDS = {
+local ANNOTATE_FIELDS, ANNOTATE_ABOUT = support.about({
   "commit.change_id()",
   "commit.commit_id()",
   'if(commit.divergent(), "divergent", if(commit.hidden(), "hidden", "-"))',
   "content",
-}
+}, "commit")
+local ANNOTATE_SHORT
+ANNOTATE_FIELDS, ANNOTATE_SHORT = support.shortest(ANNOTATE_FIELDS, "commit")
 
 ---@type jin.View
 return {
@@ -127,6 +129,8 @@ return {
     key = "file_annotate",
     default = 'commit.change_id().shortest(8) ++ " " ++ content',
     fields = ANNOTATE_FIELDS,
+    about = ANNOTATE_ABOUT,
+    short = ANNOTATE_SHORT,
   },
   decorate = function(meta)
     local texts, annotations = split(meta)

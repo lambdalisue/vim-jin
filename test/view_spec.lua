@@ -404,3 +404,103 @@ describe("the title of a vim-jin buffer", function()
     )
   end)
 end)
+
+describe("the title of a view naming full change or commit IDs", function()
+  local CHANGE = ("kmkuslsw"):rep(4)
+  local COMMIT = ("30c5cb31"):rep(5)
+  local OTHER = ("9f38f381"):rep(5)
+  local SHORTEST = ok(table.concat({
+    CHANGE .. " k " .. COMMIT .. " 3",
+    ("nlrtlrxv"):rep(4) .. " n " .. OTHER .. " 9f",
+    "",
+  }, "\n"))
+
+  ---Whether `run` asks jj for the shortest prefixes of the IDs the title
+  ---names, which the markers of a view of changes ask for as well.
+  local function asks_shortest(run)
+    for _, w in ipairs(run.argv) do
+      if w:find("^present%(") then
+        return true
+      end
+    end
+    return false
+  end
+
+  ---Read the view `name`, with jj answering the question for the shortest
+  ---prefixes with `answer`, and everything else with nothing.
+  local function read(name, answer)
+    local host, jin = setup()
+    local bufnr = host.load(name)
+    view.read(jin, host, bufnr, name)
+    local i = 1
+    while host.runs[i] do
+      if not host.runs[i].finished then
+        host.finish(asks_shortest(host.runs[i]) and answer or ok(""))
+      end
+      i = i + 1
+    end
+    return host, bufnr
+  end
+
+  local function query_of(host)
+    for _, run in ipairs(host.runs) do
+      if asks_shortest(run) then
+        return words(run)
+      end
+    end
+    return nil
+  end
+
+  it("tells each ID by the shortest prefix jj accepts for it", function()
+    local host, bufnr = read("jin:///repo;view=show#" .. CHANGE, SHORTEST)
+    assert.equal("jj show k", host.rendered[bufnr].title)
+    host, bufnr =
+      read("jin:///repo;view=interdiff#--from " .. COMMIT .. " --to " .. OTHER, SHORTEST)
+    assert.equal("jj interdiff --from 3 --to 9f", host.rendered[bufnr].title)
+  end)
+
+  it("shortens an ID within a revset", function()
+    local host, bufnr = read("jin:///repo;view=log#-r ::" .. CHANGE, SHORTEST)
+    assert.equal("jj log -r ::k", host.rendered[bufnr].title)
+  end)
+
+  it("titles the buffer only once jj told the shortest prefixes", function()
+    local host, jin = setup()
+    local name = "jin:///repo;view=interdiff#--from " .. COMMIT .. " --to " .. OTHER
+    local bufnr = host.load(name)
+    view.read(jin, host, bufnr, name)
+    host.finish(ok(""))
+    assert.is_nil(host.rendered[bufnr])
+    host.finish(SHORTEST)
+    assert.equal("jj interdiff --from 3 --to 9f", host.rendered[bufnr].title)
+  end)
+
+  it("asks jj at the operation the view shows, without a snapshot", function()
+    local op = ("0123456789abcdef"):rep(8)
+    local host, bufnr = read("jin:///repo;view=log#--at-op " .. op .. " -r " .. CHANGE, SHORTEST)
+    assert.equal("jj log --at-op 0123456789ab -r k", host.rendered[bufnr].title)
+    local query = assert(query_of(host))
+    assert.same(
+      { "--at-op", op, "--ignore-working-copy", "log", "--no-graph" },
+      { query[1], query[2], query[3], query[4], query[5] }
+    )
+  end)
+
+  it("asks jj about the IDs alone, never about the paths after --", function()
+    local path = "objects/" .. OTHER
+    local host, bufnr = read("jin:///repo;view=diff#-r " .. CHANGE .. " -- " .. path, SHORTEST)
+    assert.equal("jj diff -r k -- " .. path, host.rendered[bufnr].title)
+    assert.equal("present(" .. CHANGE .. ")", assert(query_of(host))[5])
+  end)
+
+  it("cuts the IDs to 12 characters when jj cannot tell their shortest prefixes", function()
+    local host, bufnr =
+      read("jin:///repo;view=show#" .. CHANGE, { code = 1, stdout = "", stderr = "error" })
+    assert.equal("jj show " .. CHANGE:sub(1, 12), host.rendered[bufnr].title)
+  end)
+
+  it("asks jj nothing more for a view naming no full ID", function()
+    local host = read(NAME, SHORTEST)
+    assert.is_nil(query_of(host))
+  end)
+end)

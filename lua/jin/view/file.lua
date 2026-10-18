@@ -29,6 +29,7 @@ return {
   end,
   actions = actions,
   needs_path = true,
+  revision = support.revision_arg,
   primary = "annotate",
   secondary = "log",
 }

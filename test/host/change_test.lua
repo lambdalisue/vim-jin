@@ -59,6 +59,44 @@ local function at(rev)
   return jin.jj({ "log", "--no-graph", "-r", rev, "-T", "description" }).stdout
 end
 
+---The selection column before each line of `bufnr`, as { text, group } with ""
+---for no group, or nothing for a line without one: the extmarks of its
+---namespace in Neovim, the text properties of its types in Vim.
+local function selected_column(bufnr)
+  local found = {}
+  if vim.api then
+    local ns = vim.api.nvim_create_namespace("jin-selected-column")
+    for _, mark in ipairs(vim.api.nvim_buf_get_extmarks(bufnr, ns, 0, -1, { details = true })) do
+      local d = mark[4]
+      h.eq({ 0, "inline" }, { mark[3], d.virt_text_pos })
+      found[mark[2] + 1] = { d.virt_text[1][1], d.virt_text[1][2] or "" }
+    end
+    return found
+  end
+  for lnum = 1, vim.fn.line("$") do
+    for prop in vim.fn.prop_list(lnum, vim.dict({ bufnr = bufnr }))() do
+      if prop.type == "JinSelectedSign" or prop.type == "JinSelectedColumn" then
+        h.eq({ 1, nil }, { prop.col, prop.text_align })
+        found[lnum] = { prop.text, prop.type == "JinSelectedSign" and "JinSelectedSign" or "" }
+      end
+    end
+  end
+  return found
+end
+
+---`count` lines of a blank column `width` cells wide, but for `selected`, a
+---line number to `text`.
+local function column_of(count, width, selected)
+  local out = {}
+  for lnum = 1, count do
+    out[lnum] = { (" "):rep(width), "" }
+  end
+  for lnum, text in pairs(selected or {}) do
+    out[lnum] = { text, "JinSelectedSign" }
+  end
+  return out
+end
+
 return {
   {
     "new and edit move the working copy as jj does",
@@ -188,14 +226,29 @@ return {
     end,
   },
   {
-    "a selection shows over the cursor entry",
+    "a view that can select starts every line with a blank column as wide as the selected glyph and a space",
     function()
       workspace()
+      h.ex("let g:jin_glyph_preset = 'ascii'")
+      h.ex("JinLog")
+      settle()
+      h.ex("unlet g:jin_glyph_preset")
+      h.eq(column_of(vim.fn.line("$"), 2), selected_column(vim.fn.bufnr()))
+    end,
+  },
+  {
+    "a selection shows over the cursor entry, with the selected glyph in the column before its first line",
+    function()
+      workspace()
+      h.ex("let g:jin_glyph_preset = 'ascii'")
       h.ex("JinLog")
       settle()
       local bufnr = vim.fn.bufnr()
       local lnum = line_of("first")
+      -- The description is on the second line of the entry.
+      local text = vim.fn.getline(lnum - 1)
       act("select", lnum)
+      h.ex("unlet g:jin_glyph_preset")
       local priority, entry_priority
       if vim.api then
         local function top(name)
@@ -223,6 +276,79 @@ return {
         priority > entry_priority,
         ("selection %d, cursor entry %d"):format(priority, entry_priority)
       )
+      h.eq(column_of(vim.fn.line("$"), 2, { [lnum - 1] = "* " }), selected_column(bufnr))
+      -- The column is not text of the buffer, which the entries are read from.
+      h.eq(text, vim.fn.getline(lnum - 1))
+      h.eq("Special", vim.fn.synIDattr(vim.fn.synIDtrans(vim.fn.hlID("JinSelectedSign")), "name"))
+    end,
+  },
+  {
+    "leaving a change out blanks its selected glyph and keeps the column",
+    function()
+      workspace()
+      h.ex("let g:jin_glyph_preset = 'ascii'")
+      h.ex("JinLog")
+      settle()
+      local bufnr = vim.fn.bufnr()
+      act("select", line_of("first"))
+      act("select", line_of("first"))
+      h.ex("unlet g:jin_glyph_preset")
+      h.eq(column_of(vim.fn.line("$"), 2), selected_column(bufnr))
+    end,
+  },
+  {
+    "an empty selected glyph puts no column before the lines",
+    function()
+      workspace()
+      h.ex("let g:jin_glyphs = #{ selected: '' }")
+      h.ex("JinLog")
+      settle()
+      local bufnr = vim.fn.bufnr()
+      act("select", line_of("first"))
+      h.ex("unlet g:jin_glyphs")
+      h.eq({}, selected_column(bufnr))
+    end,
+  },
+  {
+    "a selected glyph of several cells makes the column as wide",
+    function()
+      workspace()
+      h.ex("let g:jin_glyphs = #{ selected: '<*>' }")
+      h.ex("JinLog")
+      settle()
+      local bufnr = vim.fn.bufnr()
+      local lnum = line_of("first")
+      act("select", lnum)
+      h.ex("unlet g:jin_glyphs")
+      h.eq(column_of(vim.fn.line("$"), 4, { [lnum - 1] = "<*> " }), selected_column(bufnr))
+    end,
+  },
+  {
+    "a view that cannot select has no selection column",
+    function()
+      workspace()
+      h.ex("JinStatus")
+      settle()
+      h.eq({}, selected_column(vim.fn.bufnr()))
+    end,
+  },
+  {
+    "the text of a line, and the cursor on it, start after the selection column",
+    function()
+      workspace()
+      h.ex("let g:jin_glyph_preset = 'ascii'")
+      h.ex("JinLog")
+      settle()
+      h.ex("unlet g:jin_glyph_preset")
+      local lnum = line_of("first")
+      act("select", lnum)
+      h.ex(("call cursor(%d, 1)"):format(lnum))
+      local info = host.list(vim.fn.getwininfo(vim.fn.win_getid()))[1]
+      for _, line in ipairs({ lnum - 1, lnum }) do
+        h.eq(info.wincol + info.textoff + 2, vim.fn.screenpos(info.winid, line, 1).curscol)
+        h.eq(3, vim.fn.virtcol(host.to_list({ line, 1 })))
+      end
+      h.eq({ lnum, 1 }, { vim.fn.line("."), vim.fn.col(".") })
     end,
   },
   {

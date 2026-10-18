@@ -6,6 +6,8 @@ local ansi = require("jin.ansi")
 local args = require("jin.args")
 local bufname = require("jin.bufname")
 local marker = require("jin.marker")
+local title = require("jin.view.title")
+local shown_revision = require("jin.view.revision")
 local workspace = require("jin.workspace")
 
 local M = {}
@@ -40,7 +42,7 @@ local VIEWS = {
 ---@class jin.View
 ---@field command string[] jj words that precede the user's arguments, such as { "log" }
 ---@field filetype string
----@field template? { key: string, default: string, fields: string[], config?: boolean } wrap the configured templates.<key> (or the user's -T) with markers carrying `fields`; with `config`, hand it to jj as that setting rather than as -T, for a command that prints it within its own output
+---@field template? { key: string, default: string, fields: string[], about?: integer, short?: integer, config?: boolean } wrap the configured templates.<key> (or the user's -T) with markers carrying `fields`, of which those from `about` on tell what an entry is about, as support.about makes them, and the two from `short` on the shortest prefixes of its change and commit IDs, as support.shortest makes them; with `config`, hand it to jj as that setting rather than as -T, for a command that prints it within its own output
 ---@field config? string[] extra `--config` values, such as "ui.log-word-wrap=false"
 ---@field flags? string[] flags placed after `command`, such as "--color-words"
 ---@field decorate? fun(meta: jin.ViewMeta) compute view-specific data from the lines read
@@ -59,6 +61,7 @@ local VIEWS = {
 ---@field entries_span_lines? boolean an entry, such as a change of the log, takes several lines, all highlighted while the cursor is on one
 ---@field scattered_changes? boolean the lines a change wrote lie apart, as in an annotation, and are all highlighted while the cursor is on one
 ---@field blocks? fun(meta: jin.ViewMeta): integer[] the first lines of the blocks ]] and [[ move between, in order, as jin.view.block finds them
+---@field revision? fun(argv: string[]): string the one revision whose content the view shows, whose change and commit are asked of jj once per read for the statusline, as its lines stand for no entry
 
 ---What a read left behind for actions to use.
 ---@class jin.ViewMeta
@@ -69,6 +72,7 @@ local VIEWS = {
 ---@field spans jin.AnsiSpan[] the colors jj gave `lines`; a `decorate` that replaces the lines replaces them too
 ---@field entries (string[]|false)[] per line, the marker fields of the entry it belongs to
 ---@field data table view-specific data set by `decorate`; its `folds` and `annotations` (per line, { text, style? } chunks shown before it) are shown as jin.Content says
+---@field revision? jin.ShownRevision the change and commit of the view's `revision`, when jj told them
 
 ---@alias jin.ViewLine integer|string|fun(meta: jin.ViewMeta): integer?
 
@@ -316,24 +320,14 @@ local function command_line(view, user_argv, template)
 end
 
 ---A short title for a buffer of `view` showing `argv`: the jj command, with
----the workspace left to the buffer name, IDs cut to 12 characters and words
----with spaces quoted, for a statusline to show in place of the long name.
+---the workspace left to the buffer name and the IDs `short` tells shortened,
+---for a statusline to show in place of the long name.
 ---@param view jin.View
 ---@param argv string[]
+---@param short? table<string, string>
 ---@return string
-local function title_of(view, argv)
-  local words = { "jj" }
-  for _, list in ipairs({ view.title or view.command, argv }) do
-    for _, word in ipairs(list) do
-      if word:match("^%x+$") and #word > 12 then
-        word = word:sub(1, 12)
-      elseif word:find("[%s'\"]") then
-        word = "'" .. word:gsub("'", "'\\''") .. "'"
-      end
-      words[#words + 1] = word
-    end
-  end
-  return table.concat(words, " ")
+local function title_of(view, argv, short)
+  return title.format(view.title or view.command or {}, argv, short)
 end
 
 ---Fill the buffer `bufnr` named `name` with what jj prints for it. The read
@@ -365,7 +359,66 @@ function M.read(jin, host, bufnr, name)
     end
     local argv = command_line(view, user_argv, template)
     local color = not parsed.params.monochrome and not view.editable
-    jin.jj(argv, { cwd = parsed.root, color = color }, function(result)
+    local run = jin.jj
+    local revealed
+    if view.revision then
+      local inner = run
+      local op = require("jin.view.support").at_op(parsed.argv)
+      local query = shown_revision.query(view.revision(parsed.argv), op)
+      run = function(run_argv, opts, on_exit)
+        local waiting, read = 2, nil
+        local function settle()
+          waiting = waiting - 1
+          if waiting == 0 then
+            on_exit(read)
+          end
+        end
+        local function ask()
+          jin.jj(query, { cwd = parsed.root }, function(result)
+            revealed = result.code == 0 and shown_revision.parse(result.stdout) or nil
+            settle()
+          end)
+        end
+        inner(run_argv, opts, function(result)
+          read = result
+          -- A read at no operation snapshots the working copy, which the
+          -- latest operation holds only once the read is done.
+          if not op then
+            ask()
+          end
+          settle()
+        end)
+        if op then
+          ask()
+        end
+      end
+    end
+    -- The shortest prefixes of the IDs the title names are asked of jj
+    -- alongside the command, and the buffer is drawn once both answered.
+    local short
+    local ids = title.ids(parsed.argv)
+    if #ids > 0 then
+      local inner = run
+      run = function(run_argv, opts, on_exit)
+        local waiting, shown = 2, nil
+        local function settle()
+          waiting = waiting - 1
+          if waiting == 0 then
+            on_exit(shown)
+          end
+        end
+        inner(run_argv, opts, function(result)
+          shown = result
+          settle()
+        end)
+        local op = require("jin.view.support").at_op(parsed.argv)
+        jin.jj(title.query(ids, op), { cwd = parsed.root }, function(result)
+          short = result.code == 0 and title.parse(result.stdout) or nil
+          settle()
+        end)
+      end
+    end
+    run(argv, { cwd = parsed.root, color = color }, function(result)
       if not current() then
         return
       end
@@ -392,6 +445,7 @@ function M.read(jin, host, bufnr, name)
         spans = spans,
         entries = entries,
         data = {},
+        revision = revealed,
       }
       if view.decorate then
         view.decorate(meta)
@@ -424,7 +478,7 @@ function M.read(jin, host, bufnr, name)
       local detect = view.detect and view.detect(meta)
       host.render(bufnr, {
         lines = meta.lines,
-        title = title_of(view, parsed.argv),
+        title = title_of(view, parsed.argv, short),
         highlights = highlights,
         groups = groups,
         filetype = type(filetype) == "string" and filetype or (not detect and view.filetype or nil),
@@ -520,12 +574,17 @@ local function graph_only(line)
 end
 
 ---Show which lines of `bufnr` stand for a selected change, the lines of the
----graph alone aside.
+---graph alone aside, and, in a view that can select, put the selected glyph in
+---the column before the first line of each.
 ---@param host jin.Host
 ---@param bufnr integer
 function M.show_selected(host, bufnr)
   local meta = M.meta(host, bufnr)
-  if not meta or view_of(meta.parsed).editable then
+  if not meta then
+    return
+  end
+  local view = view_of(meta.parsed)
+  if view.editable then
     return
   end
   local selected = {}
@@ -534,19 +593,30 @@ function M.show_selected(host, bufnr)
   end
   -- Required here: the views' support requires this module.
   local revision = require("jin.view.support").revision
-  local lnums = {}
+  local lnums, firsts, last = {}, {}, nil
   for lnum, entry in ipairs(meta.entries) do
     local rev = entry and revision(entry)
     if rev and selected[rev] and not graph_only(meta.lines[lnum]) then
       lnums[#lnums + 1] = lnum
+      if entry ~= last then
+        firsts[#firsts + 1] = lnum
+      end
+      last = entry
     end
   end
+  local text = require("jin.glyph").resolve(host).selected
+  -- The column is there with nothing selected too, so that selecting moves\n  -- no text.
+  local column = view.actions
+      and view.actions.select
+      and text ~= ""
+      and { lnums = firsts, text = text }
+    or nil
   local s = state(host, bufnr)
   -- A view that never showed a selection need not be told there is none.
-  if #lnums > 0 or s.selected then
-    host.highlight_selected(bufnr, lnums)
+  if #lnums > 0 or column or s.selected then
+    host.highlight_selected(bufnr, lnums, column)
   end
-  s.selected = #lnums > 0
+  s.selected = #lnums > 0 or column ~= nil
 end
 
 ---Show the selection again in every loaded view of the workspace at `root`.

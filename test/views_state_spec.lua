@@ -254,6 +254,7 @@ describe("the resolve view", function()
     local file = assert(host.buffer_bufnr(host.opened[1].name))
     view.read(jin, host, file, host.opened[1].name)
     host.finish(ok("a\nb\n<<<<<<<<<<< conflict 1 of 1\nc\n"))
+    host.finish(ok(""))
     assert.equal(3, host.cursors[file])
   end)
 

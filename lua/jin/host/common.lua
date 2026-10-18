@@ -296,6 +296,144 @@ function M.finish(bufnr, filetype, title, editable, fresh)
   end
 end
 
+-- Characters of the description shown before it is cut.
+local ABOUT_WIDTH = 48
+
+---`value` cut to `width` characters, with `ellipsis` where it was cut.
+---@param value string
+---@param width integer
+---@param ellipsis string
+---@return string
+local function cut(value, width, ellipsis)
+  local chars = {}
+  for char in value:gmatch("[%z\1-\127\194-\244][\128-\191]*") do
+    if #chars == width then
+      chars[width] = ellipsis
+      break
+    end
+    chars[#chars + 1] = char
+  end
+  return table.concat(chars)
+end
+
+---A 'statusline' format for a view of `parts`, drawn with `glyphs`: the
+---view as a badge, then on the statusline's own background, told apart by
+---the color of their text, the operation it stays at and the selection on the
+---left; what the line under the cursor is about, the file the view shows,
+---what the line stands for or the revision of the file, the workspace and
+---where the cursor is on the right, parted by the separator.
+---Only an `active` window gets colors; nil parts, before the view is read,
+---give its name alone.
+---@param parts? jin.StatuslineParts
+---@param active boolean
+---@param glyphs jin.Glyphs
+---@return string
+function M.statusline(parts, active, glyphs)
+  local function text(value)
+    return (tostring(value):gsub("%%", "%%%%"))
+  end
+  -- The glyph `name` and a space, or nothing for an empty one.
+  local function lead(name)
+    return text(require("jin.glyph").lead(glyphs[name]))
+  end
+  local out = {}
+  -- Text in the color of JinStatusline{name} over the background of
+  -- JinStatusline, as plugin/jin.vim makes JinStatuslineInk{name}.
+  local function put(name, body)
+    if active then
+      out[#out + 1] = name and ("%#JinStatuslineInk" .. name .. "#") or "%#JinStatusline#"
+    end
+    out[#out + 1] = body
+  end
+  if not parts then
+    put(nil, " %f%=%l/%L ")
+    return table.concat(out)
+  end
+  if active then
+    out[#out + 1] = "%#JinStatuslineInk" .. (parts.editable and "Edit" or "View") .. "#"
+  end
+  out[#out + 1] = " "
+    .. lead(parts.editable and "edit" or "view")
+    .. text(parts.view:upper())
+    .. " "
+  put(nil, "%<")
+  -- Next to the view, as what the view is of; a long path is cut first.
+  if parts.file then
+    put(nil, " " .. lead("file") .. text(parts.file))
+  end
+  if parts.at_op then
+    put("Alert", "  " .. lead("operation") .. "at op " .. text(parts.at_op))
+  end
+  if parts.selected > 0 then
+    put("Selected", "  " .. lead("selected") .. parts.selected .. " selected")
+  end
+  -- A view is never modified; a buffer to hand back to jj may be.
+  put(nil, (parts.editable and " %m" or "") .. "%=")
+  -- Each part on the right after the separator, the first after a space.
+  local separator = glyphs.separator ~= "" and (" " .. text(glyphs.separator) .. " ") or "   "
+  local started = false
+  local function gap()
+    put("Dim", started and separator or " ")
+    started = true
+  end
+  local about = parts.about
+  if about then
+    started = true
+    put(nil, text(cut(about.what or "(no description)", ABOUT_WIDTH, glyphs.ellipsis)))
+    local meta = {}
+    if about.who then
+      meta[#meta + 1] = lead("author") .. text(about.who)
+    end
+    if about.when then
+      meta[#meta + 1] = lead("date") .. text(about.when)
+    end
+    if #meta > 0 then
+      local dot = glyphs.dot ~= "" and (" " .. text(glyphs.dot) .. " ") or "  "
+      put("Dim", "  " .. table.concat(meta, dot))
+    end
+  end
+  local prefixes = parts.prefixes
+  local change, commit = (parts.entry or ""):match("^(%S+) (%S+)$")
+  if prefixes and change then
+    -- As jj log shows them: the shortest unique prefixes in colors, the
+    -- rest of each ID dimmed, and a divergent change's in red.
+    gap()
+    put(parts.divergent and "Alert" or "Entry", lead("change") .. text(change:sub(1, prefixes[1])))
+    put("Dim", text(change:sub(prefixes[1] + 1)))
+    put("Commit", " " .. lead("commit") .. text(commit:sub(1, prefixes[2])))
+    put("Dim", text(commit:sub(prefixes[2] + 1)))
+  elseif change then
+    gap()
+    put(parts.divergent and "Alert" or "Entry", lead("change") .. text(change))
+    put("Dim", " " .. lead("commit") .. text(commit))
+  elseif parts.entry then
+    local head, rest = parts.entry:match("^(%S+)(.*)$")
+    gap()
+    put("Entry", (parts.kind and lead(parts.kind) or "") .. text(head))
+    put("Dim", text(rest))
+  end
+  local here = parts.here
+  if here then
+    gap()
+    put("Here", lead("workspace") .. text(here.root))
+    for _, word in ipairs({
+      here.change ~= "" and ("@" .. text(here.change)) or "",
+      here.bookmarks ~= "" and (lead("bookmark") .. text(here.bookmarks)) or "",
+      here.traffic ~= "" and (lead("traffic") .. text(here.traffic)) or "",
+    }) do
+      if word ~= "" then
+        put("Dim", " " .. word)
+      end
+    end
+    if here.state ~= "" then
+      put("Alert", " " .. lead("alert") .. text(here.state))
+    end
+  end
+  gap()
+  put("Dim", lead("line") .. "%l/%L ")
+  return table.concat(out)
+end
+
 ---Mark `bufnr` as written, as a :w that succeeded does.
 ---@param bufnr integer
 function M.mark_saved(bufnr)
@@ -331,10 +469,11 @@ function M.pad_annotations(annotations)
 end
 
 ---Make the lines of `bufnr` that wrap go on after its annotation, `width`
----cells wide (or as wide as it was last told), in every window showing it:
----'breakindent' on, and the shift of 'breakindentopt' that wide, its other
----items kept. Set locally, the options hold for the window while it shows
----the buffer; a window showing another buffer has that buffer's.
+---cells wide (or as wide as it was last told), and the selection column before
+---it, in every window showing it: 'breakindent' on, and the shift of
+---'breakindentopt' that wide, its other items kept. Set locally, the
+---options hold for the window while it shows the buffer; a window showing
+---another buffer has that buffer's.
 ---Without a min of the user's, the one of the editor, 20, would cut the
 ---shift in a narrow window, and the lines would go on below the
 ---annotation; 1 keeps them beside it.
@@ -349,6 +488,7 @@ function M.wrap_after_annotation(bufnr, list, width)
   if width <= 0 then
     return
   end
+  width = width + (tonumber(vim.fn.getbufvar(bufnr, "jin_selected_column", 0)) or 0)
   for _, winid in ipairs(list(vim.fn.win_findbuf(bufnr))) do
     local items, min = {}, false
     for item in tostring(vim.fn.getwinvar(winid, "&breakindentopt")):gmatch("[^,]+") do
@@ -366,12 +506,65 @@ function M.wrap_after_annotation(bufnr, list, width)
   end
 end
 
+---The selection column before each of the `count` lines of `bufnr`, as the view
+---tells it with `column`: per line, blank as wide as the glyph and a space,
+---or the glyph and a space as JinSelectedSign on `column.lnums`; none without
+---`column`. Remembers its width, by which wrapped lines go on further.
+---@param bufnr integer
+---@param count integer
+---@param column? { lnums: integer[], text: string }
+---@param list fun(value: any): any[]
+---@return { text: string, group?: string }[]
+function M.selected_column(bufnr, count, column, list)
+  local texts = {}
+  local width = column and vim.fn.strdisplaywidth(column.text) + 1 or 0
+  if column then
+    local blank = (" "):rep(width)
+    for lnum = 1, count do
+      texts[lnum] = { text = blank }
+    end
+    for _, lnum in ipairs(column.lnums) do
+      if texts[lnum] then
+        texts[lnum] = { text = column.text .. " ", group = "JinSelectedSign" }
+      end
+    end
+  end
+  vim.fn.setbufvar(bufnr, "jin_selected_column", width)
+  M.wrap_after_annotation(bufnr, list)
+  return texts
+end
+
 ---The first window showing `bufnr`, if any.
 ---@param bufnr integer
 ---@param list fun(value: any): any[]
 ---@return integer?
 function M.window(bufnr, list)
   return list(vim.fn.win_findbuf(bufnr))[1]
+end
+
+---@param name string
+---@param list fun(value: any): any[]
+---@return table<string, any>?
+function M.setting_dict(name, list)
+  local var = "g:jin_" .. name
+  if vim.fn.exists(var) == 0 or vim.fn.eval("type(" .. var .. ") == v:t_dict") == 0 then
+    return nil
+  end
+  -- Its items, as Vim hands a dictionary to Lua as one it cannot iterate.
+  local out = {}
+  for _, item in ipairs(list(vim.fn.eval("items(" .. var .. ")"))) do
+    local pair = list(item)
+    out[pair[1]] = pair[2]
+  end
+  return out
+end
+
+function M.setting(name)
+  local var = "g:jin_" .. name
+  if vim.fn.exists(var) == 0 then
+    return nil
+  end
+  return tostring(vim.fn.eval(var))
 end
 
 ---The filetype the editor gives a file at `path`, or nil.

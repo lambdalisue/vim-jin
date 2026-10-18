@@ -36,9 +36,9 @@ selected even then. Moving the cursor runs no jj.
 
 In the annotation, a line too long for the window wraps after the
 annotation: while a window shows the view, its `'breakindent'` is on and
-the shift of its `'breakindentopt'` is as wide as the annotation, the other
-items of that option kept, and once the window shows another buffer it has
-that buffer's again. `'showbreak'` shows after the shift, or before it with
+the shift of its `'breakindentopt'` is as wide as the annotation and the
+selection column before it, the other items of that option kept, and once the
+window shows another buffer it has that buffer's again. `'showbreak'` shows after the shift, or before it with
 `sbr`. A `min` set in `'breakindentopt'` still holds, so that in a window
 too narrow for it the shift is cut and a wrapped line goes on below the
 annotation; without one, the view sets it to 1, in place of the editor's
@@ -150,6 +150,38 @@ by two changes when a template prints no newline, offers nothing to act on.
 A key pressed there does nothing and says nothing; an action chosen by name
 with `a` says why it cannot run.
 
+The window of a view shows its own statusline: the view as a badge, and the
+rest as text told apart by its color. On the left: the view, the
+operation it stays at, and how many changes of its workspace are selected;
+the jj command the view runs is left out, and is the user's to show from
+`b:jin_title` (see `jin-buffer.md`).
+On the right: what the line under the cursor is about
+(the first line of the description, the author and how long ago it was
+committed, or for an operation, its description, user and when it ended),
+what the line stands for (the change, the version, the operation, the
+bookmark or the workspace), and the workspace: its directory, the
+working-copy change, its bookmarks and state as the components tell them,
+and the line of the cursor, each with its [glyph](#glyphs). Only the window
+last entered shows the colors and the workspace. The text is drawn on the
+background of `JinStatusline` in the color of the text of a group per
+part, which the colorscheme or the user may set. A change and its commit
+are told by the same leading characters of their IDs whatever their
+shortest unique prefixes; as in `jj log`, only those prefixes are in color
+and the rest is dimmed, and the prefix of a divergent change is in the
+color of an alert. Moving the cursor runs no jj for them.
+A file view, whose lines are the file's text and stand for no change, tells
+instead the path of the file on the left, right after the view, where a long
+path is cut first, and on the right the change and commit of the revision it
+shows, drawn as those of a line are. jj is asked for them once each time
+the view is read, at the operation the view stays at, or at the latest one
+once the read has snapshotted the working copy, and without a snapshot of
+its own; when the revision is not exactly one, or jj fails, the path is
+told alone.
+Once the window shows a buffer that is not a view, its statusline is the
+user's own again. With `g:jin_statusline` set to 0, vim-jin leaves the
+statusline alone, and a view already open gives the user's own back the next
+time its statusline is drawn.
+
 A bookmark or workspace is acted on by its name as it is, even when the name
 holds spaces or quotes and jj shows it quoted.
 
@@ -163,6 +195,14 @@ session: every view of it shows the lines of a selected change with
 highlight of the line under the cursor; it keeps showing them when read
 again. The selection names a change as the views do, so it follows the
 change through rewrites. It is vim-jin's own and leaves Vim's marks alone.
+
+These views start every line with a column as wide as the `selected` glyph
+and a space, before any other text, the annotation included. It is blank
+but before the first line of a selected change, where it shows the glyph in
+`JinSelectedSign`, which links to `Special` unless defined otherwise. The
+column is there with nothing selected, so that selecting moves no text; it
+is not text of the buffer, so searching and yanking leave it out. With an
+empty `selected` glyph there is no column.
 
 `select`
 : Select the change of the line, or of every line selected, or leave it
@@ -500,6 +540,44 @@ The actions of the log, and:
   working copy, with the cursor on its first conflict; `diff` shows the
   diff of the path in the change.
 
+## Glyphs
+
+The statusline of a view draws with glyphs: an icon before each of its
+parts, and the separator between the parts on the right. The glyphs only add to the text and replace
+none of it, so a view tells the same without them.
+
+`g:jin_glyph_preset` chooses where they come from:
+
+- `"nerdfont"`, the default: icons of a Nerd Font (v3), which the font the
+  editor draws with must have.
+- `"unicode"`: plain Unicode symbols and box drawing, no code point of the
+  Private Use Area.
+- `"ascii"`: ASCII alone.
+
+Any other value is taken as the default, without a message. `g:jin_glyphs`,
+a dictionary, sets any glyph by its name in place of the preset's, the rest
+coming from the preset; an empty string draws no glyph and leaves no room
+for one. A name it does not know and a value that is not a string are
+ignored. Both are read each time the statusline is drawn, so a change
+shows on the next draw.
+
+The glyphs, by name:
+
+| Name | Drawn before or as |
+| --- | --- |
+| `view`, `edit` | the name of a view, or of a buffer to edit, in its badge |
+| `operation` | the operation a view stays at, and an operation under the cursor |
+| `selected` | how many changes are selected, and the selection column |
+| `change`, `commit` | the change under the cursor, or the one a file view shows, and its commit |
+| `author`, `date` | the author and how long ago |
+| `file` | the file a file view shows |
+| `dot` | between the author and how long ago |
+| `ellipsis` | where a description too long for the statusline is cut |
+| `workspace`, `bookmark` | the workspace, its bookmarks, and a workspace or bookmark under the cursor |
+| `traffic` | how far the bookmarks are from their remotes |
+| `alert` | the state of the workspace |
+| `line` | the line of the cursor |
+| `separator` | between the parts on the right of the statusline |
 
 ## Default key mappings
 

@@ -49,7 +49,14 @@ return {
   template = {
     key = "op_log",
     default = "builtin_op_log_compact",
-    fields = { "self.id()" },
+    -- What an operation is about, as support.about tells of a commit.
+    fields = {
+      "self.id()",
+      "self.description().first_line()",
+      "self.user()",
+      "self.time().end().ago()",
+    },
+    about = 2,
   },
   actions = actions,
   primary = "show",

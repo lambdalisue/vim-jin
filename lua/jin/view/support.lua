@@ -14,12 +14,63 @@ local M = {}
 M.CHANGE_FIELDS =
   { "change_id", "commit_id", 'if(divergent, "divergent", if(hidden, "hidden", "-"))' }
 
+---`fields` followed by what a commit is about, for the statusline: the first
+---line of its description, its author, and how long ago it was committed.
+---`commit` is the template expression of the commit; with `guard`, the
+---fields are empty where it does not hold, as where there is no commit.
+---@param fields string[]
+---@param commit string
+---@param guard? string
+---@return string[] fields
+---@return integer about the index of the first of them
+function M.about(fields, commit, guard)
+  local all = {}
+  for i, field in ipairs(fields) do
+    all[i] = field
+  end
+  for _, expr in ipairs({
+    "description().first_line()",
+    "author().name()",
+    "committer().timestamp().ago()",
+  }) do
+    expr = commit .. "." .. expr
+    all[#all + 1] = guard and ("if(" .. guard .. ", " .. expr .. ")") or expr
+  end
+  return all, #fields + 1
+end
+
+---`fields` followed by the shortest unique prefixes of the change and the
+---commit IDs of `commit`, the parts jj highlights, for the statusline.
+---@param fields string[]
+---@param commit string
+---@return string[] fields
+---@return integer short the index of the first of them
+function M.shortest(fields, commit)
+  local all = {}
+  for i, field in ipairs(fields) do
+    all[i] = field
+  end
+  all[#all + 1] = commit .. ".change_id().shortest()"
+  all[#all + 1] = commit .. ".commit_id().shortest()"
+  return all, #fields + 1
+end
+
+local LOGGED_FIELDS, LOGGED_ABOUT = M.about(M.CHANGE_FIELDS, "self")
+local LOGGED_SHORT
+LOGGED_FIELDS, LOGGED_SHORT = M.shortest(LOGGED_FIELDS, "self")
+
 ---The template of a view listing changes, named by `key`.
 ---@param key string
 ---@param default string
----@return { key: string, default: string, fields: string[] }
+---@return { key: string, default: string, fields: string[], about: integer, short: integer }
 function M.logged(key, default)
-  return { key = key, default = default, fields = M.CHANGE_FIELDS }
+  return {
+    key = key,
+    default = default,
+    fields = LOGGED_FIELDS,
+    about = LOGGED_ABOUT,
+    short = LOGGED_SHORT,
+  }
 end
 
 ---The template jj prints a commit with inside the output of other commands,
@@ -28,7 +79,9 @@ end
 M.SUMMARY_TEMPLATE = {
   key = "commit_summary",
   default = "format_commit_summary_with_refs(self, format_commit_ref_names(bookmarks))",
-  fields = M.CHANGE_FIELDS,
+  fields = LOGGED_FIELDS,
+  about = LOGGED_ABOUT,
+  short = LOGGED_SHORT,
   config = true,
 }
 
@@ -700,8 +753,9 @@ end
 
 ---CHANGE_FIELDS with the description itself, for a buffer that edits it:
 ---the draft jj shows may add to the description, which is what jj compares
----against.
-M.DESCRIBED_FIELDS = { M.CHANGE_FIELDS[1], M.CHANGE_FIELDS[2], M.CHANGE_FIELDS[3], "description" }
+---against. The shortest prefixes follow from DESCRIBED_SHORT on.
+M.DESCRIBED_FIELDS, M.DESCRIBED_SHORT =
+  M.shortest({ M.CHANGE_FIELDS[1], M.CHANGE_FIELDS[2], M.CHANGE_FIELDS[3], "description" }, "self")
 
 ---The description each change of `meta` had when read, by revision, from
 ---the entries DESCRIBED_FIELDS marked.

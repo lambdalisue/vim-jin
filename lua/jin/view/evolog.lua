@@ -46,11 +46,13 @@ support.select_actions(actions)
 support.yank_actions(actions)
 
 -- Divergent and hidden as well, as the views name such a commit by its commit ID.
-local EVOLOG_FIELDS = {
+local EVOLOG_FIELDS, EVOLOG_ABOUT = support.about({
   "commit.change_id()",
   "commit.commit_id()",
   'if(commit.divergent(), "divergent", if(commit.hidden(), "hidden", "-"))',
-}
+}, "commit")
+local EVOLOG_SHORT
+EVOLOG_FIELDS, EVOLOG_SHORT = support.shortest(EVOLOG_FIELDS, "commit")
 
 ---@type jin.View
 return {
@@ -63,6 +65,8 @@ return {
     key = "evolog",
     default = "builtin_evolog_compact",
     fields = EVOLOG_FIELDS,
+    about = EVOLOG_ABOUT,
+    short = EVOLOG_SHORT,
   },
   actions = actions,
   primary = "interdiff",

@@ -28,6 +28,14 @@ local function read(host, jin, name, stdout, with_template)
   return bufnr
 end
 
+---Load and read the file view `name`, jj printing `stdout` for the file and
+---nothing for the change and commit of its revision.
+local function read_file(host, jin, name, stdout)
+  local bufnr = read(host, jin, name, stdout)
+  host.finish(ok(""))
+  return bufnr
+end
+
 local function m(...)
   local fields = {}
   for i, value in ipairs({ ... }) do
@@ -338,6 +346,7 @@ describe("the interdiff view", function()
     local file = assert(host.buffer_bufnr(host.opened[1].name))
     view.read(jin, host, file, host.opened[1].name)
     host.finish(ok("a\nB\n"))
+    host.finish(ok(""))
     assert.equal(2, host.cursors[file])
   end)
 end)
@@ -485,7 +494,7 @@ end)
 describe("the file view", function()
   it("shows the file of a revision with the filetype of its path", function()
     local host, jin = setup()
-    local bufnr = read(host, jin, "jin:///repo;view=file#-r @- src/main.lua", "x\n")
+    local bufnr = read_file(host, jin, "jin:///repo;view=file#-r @- src/main.lua", "x\n")
     local argv = host.runs[1].argv
     assert.same(
       { "file", "show", "-r", "@-", "src/main.lua" },
@@ -501,6 +510,7 @@ describe("the file view", function()
     assert.is_nil(host.cursors[bufnr])
     view.read(jin, host, bufnr, host.opened[1].name)
     host.finish(ok("1\n2\n3\n4\n5\n"))
+    host.finish(ok(""))
     assert.equal(5, host.cursors[bufnr])
   end)
 
@@ -512,6 +522,7 @@ describe("the file view", function()
     local bufnr = view.open(jin, host, "file", { "-r", "x", "a.txt" }, { line = last })
     view.read(jin, host, bufnr, host.opened[1].name)
     host.finish(ok("1\n2\n3\n"))
+    host.finish(ok(""))
     assert.equal(3, host.cursors[bufnr])
     host.cursors[bufnr] = 1
     view.open(jin, host, "file", { "-r", "x", "a.txt" }, { line = last })
@@ -522,7 +533,7 @@ describe("the file view", function()
 
   it("leads to the annotation of the file at its revision, on the same line", function()
     local host, jin = setup()
-    local bufnr = read(host, jin, FILE, "1\n2\n3\n")
+    local bufnr = read_file(host, jin, FILE, "1\n2\n3\n")
     action.run(jin, host, bufnr, "annotate", 2, 2)
     assert.equal("jin:///repo;view=annotate#-r @- -- src/main.lua", host.opened[1].name)
     local annotate = assert(host.buffer_bufnr(host.opened[1].name))
@@ -534,20 +545,20 @@ describe("the file view", function()
 
   it("annotates a path with a space and the working copy when no revision is given", function()
     local host, jin = setup()
-    local bufnr = read(host, jin, [[jin:///repo;view=file#file:\"sp\ ace.txt\"]], "x\n")
+    local bufnr = read_file(host, jin, [[jin:///repo;view=file#file:\"sp\ ace.txt\"]], "x\n")
     action.run(jin, host, bufnr, "annotate", 1, 1)
     assert.same({ "-r", "@", "--", "sp ace.txt" }, bufname.parse(host.opened[1].name).argv)
   end)
 
   it("opens the file as it is in the parent or the child revision", function()
     local host, jin = setup()
-    local bufnr = read(host, jin, FILE, "x\n")
+    local bufnr = read_file(host, jin, FILE, "x\n")
     host.results = { ok("ppp\n"), ok("src/main.lua\n"), ok("ccc\n"), ok("src/main.lua\n") }
     action.run(jin, host, bufnr, "parent", 1, 1)
     action.run(jin, host, bufnr, "child:tab", 1, 1)
-    assert.equal("parents(@-)", words(host.runs[2])[4])
-    assert.same({ "file", "list", "-r", "ppp", "--", "src/main.lua" }, words(host.runs[3]))
-    assert.equal("children(@-)", words(host.runs[4])[4])
+    assert.equal("parents(@-)", words(host.runs[3])[4])
+    assert.same({ "file", "list", "-r", "ppp", "--", "src/main.lua" }, words(host.runs[4]))
+    assert.equal("children(@-)", words(host.runs[5])[4])
     assert.equal("jin:///repo;view=file#-r ppp src/main.lua", host.opened[1].name)
     assert.same(
       { name = "jin:///repo;view=file#-r ccc src/main.lua", opener = "tabedit" },
@@ -559,7 +570,7 @@ describe("the file view", function()
     "tells why it stays when the parent has no such file, as before the change adding it",
     function()
       local host, jin = setup()
-      local bufnr = read(host, jin, FILE, "x\n")
+      local bufnr = read_file(host, jin, FILE, "x\n")
       host.results = { ok("ppp\n"), ok("") }
       assert.has_error(function()
         action.run(jin, host, bufnr, "parent", 1, 1)
@@ -570,12 +581,13 @@ describe("the file view", function()
 
   it("keeps the cursor on the same line when it opens the parent", function()
     local host, jin = setup()
-    local bufnr = read(host, jin, FILE, "1\n2\n3\n")
+    local bufnr = read_file(host, jin, FILE, "1\n2\n3\n")
     host.results = { ok("ppp\n"), ok("src/main.lua\n") }
     action.run(jin, host, bufnr, "parent", 3, 3)
     local parent = assert(host.buffer_bufnr(host.opened[1].name))
     view.read(jin, host, parent, host.opened[1].name)
     host.finish(ok("1\n2\n3\n4\n"))
+    host.finish(ok(""))
     assert.equal(3, host.cursors[parent])
   end)
 
@@ -583,7 +595,7 @@ describe("the file view", function()
     "opens a pick of the parents, remembering the file and the line, when there are several",
     function()
       local host, jin = setup()
-      local bufnr = read(host, jin, FILE, "1\n2\n3\n")
+      local bufnr = read_file(host, jin, FILE, "1\n2\n3\n")
       host.results = { ok("aaa\nbbb\n") }
       action.run(jin, host, bufnr, "parent:vsplit", 2, 2)
       assert.same({
@@ -595,7 +607,7 @@ describe("the file view", function()
 
   it("leads to the log of the changes that touched the path up to its revision", function()
     local host, jin = setup()
-    local bufnr = read(host, jin, [[jin:///repo;view=file#-r x|y file:\"sp\ ace.txt\"]], "x\n")
+    local bufnr = read_file(host, jin, [[jin:///repo;view=file#-r x|y file:\"sp\ ace.txt\"]], "x\n")
     action.run(jin, host, bufnr, "log", 1, 1)
     assert.same(
       { "-r", "::(x|y)", "--", [[file:"sp ace.txt"]] },
@@ -605,7 +617,7 @@ describe("the file view", function()
 
   it("stays at the operation it shows", function()
     local host, jin = setup()
-    local bufnr = read(host, jin, "jin:///repo;view=file#--at-op op1 -r kkk a.txt", "x\n")
+    local bufnr = read_file(host, jin, "jin:///repo;view=file#--at-op op1 -r kkk a.txt", "x\n")
     host.results = { ok("ppp\n"), ok("a.txt\n") }
     action.run(jin, host, bufnr, "parent", 1, 1)
     action.run(jin, host, bufnr, "annotate", 1, 1)
@@ -642,6 +654,7 @@ describe("the pick view", function()
     local file = assert(host.buffer_bufnr(host.opened[1].name))
     view.read(jin, host, file, host.opened[1].name)
     host.finish(ok("1\n2\n3\n"))
+    host.finish(ok(""))
     assert.equal(2, host.cursors[file])
   end)
 

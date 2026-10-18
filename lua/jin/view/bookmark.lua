@@ -166,6 +166,13 @@ actions["yank:bookmark"] = {
   end,
 }
 
+-- A conflicted bookmark has no single target to tell about.
+local BOOKMARK_FIELDS, BOOKMARK_ABOUT = support.about(
+  { "name", "if(remote, remote)", 'if(present, "", "absent")' },
+  "normal_target",
+  "normal_target"
+)
+
 ---@type jin.View
 return {
   command = { "bookmark", "list" },
@@ -176,7 +183,8 @@ return {
     default = 'format_commit_ref(self, "bookmark") ++ "\\n"',
     -- A tracked remote bookmark not pushed yet, or a deleted local one,
     -- holds no target.
-    fields = { "name", "if(remote, remote)", 'if(present, "", "absent")' },
+    fields = BOOKMARK_FIELDS,
+    about = BOOKMARK_ABOUT,
   },
   actions = actions,
   primary = "log",

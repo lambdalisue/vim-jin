@@ -85,6 +85,16 @@ exceptions:
 Your own mappings of `<Plug>(jin-action-{name})` win over these. See
 [docs/spec/views.md](docs/spec/views.md).
 
+The statusline of a view is drawn with
+[Nerd Font](https://www.nerdfonts.com/) icons by default. Without a Nerd
+Font, choose plain Unicode symbols or ASCII instead, or set any glyph
+yourself (`:help jin-glyphs` names them):
+
+```vim
+let g:jin_glyph_preset = 'unicode'  " or 'ascii'
+let g:jin_glyphs = #{ separator: '|' }
+```
+
 Statusline components keep the working copy in sight without ever adding an
 operation:
 
@@ -96,7 +106,8 @@ autocmd User JinComponentPost redrawstatus
 See [docs/spec/components.md](docs/spec/components.md).
 
 vim-jin buffers are named after the workspace they show, which makes for a
-long name; `b:jin_title` holds a short one, such as `jj log -r @-`:
+long name; `b:jin_title` holds a short one, such as `jj log -r @-`, which
+the statusline of a view leaves out, for a statusline or tabline of your own:
 
 ```vim
 set statusline=%{get(b:,'jin_title',expand('%'))}

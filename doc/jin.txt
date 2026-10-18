@@ -10,6 +10,7 @@ VIEWS				|jin-views|
   ACTIONS			|jin-actions|
   KEY MAPPINGS			|jin-mappings|
 HIGHLIGHT AND VARIABLES		|jin-highlight|
+GLYPHS				|jin-glyphs|
 COMPONENTS			|jin-components|
 EVENTS				|jin-events|
 LUA API				|jin-lua|
@@ -109,8 +110,9 @@ the installed jj offers.
 
 	A line too long for the window wraps after the annotation: while
 	the window shows the view, 'breakindent' is on there and the
-	"shift" of 'breakindentopt' is as wide as the annotation, the other
-	items you set kept. Once the window shows another buffer, it has
+	"shift" of 'breakindentopt' is as wide as the annotation and the
+	selection column before it (|jin-selection|), the other items you set kept.
+	Once the window shows another buffer, it has
 	that buffer's values again. 'showbreak' shows after the shift, or
 	before it with "sbr". A "min" you set still holds, so in a window
 	too narrow for it a wrapped line goes on below the annotation;
@@ -306,6 +308,12 @@ changes, as the other side of an action that takes two. The selection
 belongs to the workspace: every view of it shows the lines of a selected
 change with |hl-JinSelected|, even under the cursor. It is vim-jin's own,
 and leaves Vim's marks (|mark-motions|) alone.
+These views start every line with a column as wide as the `selected` glyph
+(|g:jin_glyphs|) and a space, before the annotation too. It is blank, but
+before the first line of a selected change it shows the glyph in
+|hl-JinSelectedSign|. The column is there with nothing selected, so that
+selecting moves no text, and searching and yanking leave it out. Set the
+`selected` glyph to "" for no column.
 An action that uses the selected changes leaves them out of the selection
 once jj succeeded, and keeps them when jj fails.
 
@@ -504,13 +512,154 @@ JinSelected		The lines of a selected change, shown over
 			|hl-JinCursorEntry| and |hl-JinCursorChange|. Links to
 			|hl-Visual| by default.
 
+							*hl-JinSelectedSign*
+JinSelectedSign		The `selected` glyph in the column before the first
+			line of a selected change. Links to |hl-Special| by default.
+
+							*hl-JinStatusline*
+JinStatusline		The statusline of a view, which |g:jin_statusline|
+			sets. Links to |hl-StatusLine| by default. The view
+			is a badge in JinStatuslineView, or JinStatuslineEdit
+			for a buffer to edit; the rest is text on the
+			background of JinStatusline, in the color of the text
+			of a group, by default linked to:
+
+	JinStatuslineView	|hl-PmenuSel|	the view
+	JinStatuslineEdit	|hl-Search|	the view, of a buffer to edit
+	JinStatuslineEntry	|hl-Identifier|	the change under the cursor
+	JinStatuslineCommit	|hl-Function|	its commit
+	JinStatuslineHere	|hl-Directory|	the workspace
+	JinStatuslineSelected	|hl-Special|	how many are selected
+	JinStatuslineAlert	|hl-WarningMsg|	the operation it stays at,
+						a conflict, a divergent
+						change
+	JinStatuslineDim	|hl-Comment|	the rest
+
+			Of the change and its commit, only the shortest
+			unique prefix, the part jj highlights, is drawn in
+			their color; the rest of the ID is in
+			JinStatuslineDim, as `jj log` shows it. The prefix
+			of a divergent change is in JinStatuslineAlert, as
+			jj shows it in red.
+
+			Text that would not stand out on that background, as
+			on the light statusline of many colorschemes, is made
+			darker, or lighter on a dark one, keeping its hue.
+
+							*g:jin_statusline*
+g:jin_statusline	1 by default: the window of a view shows its own
+			statusline. On the left, the view, the operation it
+			stays at and how many changes are selected;
+			on the right, what the line under the cursor is about
+			(the first line of the description, the author and how
+			long ago), the change, operation, bookmark or
+			workspace it stands for (in a file view, the change
+			and commit it is shown at, which jj is asked for once
+			each time the view is read, with the path of the file
+			on the left, after the view), and the workspace: its
+			directory, the working-copy change, its bookmarks and
+			state, as |jin-components| tell them, with the
+			cursor's line, drawn with |jin-glyphs|. Only the
+			current window has colors and the workspace. Once
+			the window shows another buffer, its statusline is
+			yours again. Set it to 0 to keep
+			your own; a view already open gives it back the next
+			time its statusline is drawn:
+>vim
+	let g:jin_statusline = 0
+<
 							*b:jin_title*
 b:jin_title		A short title of a vim-jin buffer, such as
-			"jj log -r @-", for a statusline or a tabline in place
-			of its long name:
+			"jj log -r @-", for a statusline or a tabline of your
+			own in place of its long name; the statusline of a
+			view (|g:jin_statusline|) leaves it out, as the view
+			and its lines already tell it. A change or commit ID
+			appears as the shortest prefix jj accepts for it, the
+			part jj highlights; an operation ID is cut to 12
+			characters:
 >vim
 	set statusline=%{get(b:,'jin_title',expand('%'))}
 <
+=============================================================================
+GLYPHS							*jin-glyphs*
+
+The statusline of a view (|g:jin_statusline|) draws with glyphs: icons
+before its parts, and the separator between the parts on the right. They
+come from a preset, and each can be set on its own. Both variables are
+read every time the statusline is drawn, so a change shows the next time
+it is.
+
+							*g:jin_glyph_preset*
+g:jin_glyph_preset	The glyphs to draw with:
+			"nerdfont"	icons of a Nerd Font (v3), which the
+					font of the terminal or GUI must
+					have; the default
+			"unicode"	plain Unicode symbols and box
+					drawing, which most fonts have
+			"ascii"		ASCII alone
+			Any other value is taken as the default.
+>vim
+	let g:jin_glyph_preset = 'unicode'
+<
+							*g:jin_glyphs*
+g:jin_glyphs		A |Dictionary| of glyphs, by the names below, to
+			draw in place of the preset's; the rest are the
+			preset's. An empty string draws none, and takes no
+			room. A name not below, or a value not a string, is
+			ignored.
+>vim
+	let g:jin_glyphs = #{ change: '~', separator: '' }
+<
+	In Lua: >lua
+	vim.g.jin_glyphs = { change = "~", separator = "" }
+<
+	The glyphs, each with the value of the "nerdfont", "unicode" and
+	"ascii" presets in turn; "none" is the empty string. A Nerd Font
+	glyph is given by its code point and its name in Nerd Fonts.
+
+	view		Before the name of a view, in its badge.
+			U+F441 nf-oct-eye	none	none
+	edit		Before the name of a buffer to edit, in its badge.
+			U+F448 nf-oct-pencil	✎	none
+	operation	Before the operation a view stays at, and an
+			operation under the cursor.
+			U+F464 nf-oct-history	⟲	none
+	selected	Before how many changes are selected, and in the
+			column before the first line of a selected change.
+			U+F435 nf-oct-pin	●	*
+	change		Before the change under the cursor, or the one a
+			file view shows.
+			U+F440 nf-oct-diff	○	none
+	commit		Before its commit.
+			U+F417 nf-oct-git_commit	◉	none
+	author		Before the author.
+			U+F007 nf-fa-user	none	none
+	date		Before how long ago.
+			U+F017 nf-fa-clock_o	none	none
+	file		Before the file a file view shows.
+			U+F4A5 nf-oct-file	none	none
+	dot		Between the author and how long ago; none leaves
+			two spaces.
+			none			·	-
+	ellipsis	Where a description too long for the statusline
+			is cut.
+			…			…	...
+	workspace	Before the workspace, and a workspace under the
+			cursor.
+			U+F401 nf-oct-repo	⌂	none
+	bookmark	Before the bookmarks of the workspace, and a
+			bookmark under the cursor.
+			U+F02E nf-fa-bookmark	⚑	none
+	traffic		Before how far bookmarks are from their remotes.
+			U+F46A nf-oct-sync	none	none
+	alert		Before the state of the workspace.
+			U+F421 nf-oct-alert	⚠	!
+	line		Before the cursor's line.
+			U+E0A1 nf-pl-line_number	none	none
+	separator	Between the parts on the right of the statusline;
+			none leaves three spaces.
+			U+E0B3 nf-pl-right_soft_divider	│	|
+
 =============================================================================
 COMPONENTS						*jin-components*
 

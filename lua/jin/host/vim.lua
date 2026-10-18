@@ -16,10 +16,15 @@ local M = {
   cd = common.cd,
   mark_saved = common.mark_saved,
   vertical = common.vertical,
+  setting = common.setting,
 }
 
 function M.leave(bufnr, previous)
   common.leave(bufnr, previous, M.list)
+end
+
+function M.setting_dict(name)
+  return common.setting_dict(name, M.list)
 end
 
 -- The text property type of an uncolored part of an annotation.
@@ -277,10 +282,29 @@ function M.highlight_lines(bufnr, first, last)
   sign_lines(bufnr, "JinCursorEntry", lnums)
 end
 
-function M.highlight_selected(bufnr, lnums)
+-- The text property types of the selection column: the glyph, and the blank of
+-- the lines with none.
+local SELECTED_SIGN, SELECTED_COLUMN = "JinSelectedSign", "JinSelectedColumn"
+
+function M.highlight_selected(bufnr, lnums, column)
   -- Above the cursor entry and the cursor change, placed with the default,
   -- so that the line under the cursor shows as selected.
   sign_lines(bufnr, "JinSelected", lnums, 11)
+  for _, name in ipairs({ SELECTED_SIGN, SELECTED_COLUMN }) do
+    if vim.fn.empty(vim.fn.prop_type_get(name)) == 1 then
+      -- Virtual texts at one column show the one of the higher priority
+      -- first: above the annotations, which have none, so that they come
+      -- after the column.
+      local props = { priority = 1, highlight = name == SELECTED_SIGN and name or nil }
+      vim.fn.prop_type_add(name, vim.dict(props))
+    end
+    vim.fn.prop_remove(vim.dict({ type = name, bufnr = bufnr, all = true }))
+  end
+  local count = M.list(vim.fn.getbufinfo(bufnr))[1].linecount
+  for lnum, chunk in pairs(common.selected_column(bufnr, count, column, M.list)) do
+    local name = chunk.group and SELECTED_SIGN or SELECTED_COLUMN
+    vim.fn.prop_add(lnum, 1, vim.dict({ type = name, bufnr = bufnr, text = chunk.text }))
+  end
 end
 
 function M.highlight_change(bufnr, lnums)

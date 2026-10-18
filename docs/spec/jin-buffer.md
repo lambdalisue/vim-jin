@@ -21,8 +21,11 @@ even when its filetype is that of a file shown in it. Its filetype is
 `jin-buffer` unless `++filetype` says otherwise.
 
 The buffer name holds the workspace and is long; `b:jin_title` holds a
-short title for a statusline or a tabline instead: the jj command shown,
-such as `jj log -r @-`, with long IDs cut short.
+short title for a statusline or a tabline of the user's own instead: the
+jj command shown, such as `jj log -r @-`. The statusline vim-jin draws for
+a view does not show it. A change or commit ID the buffer name holds in full
+appears as the shortest prefix jj accepts for it, the part jj highlights;
+an ID jj gives no shortest prefix for, such as an operation ID, is cut short.
 
 ## What reaches jj
 

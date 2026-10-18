@@ -61,12 +61,19 @@ action.openers(actions, "show", "show the workspace's working-copy change", func
   support.open(ctx, "show", { support.string(action.entry(ctx)[1]) .. "@" }, opener)
 end)
 
+local WORKSPACE_FIELDS, WORKSPACE_ABOUT = support.about({ "name" }, "target")
+
 ---@type jin.View
 return {
   command = { "workspace", "list" },
   filetype = "jin-workspace",
   line_items = true,
-  template = { key = "workspace_list", default = "builtin_workspace_list", fields = { "name" } },
+  template = {
+    key = "workspace_list",
+    default = "builtin_workspace_list",
+    fields = WORKSPACE_FIELDS,
+    about = WORKSPACE_ABOUT,
+  },
   actions = actions,
   primary = "tcd",
   secondary = "log",

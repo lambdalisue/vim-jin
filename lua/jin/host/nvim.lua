@@ -16,10 +16,15 @@ local M = {
   cd = common.cd,
   mark_saved = common.mark_saved,
   vertical = common.vertical,
+  setting = common.setting,
 }
 
 function M.leave(bufnr, previous)
   common.leave(bufnr, previous, M.list)
+end
+
+function M.setting_dict(name)
+  return common.setting_dict(name, M.list)
 end
 
 local ns = vim.api.nvim_create_namespace("jin")
@@ -161,15 +166,28 @@ function M.highlight_lines(bufnr, first, last)
 end
 
 local selected = vim.api.nvim_create_namespace("jin-selected")
+local selected_column = vim.api.nvim_create_namespace("jin-selected-column")
 
-function M.highlight_selected(bufnr, lnums)
+function M.highlight_selected(bufnr, lnums, column)
   vim.api.nvim_buf_clear_namespace(bufnr, selected, 0, -1)
+  vim.api.nvim_buf_clear_namespace(bufnr, selected_column, 0, -1)
   for _, lnum in ipairs(lnums) do
     vim.api.nvim_buf_set_extmark(bufnr, selected, lnum - 1, 0, {
       line_hl_group = "JinSelected",
       -- Above the cursor entry and the cursor change, which are put with
       -- the default, so that the line under the cursor shows as selected.
       priority = 4097,
+    })
+  end
+  local count = vim.api.nvim_buf_line_count(bufnr)
+  for lnum, chunk in pairs(common.selected_column(bufnr, count, column, M.list)) do
+    vim.api.nvim_buf_set_extmark(bufnr, selected_column, lnum - 1, 0, {
+      virt_text = { { chunk.text, chunk.group } },
+      virt_text_pos = "inline",
+      -- Inline virtual texts at one column show the one of the lower
+      -- priority first: below the default of the annotations, so that they
+      -- come after the column.
+      priority = 0,
     })
   end
 end

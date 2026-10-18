@@ -14,6 +14,7 @@ return {
     key = "draft_commit_description",
     default = "builtin_draft_commit_description",
     fields = support.DESCRIBED_FIELDS,
+    short = support.DESCRIBED_SHORT,
   },
   editable = true,
   decorate = function(meta)

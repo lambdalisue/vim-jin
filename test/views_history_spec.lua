@@ -55,7 +55,11 @@ describe("the operation log view", function()
       "--config",
       "ui.log-word-wrap=false",
       "-T",
-      [["\x1e" ++ json(stringify(self.id())) ++ "\x1f" ++ (tpl)]],
+      [["\x1e" ++ json(stringify(self.id()))]]
+        .. [[ ++ " " ++ json(stringify(self.description().first_line()))]]
+        .. [[ ++ " " ++ json(stringify(self.user()))]]
+        .. [[ ++ " " ++ json(stringify(self.time().end().ago()))]]
+        .. [[ ++ "\x1f" ++ (tpl)]],
     }, words(host.runs[2]))
   end)
 
@@ -250,7 +254,7 @@ describe("the annotate view", function()
     local host, jin = setup()
     read(host, jin, "jin:///repo;view=annotate#a.lua", "", true)
     local argv = words(host.runs[2])
-    assert.truthy(argv[4]:find('json(stringify(content)) ++ "\\x1f" ++ (tpl)', 1, true))
+    assert.truthy(argv[4]:find('json(stringify(content)) ++ " "', 1, true))
   end)
 
   it("fills the buffer with the file itself, highlighted as the file", function()
@@ -430,6 +434,7 @@ describe("the annotate view", function()
     local file = assert(host.buffer_bufnr(host.opened[1].name))
     view.read(jin, host, file, host.opened[1].name)
     host.finish(ok("a\nb\nc\n"))
+    host.finish(ok(""))
     assert.equal(3, host.cursors[file])
   end)
 

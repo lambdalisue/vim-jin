@@ -36,6 +36,8 @@ local function settle()
   return view.meta(host, bufnr)
 end
 
+local NOT_ANNOTATIONS = { JinSelectedColumn = true, JinSelectedSign = true }
+
 ---Per line of the current buffer, the virtual texts shown before it, each
 ---as { text, group }: extmarks in Neovim, text properties in Vim.
 local function annotations()
@@ -56,7 +58,8 @@ local function annotations()
     for lnum = 1, count do
       local props = {}
       for prop in vim.fn.prop_list(lnum, vim.dict({ bufnr = bufnr }))() do
-        if prop.text then
+        -- The selection column is no annotation.
+        if prop.text and not NOT_ANNOTATIONS[prop.type] then
           props[#props + 1] = { prop.text, prop.type == "JinAnnotation" and "" or prop.type }
         end
       end
@@ -67,6 +70,11 @@ local function annotations()
     end
   end
   return found
+end
+
+---The width of the selection column before every line of a view that can select.
+local function column_width()
+  return vim.fn.strdisplaywidth(require("jin.glyph").resolve(host).selected) + 1
 end
 
 ---The annotation of each line of the current buffer as one string.
@@ -132,7 +140,7 @@ return {
       workspace()
       h.ex("set nobreakindent breakindentopt=min:30,sbr")
       annotate()
-      local shift = vim.fn.strdisplaywidth(annotation_texts()[1])
+      local shift = vim.fn.strdisplaywidth(annotation_texts()[1]) + column_width()
       local function options()
         return { vim.fn.eval("&l:breakindent"), vim.fn.eval("&l:breakindentopt") }
       end
@@ -157,7 +165,7 @@ return {
       workspace()
       h.ex("set breakindentopt=sbr")
       annotate()
-      local shift = vim.fn.strdisplaywidth(annotation_texts()[1])
+      local shift = vim.fn.strdisplaywidth(annotation_texts()[1]) + column_width()
       h.eq("sbr,min:1,shift:" .. shift, vim.fn.eval("&l:breakindentopt"))
       h.ex("set breakindentopt&")
     end,
@@ -174,13 +182,56 @@ return {
       annotate()
       h.ex("setlocal wrap")
       local info = host.list(vim.fn.getwininfo(vim.fn.win_getid()))[1]
-      local shift = vim.fn.strdisplaywidth(annotation_texts()[1])
+      local shift = vim.fn.strdisplaywidth(annotation_texts()[1]) + column_width()
       local first = vim.fn.screenpos(0, 4, 1).row
       local col = 1
       while vim.fn.screenpos(0, 4, col).row == first do
         col = col + 1
       end
       h.eq(info.wincol + info.textoff + shift, vim.fn.screenpos(0, 4, col).col)
+    end,
+  },
+  {
+    "JinAnnotate shows the annotation after the selection column",
+    function()
+      workspace()
+      h.ex("let g:jin_glyph_preset = 'ascii'")
+      annotate()
+      h.ex("unlet g:jin_glyph_preset")
+      local bufnr = vim.fn.bufnr()
+      require("jin.host.entry").action(bufnr, "select", 1, 1)
+      local info = host.list(vim.fn.getwininfo(vim.fn.win_getid()))[1]
+      local before = vim.fn.strdisplaywidth(annotation_texts()[1]) + column_width()
+      h.eq(info.wincol + info.textoff + before, vim.fn.screenpos(info.winid, 1, 1).curscol)
+      -- Virtual texts at one column show the one of the lower priority first
+      -- in Neovim, of the higher in Vim.
+      if vim.api then
+        local function priorities(name)
+          local found = {}
+          local ns = vim.api.nvim_create_namespace(name)
+          for _, mark in
+            ipairs(vim.api.nvim_buf_get_extmarks(bufnr, ns, { 0, 0 }, { 0, 0 }, { details = true }))
+          do
+            found[#found + 1] = mark[4].priority
+          end
+          return found
+        end
+        local column, annotation = priorities("jin-selected-column"), priorities("jin")
+        h.eq(1, #column)
+        for _, priority in ipairs(annotation) do
+          h.truthy(column[1] < priority, ("column %d, annotation %d"):format(column[1], priority))
+        end
+      else
+        local function priority(name)
+          return vim.fn.prop_type_get(name).priority or 0
+        end
+        for prop in vim.fn.prop_list(1, vim.dict({ bufnr = bufnr }))() do
+          if prop.text and not NOT_ANNOTATIONS[prop.type] then
+            h.truthy(priority("JinSelectedSign") > priority(prop.type), prop.type)
+            h.truthy(priority("JinSelectedColumn") > priority(prop.type), prop.type)
+          end
+        end
+      end
     end,
   },
   {

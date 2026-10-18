@@ -222,8 +222,13 @@ function M.new(opts)
   -- Per buffer, the lines shown as selected.
   host.selected = {}
 
-  function host.highlight_selected(bufnr, lnums)
+  -- Per buffer, the selection column: the lines that show the selected glyph, and
+  -- the glyph.
+  host.selected_columns = {}
+
+  function host.highlight_selected(bufnr, lnums, column)
     host.selected[bufnr] = lnums
+    host.selected_columns[bufnr] = column
   end
 
   -- Per buffer, the lines highlighted as { first, last }, or false once
@@ -240,6 +245,20 @@ function M.new(opts)
 
   function host.highlight_change(bufnr, lnums)
     host.change_highlighted[bufnr] = lnums
+  end
+
+  -- The g:jin_* variables set, by name without the prefix.
+  host.settings = {}
+
+  function host.setting(name)
+    return host.settings[name]
+  end
+
+  -- The g:jin_* dictionaries set, by name without the prefix.
+  host.dict_settings = {}
+
+  function host.setting_dict(name)
+    return host.dict_settings[name]
   end
 
   ---The number of the loaded buffer named `name`.

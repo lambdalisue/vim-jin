@@ -57,6 +57,7 @@ return {
     default = "builtin_draft_commit_description",
     -- The description itself as well, which the draft may add to.
     fields = support.DESCRIBED_FIELDS,
+    short = support.DESCRIBED_SHORT,
   },
   editable = true,
   decorate = function(meta)
