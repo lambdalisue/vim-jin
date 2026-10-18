@@ -283,6 +283,31 @@ describe("the detail panel of the annotate view", function()
     end)
   end)
 
+  it("asks no more of an entry jj told nothing of, when the cursor comes back to it", function()
+    local def = assert(view.get("annotate").detail)
+    local fetch = def.fetch
+    local asked = 0
+    -- An answer with nothing in it, as a fetch gives where the line tells
+    -- nothing either.
+    def.fetch = function(_, _, _, _, done)
+      asked = asked + 1
+      done()
+    end
+    local ok_, err = pcall(function()
+      local host, jin = setup()
+      local bufnr = read(host, jin, CHANGES)
+      host.fire_timers()
+      move(jin, host, bufnr, 3)
+      host.fire_timers()
+      move(jin, host, bufnr, 1)
+      host.fire_timers()
+      assert.equal(2, asked)
+      assert.same("about kkk", texts(host.details[bufnr])[1])
+    end)
+    def.fetch = fetch
+    assert(ok_, err)
+  end)
+
   describe("swaps its content as the cursor moves", function()
     it("showing at once what the line tells of its change, before jj is asked", function()
       local host, jin = setup()
