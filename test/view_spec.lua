@@ -213,6 +213,7 @@ describe("jin.view.read again", function()
   local function reread(host, jin, bufnr, stdout)
     view.read(jin, host, bufnr, "jin:///repo;view=diff#")
     host.finish(ok(stdout))
+    host.finish(ok(""))
     return host.rendered[bufnr]
   end
 
@@ -288,10 +289,14 @@ describe("jin.view.refresh", function()
   local DIFF = "jin:///repo;view=diff#"
   local OP = { "op", "log", "--limit", "1", "--no-graph", "-T", 'id ++ "\\n"' }
 
+  -- A diff view asks jj for the change and commit of its new side after
+  -- each read, or alongside it at a given operation: two runs to a read.
   local function opened(host, jin, name)
     local bufnr = host.load(name)
     view.read(jin, host, bufnr, name)
-    host.finish(ok(""))
+    while host.runs[#host.runs] and not host.runs[#host.runs].finished do
+      host.finish(ok(""))
+    end
     return bufnr
   end
 
@@ -309,18 +314,18 @@ describe("jin.view.refresh", function()
   it("reads the views again once the repository moved on, and not before", function()
     local host, jin = setup()
     opened(host, jin, DIFF)
-    assert.equal(3, look(host, jin, "op1"))
-    assert.same(OP, words(host.runs[2]))
-    assert.equal(4, look(host, jin, "op1"))
-    assert.equal(6, look(host, jin, "op2"))
-    assert.same({ "diff", "--color-words" }, words(host.runs[6]))
+    assert.equal(5, look(host, jin, "op1"))
+    assert.same(OP, words(host.runs[3]))
+    assert.equal(6, look(host, jin, "op1"))
+    assert.equal(9, look(host, jin, "op2"))
+    assert.same({ "diff", "--color-words" }, words(host.runs[8]))
   end)
 
   it("reads them again at the first look, which has nothing to compare with", function()
     local host, jin = setup()
     opened(host, jin, DIFF)
     look(host, jin, "op1")
-    assert.same({ "diff", "--color-words" }, words(host.runs[3]))
+    assert.same({ "diff", "--color-words" }, words(host.runs[4]))
   end)
 
   it("asks only about the workspace of the buffer given", function()
@@ -330,18 +335,18 @@ describe("jin.view.refresh", function()
     local bufnr = opened(host, jin, DIFF)
     opened(host, jin, "jin:///lib;view=diff#")
     look(host, jin, "op1", bufnr)
-    assert.equal("/repo", host.runs[3].cwd)
-    assert.equal(4, #host.runs)
+    assert.equal("/repo", host.runs[5].cwd)
+    assert.equal(7, #host.runs)
   end)
 
   it("leaves a view at a given operation as it is, but follows one relative to @", function()
     local host, jin = setup()
     opened(host, jin, "jin:///repo;view=diff#--at-op op0")
     view.refresh(jin, host)
-    assert.equal(1, #host.runs)
+    assert.equal(2, #host.runs)
     opened(host, jin, "jin:///repo;view=diff#--at-op @-")
     look(host, jin, "op1")
-    assert.same({ "diff", "--color-words", "--at-op", "@-" }, words(host.runs[#host.runs]))
+    assert.same({ "diff", "--color-words", "--at-op", "@-" }, words(host.runs[#host.runs - 1]))
   end)
 
   it("never runs a jj command of :JinBuffer again by itself", function()
@@ -355,24 +360,24 @@ describe("jin.view.refresh", function()
     local host, jin = setup()
     opened(host, jin, DIFF .. "--ignore-working-copy")
     look(host, jin, "op1")
-    assert.equal("--ignore-working-copy", words(host.runs[2])[#OP + 1])
+    assert.equal("--ignore-working-copy", words(host.runs[3])[#OP + 1])
     opened(host, jin, DIFF)
     look(host, jin, "op1")
-    assert.is_nil(words(host.runs[5])[#OP + 1])
+    assert.is_nil(words(host.runs[8])[#OP + 1])
   end)
 
   it("takes a view relative to an operation for one that asks for no snapshot", function()
     local host, jin = setup()
     opened(host, jin, DIFF .. "--at-op @-")
     look(host, jin, "op1")
-    assert.equal("--ignore-working-copy", words(host.runs[2])[#OP + 1])
+    assert.equal("--ignore-working-copy", words(host.runs[3])[#OP + 1])
   end)
 
   it("reads no flag in the paths after --", function()
     local host, jin = setup()
     opened(host, jin, DIFF .. "-- --ignore-working-copy")
     look(host, jin, "op1")
-    assert.is_nil(words(host.runs[2])[#OP + 1])
+    assert.is_nil(words(host.runs[3])[#OP + 1])
   end)
 end)
 

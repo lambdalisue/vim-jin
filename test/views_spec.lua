@@ -25,6 +25,10 @@ local function read(host, jin, name, stdout, with_template)
     host.finish(ok("tpl\n"))
   end
   host.finish(ok(stdout))
+  -- A diff asks jj for the change and commit of its new side as well.
+  if name:find(";view=diff#", 1, true) then
+    host.finish(ok(""))
+  end
   return bufnr
 end
 
@@ -258,7 +262,7 @@ describe("the diff view", function()
       end,
       "jin: m- is several revisions, such as the parents of a merge; jump to the new side instead"
     )
-    local w = host.runs[2].argv
+    local w = host.runs[3].argv
     assert.same({ "log", "--no-graph", "-r", "m-" }, { w[5], w[6], w[7], w[8] })
     assert.same({}, host.opened)
   end)

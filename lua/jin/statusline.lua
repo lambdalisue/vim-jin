@@ -127,7 +127,7 @@ function M.parts(host, bufnr, jin, lnum)
   end
   local file
   if def.revision then
-    file = support.file_path(meta.parsed.argv)
+    file = def.file_at and def.file_at(meta, lnum) or nil
     local shown = meta.revision
     if shown and not entry_name then
       entry_name, kind = shown.change:sub(1, 8) .. " " .. shown.commit:sub(1, 8), "change"

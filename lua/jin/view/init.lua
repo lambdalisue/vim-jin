@@ -70,6 +70,7 @@ local VIEWS = {
 ---@field blocks? fun(meta: jin.ViewMeta): integer[] the first lines of the blocks ]] and [[ move between, in order, as jin.view.block finds them
 ---@field detail? jin.ViewDetail what the detail panel tells of the entry under the cursor, as jin.view.detail shows it
 ---@field revision? fun(argv: string[]): string the one revision whose content the view shows, whose change and commit are asked of jj once per read for the statusline, as its lines stand for no entry
+---@field file_at? fun(meta: jin.ViewMeta, lnum?: integer): string? the path of the file the statusline names, the one the view shows or that of the line `lnum`, beside the change and commit of `revision`
 
 ---What a read left behind for actions to use.
 ---@class jin.ViewMeta

@@ -30,6 +30,9 @@ return {
   actions = actions,
   needs_path = true,
   revision = support.revision_arg,
+  file_at = function(meta)
+    return support.file_path(meta.parsed.argv)
+  end,
   primary = "annotate",
   secondary = "log",
 }

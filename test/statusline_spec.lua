@@ -330,6 +330,64 @@ describe("the statusline of a view", function()
     end)
   end)
 
+  describe("of a diff view", function()
+    local DIFF = "Modified regular file a.txt:\n"
+      .. "   1    1: a\n"
+      .. "Added regular file dir/b.txt:\n"
+      .. "        1: b\n"
+
+    local function revision(change, commit)
+      return ok(
+        table.concat({ change, change:sub(1, 3), commit, commit:sub(1, 4), "-" }, " ") .. "\n"
+      )
+    end
+
+    ---Read the diff view `name`, jj printing DIFF and then `answer` for the
+    ---revision on its new side.
+    local function read_diff(name, answer)
+      local host, jin = setup()
+      local bufnr = host.load(name)
+      view.read(jin, host, bufnr, name)
+      host.finish(ok(DIFF))
+      host.finish(answer)
+      return host, bufnr
+    end
+
+    it("names the file of the line and the change and commit of the revision", function()
+      local change, commit = ("kmkuslsw"):rep(4), ("30c5cb31"):rep(5)
+      local host, bufnr = read_diff("jin:///repo;view=diff#-r kmk", revision(change, commit))
+      local parts = assert(statusline.parts(host, bufnr, nil, 4))
+      assert.equal("dir/b.txt", parts.file)
+      assert.equal("kmkuslsw 30c5cb31", parts.entry)
+      assert.equal("change", parts.kind)
+      assert.same({ 3, 4 }, parts.prefixes)
+      assert.equal("a.txt", assert(statusline.parts(host, bufnr, nil, 1)).file)
+    end)
+
+    it("asks jj of the revision on the new side", function()
+      for name, rev in pairs({
+        ["jin:///repo;view=diff#"] = "@",
+        ["jin:///repo;view=diff#-r xyz"] = "xyz",
+        ["jin:///repo;view=diff#--from a --to b"] = "b",
+        ["jin:///repo;view=diff#--from a"] = "@",
+      }) do
+        local host, jin = setup()
+        local bufnr = host.load(name)
+        view.read(jin, host, bufnr, name)
+        host.finish(ok(DIFF))
+        local query = assert(host.runs[2]).argv
+        assert.equal(rev, query[#query - 2], name)
+      end
+    end)
+
+    it("names the file alone when the revision is no single one", function()
+      local host, bufnr = read_diff("jin:///repo;view=diff#-r 'a|b'", ok("a a a a -\nb b b b -\n"))
+      local parts = assert(statusline.parts(host, bufnr, nil, 3))
+      assert.equal("dir/b.txt", parts.file)
+      assert.is_nil(parts.entry)
+    end)
+  end)
+
   it("names no file in a view of changes", function()
     local host, jin = setup()
     local bufnr = read(host, jin, "jin:///repo;view=log#", "x\n", true)

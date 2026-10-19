@@ -812,9 +812,11 @@ g:jin_statusline	1 by default: the window of a view shows its own
 			(the first line of the description, the author and how
 			long ago), the change, operation, bookmark or
 			workspace it stands for (in a file view, the change
-			and commit it is shown at, which jj is asked for once
-			each time the view is read, with the path of the file
-			on the left, after the view), and the workspace: its
+			and commit it is shown at, and in a diff those of its
+			new side, which jj is asked for once each time the
+			view is read, with the path of the file, or of the
+			file of the line in a diff, on the left, after the
+			view), and the workspace: its
 			directory, the working-copy change, its bookmarks and
 			state, as |jin-components| tell them, with the
 			cursor's line, drawn with |jin-glyphs|. Only the
@@ -889,8 +891,8 @@ g:jin_glyphs		A |Dictionary| of glyphs, by the names below, to
 			column before the first line of a selected change.
 			U+F435 nf-oct-pin	●	*
 	change		Before the change under the cursor, or the one a
-			file view shows, and the label of the change in
-			the detail panel.
+			file view or a diff shows, and the label of the
+			change in the detail panel.
 			U+F440 nf-oct-diff	○	none
 	commit		Before its commit, and the label of the commit.
 			U+F417 nf-oct-git_commit	◉	none
@@ -901,7 +903,8 @@ g:jin_glyphs		A |Dictionary| of glyphs, by the names below, to
 	files		The label of the files in the detail panel, and
 			of the mode of a file.
 			U+F016 nf-fa-file_o	none	none
-	file		Before the file a file view shows.
+	file		Before the file a file view shows, or that of the
+			line in a diff.
 			U+F4A5 nf-oct-file	none	none
 	added		Before the lines added in the detail panel, and
 			the label of a side of a conflict.

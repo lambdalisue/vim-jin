@@ -41,6 +41,10 @@ local function read(host, jin, name, stdout, template)
     host.finish(ok("tpl\n"))
   end
   host.finish(ok(stdout))
+  -- A diff asks jj for the change and commit of its new side as well.
+  if name:find(";view=diff#", 1, true) then
+    host.finish(ok(""))
+  end
   return bufnr
 end
 

@@ -180,7 +180,9 @@ shows, drawn as those of a line are. jj is asked for them once each time
 the view is read, at the operation the view stays at, or at the latest one
 once the read has snapshotted the working copy, and without a snapshot of
 its own; when the revision is not exactly one, or jj fails, the path is
-told alone.
+told alone. A diff tells the same of the file of the line under the cursor,
+none on a line before the first file, and of the revision on its new side:
+the change of `-r`, or `--to`, the working copy when none is given.
 Once the window shows a buffer that is not a view, its statusline is the
 user's own again. With `g:jin_statusline` set to 0, vim-jin leaves the
 statusline alone, and a view already open gives the user's own back the next

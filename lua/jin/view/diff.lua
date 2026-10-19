@@ -27,6 +27,18 @@ return {
       sides = diff.sides(meta.parsed.argv),
     }
   end),
+  -- The revision on the new side, whose files the lines show as they are now.
+  revision = function(argv)
+    return diff.sides(argv).new
+  end,
+  file_at = function(meta, lnum)
+    for _, file in ipairs(((meta.data.diff or {}).files or {})) do
+      if lnum and file.first <= lnum and lnum <= file.last then
+        return file.path
+      end
+    end
+    return nil
+  end,
   actions = actions,
   primary = "jump",
 }
