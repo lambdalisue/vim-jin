@@ -15,9 +15,10 @@ or `--at-op`, with which jj takes no snapshot either.
 A view at a given operation stays as it is; one relative to the latest, such
 as `--at-op @-`, moves on with it.
 
-Views read jj's own formats: the log through the user's configured
-templates, diffs in jj's color-words format. vim-jin adds markers to the
-templates to tell which change each line belongs to; they never show.
+Views read jj's own formats: templated output uses the user's jj settings
+unless overridden below, diffs use jj's color-words format. vim-jin adds
+markers to the templates to tell which change each line belongs to; they
+never show.
 
 In the log, the pick, the evolog, the operation log and the conflicts,
 where a change, a version or an operation takes several lines, all the
@@ -49,15 +50,29 @@ In every view but a buffer to edit, the file view, the raw view and the
 diff editor, the [detail panel](#detail-panel) tells more of what the line
 under the cursor stands for than the line itself does.
 
+## Template selection
+
+`g:jin_templates` is a dictionary keyed by jj's template names, without
+`templates.`: `log`, `show`, `op_log`, `evolog`, `file_annotate`,
+`bookmark_list`, `workspace_list`, `commit_summary`, and
+`draft_commit_description`. Each value is a jj template expression or alias
+used by vim-jin alone. An omitted key uses jj's `templates.*` setting, as
+in a terminal.
+
+Empty strings and values of other types are treated as omitted. A `-T` or
+`--template` argument takes precedence for commands whose output template
+it selects. Views that share a jj template name share its selection.
+Changes to the dictionary take effect when a view is read again.
+
 ## Commands
 
 `:JinLog [args]`
-: `jj log` with `[args]`, in the user's log template (`templates.log`, or a
-  `-T` given in `[args]`). jj's own word wrapping is turned off so that the
-  text and the changes stay aligned; set `'wrap'` to wrap.
+: `jj log` with `[args]`, in the selected log template. jj's own word
+  wrapping is turned off so that the text and the changes stay aligned;
+  set `'wrap'` to wrap.
 
 `:JinShow [args]`
-: `jj show` with `[args]`, in the user's show template, with the diff in
+: `jj show` with `[args]`, in the selected show template, with the diff in
   color-words format.
 
 `:JinDiff [args]`
@@ -70,18 +85,18 @@ under the cursor stands for than the line itself does.
   shown.
 
 `:JinOpLog [args]`
-: `jj op log` with `[args]`, in the user's operation log template.
+: `jj op log` with `[args]`, in the selected operation log template.
 
 `:JinEvolog [args]`
 : `jj evolog` with `[args]`: the versions a change went through, newest
-  first, in the user's evolog template.
+  first, in the selected evolog template.
 
 `:JinStatus [args]`
 : `jj status` with `[args]`: the changes of the working copy and the paths
   left in conflict.
 
 `:JinAnnotate [args]`
-: `jj file annotate` with `[args]`, in the user's annotate template. The
+: `jj file annotate` with `[args]`, in the selected annotate template. The
   buffer holds the file itself, highlighted with the filetype of its path,
   and before each line shows, apart from its text, what the template prints
   before the line's content, in jj's colors. Searching and yanking see the
@@ -89,10 +104,10 @@ under the cursor stands for than the line itself does.
   jj fails, jj's output shows whole instead.
 
 `:JinBookmark [args]`
-: `jj bookmark list` with `[args]`, in the user's bookmark list template.
+: `jj bookmark list` with `[args]`, in the selected bookmark list template.
 
 `:JinWorkspace [args]`
-: `jj workspace list` with `[args]`, in the user's workspace list template.
+: `jj workspace list` with `[args]`, in the selected workspace list template.
 
 `:JinConflicts [args]`
 : The log of the changes that hold conflicts (`jj log -r 'conflicts()'`),

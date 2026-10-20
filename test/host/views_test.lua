@@ -52,6 +52,51 @@ end
 
 return {
   {
+    "views use jj configuration unless a template expression or alias overrides it",
+    function()
+      workspace()
+      write(config, {
+        [[templates.log = '"usual template\n"']],
+        "[template-aliases]",
+        [[default = '"default alias\n"']],
+        [[user = '"user alias\n"']],
+      })
+      local passed, err = pcall(function()
+        for _, choice in ipairs({
+          { false, "usual template" },
+          { "builtin_log_compact" },
+          { '"custom template\\n"', "custom template" },
+          { "default", "default alias" },
+          { "user", "user alias" },
+          { false, "usual template" },
+        }) do
+          if choice[1] then
+            h.ex("let g:jin_templates = {'log': '" .. choice[1] .. "'}")
+          else
+            h.ex("unlet! g:jin_templates")
+          end
+          local previous = view.meta(host, vim.fn.bufnr())
+          h.ex("JinLog! --no-graph -r @")
+          h.eventually(function()
+            return view.meta(host, vim.fn.bufnr()) ~= previous
+          end, "the selected template was never read")
+          local meta = settle()
+          local text = table.concat(h.lines(), "\n")
+          if not choice[2] then
+            h.truthy(text:find("usual template", 1, true) == nil)
+            h.truthy(text ~= "")
+          else
+            h.eq(choice[2], text)
+          end
+          h.truthy(meta.entries[1] and meta.entries[1][1])
+        end
+      end)
+      h.ex("unlet! g:jin_templates")
+      write(config, {})
+      assert(passed, err)
+    end,
+  },
+  {
     "the views that pass jj settings of their own keep jj's colors",
     function()
       workspace()
