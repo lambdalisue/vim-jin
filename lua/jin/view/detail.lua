@@ -14,7 +14,7 @@ local M = {}
 ---@field available? fun(meta: jin.ViewMeta): boolean whether the read has anything to tell; it has unless given
 ---@field key fun(meta: jin.ViewMeta, lnum: integer): string? what the content of the line `lnum` is of, the same for lines telling the same; nil for nothing to tell
 ---@field known fun(meta: jin.ViewMeta, lnum: integer): table what the line itself tells, shown at once
----@field fetch fun(jin: jin.Api, meta: jin.ViewMeta, lnum: integer, key: string, done: fun(details: table)) find out all there is to tell, calling `done` once
+---@field fetch fun(jin: jin.Api, meta: jin.ViewMeta, lnum: integer, key: string, done: fun(details?: table)) find out all there is to tell, calling `done` once, with nothing when there is nothing to tell
 ---@field lines fun(host: jin.Host, details: table, width: integer, glyphs: jin.Glyphs): { text: string, group: string }[][] the content telling of `details`, `width` cells wide
 
 ---What the panel shows, and where: `row` and `col` count from 0 at the
@@ -313,8 +313,13 @@ local function ask(jin, host, bufnr, s, meta, def, lnum, key)
     cache[meta] = cache[meta] or {}
     local known = cache[meta][key]
     if known then
-      -- Asked already, as the cursor came back before the answer.
-      table.insert(known.waiting, told)
+      -- Asked already, as the cursor came back before the answer; once it
+      -- came, even with nothing in it, there is nothing more to ask.
+      if known.waiting then
+        table.insert(known.waiting, told)
+      else
+        told()
+      end
       return
     end
     known = { waiting = { told } }
@@ -359,8 +364,9 @@ function update(jin, host, bufnr, moved)
   local details
   if key and lnum then
     local known = (cache[meta] or {})[key]
-    if known and known.details then
-      details = known.details
+    -- An answer is final once it came, even one telling nothing.
+    if known and not known.waiting then
+      details = known.details or def.known(meta, lnum)
       stop_waiting(host, s)
     else
       details = def.known(meta, lnum)

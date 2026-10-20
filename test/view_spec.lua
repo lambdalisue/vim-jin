@@ -114,6 +114,94 @@ describe("jin.view.read of a view with a template", function()
   end)
 end)
 
+describe("jin.view.read with template selection", function()
+  it("uses a built-in alias without asking jj for its configuration", function()
+    local host, jin = setup()
+    host.dict_settings.templates = { log = "builtin_log_compact" }
+    view.read(jin, host, host.load(NAME), NAME)
+    assert.equal("log", words(host.runs[1])[1])
+    assert.truthy(words(host.runs[1])[6]:find("(builtin_log_compact)", 1, true))
+  end)
+
+  it("uses a custom expression with the same entry markers", function()
+    local host, jin = setup()
+    host.dict_settings.templates = { log = 'description ++ "\\n"' }
+    view.read(jin, host, host.load(NAME), NAME)
+    assert.equal(
+      [["\x1e" ++ json(stringify(change_id)) ++ "\x1f" ++ (description ++ "\n")]],
+      words(host.runs[1])[6]
+    )
+  end)
+
+  it("passes aliases named default and user to jj without interpreting them", function()
+    for _, value in ipairs({ "default", "user" }) do
+      local host, jin = setup()
+      host.dict_settings.templates = { log = value }
+      view.read(jin, host, host.load(NAME), NAME)
+      assert.equal("log", words(host.runs[1])[1])
+      assert.truthy(words(host.runs[1])[6]:find("(" .. value .. ")", 1, true))
+    end
+  end)
+
+  it("uses the usual jj configuration for empty and non-string values", function()
+    for _, value in ipairs({ "", false, 42, {} }) do
+      local host, jin = setup()
+      host.dict_settings.templates = { log = value }
+      view.read(jin, host, host.load(NAME), NAME)
+      assert.same({ "config", "get", "templates.log" }, words(host.runs[1]))
+    end
+  end)
+
+  it("keeps a selection local to its template key", function()
+    local host, jin = setup()
+    host.dict_settings.templates = { show = "builtin_log_detailed" }
+    view.read(jin, host, host.load(NAME), NAME)
+    assert.same({ "config", "get", "templates.log" }, words(host.runs[1]))
+  end)
+
+  it("gives an explicit template precedence over the dictionary", function()
+    local host, jin = setup()
+    host.dict_settings.templates = { log = "builtin_log_compact" }
+    local name = NAME .. " -T mine"
+    view.read(jin, host, host.load(name), name)
+    assert.truthy(words(host.runs[1])[6]:find("(mine)", 1, true))
+  end)
+
+  it("takes a changed selection on reread without caching it as jj configuration", function()
+    local host, jin = setup()
+    local bufnr = host.load(NAME)
+    view.read(jin, host, bufnr, NAME)
+    host.finish(ok("usual\n"))
+    host.finish(ok(""))
+    for _, value in ipairs({ "builtin_log_compact", "custom", false }) do
+      host.dict_settings.templates = { log = value }
+      view.read(jin, host, bufnr, NAME)
+      local expected = value or "usual"
+      assert.truthy(words(host.runs[#host.runs])[6]:find("(" .. expected .. ")", 1, true))
+      host.finish(ok(""))
+    end
+    assert.equal(5, #host.runs)
+  end)
+
+  it("also selects templates handed to jj as configuration", function()
+    local host, jin = setup()
+    host.dict_settings.templates = { commit_summary = 'description ++ "\\n"' }
+    local name = "jin:///repo;view=status#"
+    view.read(jin, host, host.load(name), name)
+    local argv = words(host.runs[1])
+    assert.equal("status", argv[1])
+    assert.equal("--config", argv[2])
+    assert.equal(
+      require("jin.marker").setting(
+        "commit_summary",
+        view.get("status").template.fields,
+        'description ++ "\\n"'
+      ),
+      argv[3]
+    )
+  end)
+end)
+
 describe("jin.view.read of the configured template", function()
   local function configured_runs(host)
     local n = 0

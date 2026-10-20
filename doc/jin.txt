@@ -10,6 +10,7 @@ VIEWS				|jin-views|
   ACTIONS			|jin-actions|
   KEY MAPPINGS			|jin-mappings|
   DETAIL PANEL			|jin-detail|
+TEMPLATES			|jin-templates|
 HIGHLIGHT AND VARIABLES		|jin-highlight|
 GLYPHS				|jin-glyphs|
 COMPONENTS			|jin-components|
@@ -79,7 +80,8 @@ the installed jj offers.
 	++filetype={filetype}	Set the filetype of the buffer.
 
 :JinLog [args]						*:JinLog*
-	`jj log`, in your log template. jj's own word wrapping is turned
+	`jj log`, in the template selected by |g:jin_templates|, your jj
+	log template by default. jj's own word wrapping is turned
 	off so that the text and the changes stay aligned; set 'wrap' to
 	wrap.
 
@@ -723,6 +725,41 @@ g:jin_{view}_detail_width
 >vim
 	let g:jin_log_detail_height = 0.5
 <
+
+=============================================================================
+TEMPLATES						*jin-templates*
+
+							*g:jin_templates*
+g:jin_templates		A dictionary selecting the templates used by views.
+			Keys are jj's template names without "templates.":
+			log, show, op_log, evolog, file_annotate,
+			bookmark_list, workspace_list, commit_summary,
+			and draft_commit_description.
+
+			Each value is a jj template expression or alias used
+			only by vim-jin. An omitted key uses your usual jj
+			templates.* setting.
+			Empty strings and values of other types are ignored.
+>vim
+	let g:jin_templates = {
+	      \ 'log': 'builtin_log_compact',
+	      \ 'show': 'my_show',
+	      \ 'op_log': 'id.short() ++ "\n"',
+	      \ }
+<
+>lua
+	vim.g.jin_templates = {
+	  log = "builtin_log_compact",
+	  show = "my_show",
+	  op_log = [[id.short() ++ "\n"]],
+	}
+<
+Views sharing a template name share its selection: log, pick and conflicts
+use "log"; status and op show use "commit_summary"; commit and describe use
+"draft_commit_description". Changes take effect when a view is read again.
+A -T or --template argument takes precedence when it selects the command's
+output template. Entry markers and actions work with overridden templates.
+Custom aliases such as "my_show" must be defined in jj's template-aliases.
 
 =============================================================================
 HIGHLIGHT AND VARIABLES					*jin-highlight*

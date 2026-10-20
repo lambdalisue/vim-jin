@@ -544,10 +544,15 @@ function M.read(jin, host, bufnr, name)
     fill(user_argv, template)
     return
   end
+  local key = view.template.key
+  local selected = (host.setting_dict("templates") or {})[key]
+  if type(selected) == "string" and selected ~= "" then
+    fill(user_argv, selected)
+    return
+  end
   templates[host] = templates[host] or {}
   local known = templates[host][parsed.root] or {}
   templates[host][parsed.root] = known
-  local key = view.template.key
   if known[key] then
     fill(user_argv, known[key])
     return
