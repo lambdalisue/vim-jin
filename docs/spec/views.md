@@ -360,8 +360,8 @@ exiting, so jj never waits for nobody; while a file is edited, the list is
 modified, so leaving it is refused, as for any buffer holding an edit, until
 forced (`:q!`). `ZZ` and `ZQ` keep their meaning: `:x` and `:q!`. A file
 whose RESULT is edited but not written is not taken from either side. A
-hint at the bottom of the list tells what a checked file goes to, the key
-that opens a file and how to answer. A symbolic link is compared and taken as what it points at, and
+hint at the bottom of the list tells what a checked file goes to, the keys
+that toggle and open a file and how to answer. A symbolic link is compared and taken as what it points at, and
 `open` refuses it, as editing it would write wherever it points; a file
 under a directory that is a link on one side is neither opened nor taken
 until that link is. Windows has no named pipes to answer through, so there

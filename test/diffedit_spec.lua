@@ -28,7 +28,7 @@ end
 local LEFT, RIGHT, OUTPUT = "/tmp/jj-diff/left", "/tmp/jj-diff/right", "/tmp/jj-diff/output"
 local LIST = "jin:///repo;view=diffedit#1"
 local ASK = "\30jin\31/tmp/jin1.fifo\31" .. LEFT .. "\31" .. RIGHT .. "\31" .. OUTPUT
-local HINT = "[x] goes to the first change - <CR> open - :w apply - :q cancel"
+local HINT = "[x] goes to the first change - x toggle - <CR> open - :w apply - :q cancel"
 -- A conflict has no sides to take, so the list of one tells of none.
 local MERGE_HINT = "<CR> open - :w apply - :q cancel"
 
@@ -122,7 +122,7 @@ describe("the diff editor", function()
     assert.same({ "[x] M a.txt", "[x] A b.txt", "[x] D c.txt", HINT }, host.rendered[bufnr].lines)
   end)
 
-  it("names in the hint the key mapped to open, or none when nothing is", function()
+  it("names in the hint the keys mapped to toggle and open, or none when nothing is", function()
     local host, jin = setup()
     host.settings.diffedit_disable_default_mappings = "1"
     local bufnr = asked(host, jin)
@@ -130,10 +130,13 @@ describe("the diff editor", function()
       "[x] goes to the first change - :w apply - :q cancel",
       host.rendered[bufnr].lines[4]
     )
-    host.maps = { { lhs = "go", rhs = "<Plug>(jin-action-open)", mode = "n" } }
+    host.maps = {
+      { lhs = "go", rhs = "<Plug>(jin-action-open)", mode = "n" },
+      { lhs = "<Space>", rhs = "<Plug>(jin-action-toggle)", mode = "n" },
+    }
     view.read(jin, host, bufnr, LIST)
     assert.equal(
-      "[x] goes to the first change - go open - :w apply - :q cancel",
+      "[x] goes to the first change - <Space> toggle - go open - :w apply - :q cancel",
       host.rendered[bufnr].lines[4]
     )
   end)

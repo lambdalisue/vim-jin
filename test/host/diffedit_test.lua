@@ -11,7 +11,11 @@ vim.fn.setenv("JJ_CONFIG", config)
 
 local glyphs = require("jin.glyph").PRESETS[require("jin.glyph").DEFAULT_PRESET]
 local MERGE_HINT = ("<CR> open %s :w apply %s :q cancel"):format(glyphs.dot, glyphs.dot)
-local HINT = ("[%s] goes to the first change %s "):format(glyphs.checked, glyphs.dot) .. MERGE_HINT
+local HINT = ("[%s] goes to the first change %s x toggle %s "):format(
+  glyphs.checked,
+  glyphs.dot,
+  glyphs.dot
+) .. MERGE_HINT
 local EDITED = "  " .. glyphs.edit .. " edited"
 
 ---`line` in the box of how much of its change the result takes.

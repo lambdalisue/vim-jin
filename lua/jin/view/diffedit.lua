@@ -236,21 +236,21 @@ actions.toggle = {
   end,
 }
 
--- What the key of the open action runs, and the key it has by default.
-local OPEN, OPEN_KEY = "<Plug>(jin-action-open)", "<CR>"
-
----The key of Normal mode that opens a file: the default one unless the
----default mappings are off, then one the current buffer maps to open, if any.
+---The key of Normal mode that runs `name`: `default` unless the default
+---mappings are off, then one the current buffer maps to it, if any.
 ---@param host jin.Host
+---@param name string
+---@param default string
 ---@return string?
-local function open_key(host)
+local function key_of(host, name, default)
   local disabled = host.setting("diffedit_disable_default_mappings")
   if not disabled or disabled == "" or disabled == "0" then
-    return OPEN_KEY
+    return default
   end
+  local plug = "<Plug>(jin-action-" .. name .. ")"
   for _, map in ipairs(host.keymaps()) do
     local normal = map.mode == "n" or map.mode == " "
-    if normal and map.rhs == OPEN and not map.lhs:match("^<Plug>") then
+    if normal and map.rhs == plug and not map.lhs:match("^<Plug>") then
       return map.lhs
     end
   end
@@ -264,8 +264,8 @@ local CHECKED = {
   squash = "is squashed",
 }
 
----The line telling what a checked file's change goes to, how to open a file
----and how to answer, the parts parted by the dot glyph.
+---The line telling what a checked file's change goes to, how to toggle and
+---open a file and how to answer, the parts parted by the dot glyph.
 ---@param host jin.Host
 ---@param session jin.DiffEdit
 ---@param glyphs jin.Glyphs
@@ -274,10 +274,14 @@ local function hint(host, session, glyphs)
   local parts = {}
   if session.kind ~= "merge" then
     parts[#parts + 1] = "[" .. glyphs.checked .. "] " .. (CHECKED[session.operation] or "is kept")
+    local toggle = key_of(host, "toggle", "x")
+    if toggle then
+      parts[#parts + 1] = toggle .. " toggle"
+    end
   end
-  local key = open_key(host)
-  if key then
-    parts[#parts + 1] = key .. " open"
+  local open = key_of(host, "open", "<CR>")
+  if open then
+    parts[#parts + 1] = open .. " open"
   end
   parts[#parts + 1] = ":w apply"
   parts[#parts + 1] = ":q cancel"

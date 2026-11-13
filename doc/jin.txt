@@ -341,8 +341,8 @@ panes. Leaving the list otherwise, |:q|, |:bdelete| or closing its window,
 or the editor exiting, leaves the change as it was. While a file is
 edited, the list is 'modified', so leaving it is refused until forced, as
 `:q!` does; |ZZ| and |ZQ| are |:x| and `:q!`. The last line of the list
-tells what a checked file goes to, the key that opens a file and how to
-answer. A symbolic link is compared and taken as what it points at, and
+tells what a checked file goes to, the keys that toggle and open a file and
+how to answer. A symbolic link is compared and taken as what it points at, and
 never opened; a file under a linked directory waits until that link is
 taken. On Windows, which has no named pipes to answer through, it runs
 nothing.
