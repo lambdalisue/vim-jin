@@ -53,6 +53,9 @@ M.NAMES = {
   "bookmark",
   "traffic",
   "alert",
+  "checked",
+  "partial",
+  "unchecked",
   "line",
   "separator",
   "border_top_left",
@@ -92,6 +95,10 @@ M.PRESETS = {
     bookmark = u(0xF02E), -- nf-fa-bookmark
     traffic = u(0xF46A), -- nf-oct-sync
     alert = u(0xF421), -- nf-oct-alert
+    -- One family, as ◐ is drawn larger than ● by many fonts.
+    checked = u(0xF111), -- nf-fa-circle
+    partial = u(0xF042), -- nf-fa-adjust
+    unchecked = " ",
     line = u(0xE0A1), -- nf-pl-line_number
     separator = u(0xE0B3), -- nf-pl-right_soft_divider
     border_top_left = "╭",
@@ -126,6 +133,10 @@ M.PRESETS = {
     bookmark = "⚑",
     traffic = "",
     alert = "⚠",
+    checked = "●",
+    -- Not ◐, which many fonts draw larger than ●.
+    partial = "•",
+    unchecked = " ",
     line = "",
     separator = "│",
     border_top_left = "╭",
@@ -160,6 +171,9 @@ M.PRESETS = {
     bookmark = "",
     traffic = "",
     alert = "!",
+    checked = "x",
+    partial = "-",
+    unchecked = " ",
     line = "",
     separator = "|",
     border_top_left = "+",

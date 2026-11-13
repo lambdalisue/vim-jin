@@ -51,9 +51,9 @@
 ---@field define_actions fun(bufnr: integer, names: string[], defaults?: { view: string, keys: { [1]: string, [2]: string, [3]?: string }[], motions?: { [1]: string, [2]: string, [3]: string }[] })
 ---The mappings local to the current buffer.
 ---@field keymaps fun(): { lhs: string, rhs: string, mode: string }[]
----Ask for a line of text, completed as `completion` says unless it is ""; nil
----when nothing was entered.
----@field input fun(prompt: string, completion: string): string?
+---Ask for a line of text, completed as `completion` says unless it is "", or
+---from the candidates it lists; nil when nothing was entered.
+---@field input fun(prompt: string, completion: string|string[]): string?
 ---Ask a yes-or-no question, no being the answer when none is given.
 ---@field confirm fun(prompt: string): boolean
 ---Put `text` in the register the user asked for (v:register).

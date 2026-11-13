@@ -182,8 +182,10 @@ local CHANGES = {
   ["put:after"] = { "p" },
   ["put:before"] = { "P" },
   bookmark = { "gb" },
-  -- The diff editor list's, as dol takes the left side in a pane.
-  ["take:left"] = { "dol" },
+  ["bookmark:set"] = { "gB" },
+  -- The diff editor list's, as x marks a box, and toggles the selection
+  -- elsewhere.
+  toggle = { "x", "x" },
 }
 
 ---The default keys of `view_def` as { lhs, action, mode }, in normal mode

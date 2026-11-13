@@ -373,8 +373,8 @@ function M.decorate_diff_or(note)
   end
 end
 
----Per host, per commit buffer: the name of the buffer it was opened over in
----the same window, or false when it was opened in a window of its own.
+---Per host, per description buffer: the name of the buffer it was opened over
+---in the same window, or false when it was opened in a window of its own.
 ---@type table<jin.Host, table<integer, string|false>>
 local returns = setmetatable({}, { __mode = "k" })
 
@@ -398,12 +398,31 @@ function M.mark_saved(host, bufnr, written)
   return true
 end
 
----Stop showing the commit buffer `bufnr`: the window it was opened over
+---Remember where the description buffer `bufnr`, opened with `opener` from
+---the view of `ctx`, goes back to once written.
+---@param ctx jin.ActionContext
+---@param bufnr integer
+---@param opener string
+local function remember_return(ctx, bufnr, opener)
+  returns[ctx.host] = returns[ctx.host] or {}
+  returns[ctx.host][bufnr] = opener == "edit" and ctx.host.buffer_name(ctx.bufnr) or false
+end
+
+---Whether the description buffer `bufnr` was opened from a view, and so has
+---somewhere to go back to.
+---@param host jin.Host
+---@param bufnr integer
+---@return boolean
+function M.opened_from_view(host, bufnr)
+  return (returns[host] or {})[bufnr] ~= nil
+end
+
+---Stop showing the description buffer `bufnr`: the window it was opened over
 ---shows again what it showed before, and a window or tab page opened for it
 ---closes.
 ---@param host jin.Host
 ---@param bufnr integer
-function M.leave_commit(host, bufnr)
+function M.leave_description(host, bufnr)
   local back = (returns[host] or {})[bufnr]
   if returns[host] then
     returns[host][bufnr] = nil
@@ -617,7 +636,7 @@ function M.describe_actions(actions)
       argv[#argv + 1] = "-r"
       argv[#argv + 1] = rev
     end
-    M.open(ctx, "describe", argv, opener)
+    remember_return(ctx, M.open(ctx, "describe", argv, opener), opener)
   end)
   actions.describe.changes = true
 end
@@ -642,10 +661,7 @@ function M.commit_actions(actions)
   action.openers(actions, "commit", "commit the working copy", function(ctx, opener)
     M.refuse_at_op(ctx)
     local id = M.working_copy(ctx.jin, ctx.meta.parsed.root)
-    local back = opener == "edit" and ctx.host.buffer_name(ctx.bufnr) or false
-    local bufnr = M.open(ctx, "commit", { "-r", id }, opener)
-    returns[ctx.host] = returns[ctx.host] or {}
-    returns[ctx.host][bufnr] = back
+    remember_return(ctx, M.open(ctx, "commit", { "-r", id }, opener), opener)
   end)
   actions.commit.changes = true
 end
@@ -1015,15 +1031,48 @@ function M.change_actions(actions)
       change(ctx, { "parallelize" }, changed(ctx))
     end,
   }
+  ---Set a bookmark, named when asked from the local ones, to `rev`. Naming
+  ---it says where it goes, and `u` takes it back, so it may go backwards
+  ---or sideways without asking.
+  ---@param ctx jin.ActionContext
+  ---@param rev string
+  local function set_bookmark(ctx, rev)
+    local result = M.query(ctx, { "bookmark", "list", "-T", 'name ++ "\\n"' })
+    local names = {}
+    if result and result.code == 0 then
+      for line in result.stdout:gmatch("[^\n]+") do
+        names[#names + 1] = line
+      end
+    end
+    local name = ctx.host.input("bookmark: ", names)
+    if name then
+      change(ctx, { "bookmark", "set", name, "-r", rev, "--allow-backwards" })
+    end
+  end
   actions.bookmark = {
-    desc = "set a bookmark, named when asked, to the change",
+    desc = "tug the nearest bookmarks below the change up to it, or set one named when asked",
     changes = true,
     fn = function(ctx)
       local rev = changed(ctx)[1]
-      local name = ctx.host.input("bookmark: ", "")
-      if name then
-        change(ctx, { "bookmark", "set", name, "-r", rev })
+      local below = "heads(::" .. rev .. "- & bookmarks())"
+      local found = M.query(ctx, { "log", "--no-graph", "-r", below, "-T", '"x"' })
+      if found and found.code == 0 and found.stdout ~= "" then
+        -- Not quiet: what jj says moved is the only sign of which bookmarks
+        -- were tugged.
+        ctx.jin.command(
+          { "bookmark", "move", "--from", below, "--to", rev },
+          { cwd = ctx.meta.parsed.root }
+        )
+      else
+        set_bookmark(ctx, rev)
       end
+    end,
+  }
+  actions["bookmark:set"] = {
+    desc = "set a bookmark, named when asked, to the change, backwards too",
+    changes = true,
+    fn = function(ctx)
+      set_bookmark(ctx, changed(ctx)[1])
     end,
   }
   actions.split = {

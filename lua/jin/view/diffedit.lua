@@ -159,47 +159,80 @@ actions.open = {
   end,
 }
 
-actions["take:left"] = {
-  desc = "take the left side of the files, none of their change",
+---Make the output of each file the side `side` of it, after refusing any
+---that cannot be taken, then show the list again: all of its change for
+---"right", none of it for "left". All are refused before any is written, so
+---that a refusal changes nothing.
+---@param ctx jin.ActionContext
+---@param session jin.DiffEdit
+---@param sides { file: jin.DiffEditFile, side: "left"|"right" }[]
+local function take(ctx, session, sides)
+  if session.kind == "merge" then
+    error("jin: a conflict has no side to take; edit the result instead", 0)
+  end
+  -- Restoring under an edit not written would leave the edit to be
+  -- written back over what was restored.
+  local unsaved = diffedit.unsaved(ctx.host, session)
+  for _, taken in ipairs(sides) do
+    local file = taken.file
+    -- Where it is read from and where it is written; the other side stays
+    -- as it is.
+    refuse_linked_parent(ctx, session, file, { session[taken.side], session.output })
+    -- The file itself, or one under it when a directory gives way to it.
+    for _, path in ipairs(unsaved) do
+      if path == file.path or path:sub(1, #file.path + 1) == file.path .. "/" then
+        error(
+          ("jin: %s is edited but not written; write it, or undo the edit, first"):format(path),
+          0
+        )
+      end
+    end
+  end
+  for _, taken in ipairs(sides) do
+    local output = session.output .. "/" .. taken.file.path
+    local source = session[taken.side] .. "/" .. taken.file.path
+    local link = ctx.host.link(source)
+    local content = not link and ctx.host.read_file(source)
+    if link then
+      ctx.host.make_link(output, link)
+    elseif content then
+      ctx.host.write_file(output, content)
+      ctx.host.set_executable(output, ctx.host.executable(source))
+    else
+      ctx.host.delete_file(output)
+    end
+  end
+  require("jin.view").read(ctx.jin, ctx.host, ctx.bufnr, ctx.meta.name)
+end
+
+---Add take:{side}, taking that side of every file of the lines.
+---@param side "left"|"right"
+---@param desc string
+local function take_action(side, desc)
+  actions["take:" .. side] = {
+    desc = desc,
+    changes = true,
+    fn = function(ctx)
+      local sides = {}
+      for _, file in ipairs(files_of(ctx)) do
+        sides[#sides + 1] = { file = file, side = side }
+      end
+      take(ctx, session_of(ctx), sides)
+    end,
+  }
+end
+take_action("left", "take the left side of the files, none of their change")
+take_action("right", "take the right side of the files, all of their change")
+
+actions.toggle = {
+  desc = "leave out the files wholly taken, and take the others wholly",
   changes = true,
   fn = function(ctx)
-    local session = session_of(ctx)
-    if session.kind == "merge" then
-      error("jin: a conflict has no left side to take; edit the result instead", 0)
+    local sides = {}
+    for _, file in ipairs(files_of(ctx)) do
+      sides[#sides + 1] = { file = file, side = file.taken == "all" and "left" or "right" }
     end
-    local files = files_of(ctx)
-    -- Restoring under an edit not written would leave the edit to be
-    -- written back over what was restored.
-    local unsaved = diffedit.unsaved(ctx.host, session)
-    for _, file in ipairs(files) do
-      -- Where it is read from and where it is written; jj's right side
-      -- stays as it is.
-      refuse_linked_parent(ctx, session, file, { session.left, session.output })
-      -- The file itself, or one under it when a directory gives way to it.
-      for _, path in ipairs(unsaved) do
-        if path == file.path or path:sub(1, #file.path + 1) == file.path .. "/" then
-          error(
-            ("jin: %s is edited but not written; write it, or undo the edit, first"):format(path),
-            0
-          )
-        end
-      end
-    end
-    for _, file in ipairs(files) do
-      local output = session.output .. "/" .. file.path
-      local left_path = session.left .. "/" .. file.path
-      local link = ctx.host.link(left_path)
-      local left = not link and ctx.host.read_file(left_path)
-      if link then
-        ctx.host.make_link(output, link)
-      elseif left then
-        ctx.host.write_file(output, left)
-        ctx.host.set_executable(output, ctx.host.executable(left_path))
-      else
-        ctx.host.delete_file(output)
-      end
-    end
-    require("jin.view").read(ctx.jin, ctx.host, ctx.bufnr, ctx.meta.name)
+    take(ctx, session_of(ctx), sides)
   end,
 }
 
@@ -224,13 +257,24 @@ local function open_key(host)
   return nil
 end
 
----The line telling how to open a file and how to answer, the parts parted
----by the dot glyph.
+-- Where a checked file's change goes, by the jj command that asked.
+local CHECKED = {
+  split = "goes to the first change",
+  diffedit = "stays in the change",
+  squash = "is squashed",
+}
+
+---The line telling what a checked file's change goes to, how to open a file
+---and how to answer, the parts parted by the dot glyph.
 ---@param host jin.Host
+---@param session jin.DiffEdit
 ---@param glyphs jin.Glyphs
 ---@return string
-local function hint(host, glyphs)
+local function hint(host, session, glyphs)
   local parts = {}
+  if session.kind ~= "merge" then
+    parts[#parts + 1] = "[" .. glyphs.checked .. "] " .. (CHECKED[session.operation] or "is kept")
+  end
   local key = open_key(host)
   if key then
     parts[#parts + 1] = key .. " open"
@@ -245,13 +289,28 @@ end
 local EDITED, DIM = "\27[33m", "\27[90m"
 local RESET = "\27[0m"
 
+---The box of a file by how much of its change the output takes, as jj's
+---built-in diff editor marks it, colored as edited where it is.
+---@param glyphs jin.Glyphs
+---@param taken "all"|"part"|"none"
+---@return string
+local function box(glyphs, taken)
+  if taken == "all" then
+    return "[" .. glyphs.checked .. "]"
+  elseif taken == "part" then
+    return EDITED .. "[" .. glyphs.partial .. "]" .. RESET
+  end
+  return DIM .. "[" .. glyphs.unchecked .. "]" .. RESET
+end
+
 ---@type jin.View
 return {
   title = { "diffedit" },
   filetype = "jin-diffedit",
   line_items = true,
-  ---The files of the session, those edited said so, above how to answer;
-  ---nothing once it has been answered.
+  ---The files of the session, each boxed by how much of its change is taken,
+  ---or a conflict said to be edited once it is, above how to answer; nothing
+  ---once it has been answered.
   source = function(host, parsed)
     local session = diffedit.get(host, tonumber(parsed.argv[1]))
     if not session then
@@ -262,21 +321,21 @@ return {
     local lines = {}
     for _, file in ipairs(session.listed) do
       local line = file.status .. " " .. file.path:gsub("%c", "?")
-      if file.edited then
+      if file.taken then
+        line = box(glyphs, file.taken) .. " " .. line
+      elseif file.edited then
         line = line .. "  " .. EDITED .. glyph.lead(glyphs.edit) .. "edited" .. RESET
       end
       lines[#lines + 1] = line .. "\n"
     end
-    lines[#lines + 1] = DIM .. hint(host, glyphs) .. RESET .. "\n"
+    lines[#lines + 1] = DIM .. hint(host, session, glyphs) .. RESET .. "\n"
     return table.concat(lines)
   end,
   decorate = function(meta)
     meta.data.files = {}
-    -- The last line is the hint, whatever key it names.
+    -- Every line but the last, the hint, is a file, whatever glyphs box it.
     for lnum = 1, #meta.lines - 1 do
-      if meta.lines[lnum]:match("^[MADC] .") then
-        meta.data.files[lnum] = true
-      end
+      meta.data.files[lnum] = true
     end
   end,
   ---Edited while any file is, so that leaving the list without :w asks

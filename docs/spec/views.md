@@ -301,7 +301,13 @@ meanwhile: the view is read again instead, and says so.
 : Make the changes of the lines siblings.
 
 `bookmark`
-: Set a bookmark, named when asked, to the change of the line.
+: Move the local bookmarks nearest below the change of the line up to it,
+  without asking, and say what moved. With none below to move, do what
+  `bookmark:set` does.
+
+`bookmark:set`
+: Set a bookmark, named when asked from the local ones, to the change of
+  the line, even when that moves it backwards or sideways.
 
 `split`
 : Split the change of the line in two, choosing in the diff editor what
@@ -326,7 +332,13 @@ statusline, or, in Neovim where `g:jin_statusline` leaves the statusline to
 the user, in its winbar, what it is, and RESULT what `:w` makes of it for the command
 that asked: the first change for `split`, the change for `diffedit`, what
 is squashed for `squash:interactive`. `:w` in RESULT writes it, closes the
-tab page and goes back to the list, which marks the file edited.
+tab page and goes back to the list.
+
+Each file of the list is in a box telling how much of its change the output
+takes, as jj's built-in diff editor tells it: checked for all of it, partly
+for some, empty for none. `toggle` leaves out the files of the lines wholly
+taken and takes the others wholly; `take:left` and `take:right` take none or
+all of their change whatever they took.
 
 In RESULT, the keys of Vim's diff mode get a hunk, telling which pane it
 comes from, as a third buffer leaves Vim's own `do` without one: `dol` from
@@ -346,11 +358,10 @@ list and its panes. Leaving the list in any other way, as `:q`, `:bdelete`
 or closing its window, leaves the change as it was, and so does the editor
 exiting, so jj never waits for nobody; while a file is edited, the list is
 modified, so leaving it is refused, as for any buffer holding an edit, until
-forced (`:q!`). `ZZ` and `ZQ` keep their meaning: `:x` and `:q!`. `take:left`
-on a line takes none of the change of the files of the lines, making their
-output the parent's, unless a RESULT of one is edited but not written. A
-hint at the bottom of the list names the key that opens a file and how to
-answer. A symbolic link is compared and taken as what it points at, and
+forced (`:q!`). `ZZ` and `ZQ` keep their meaning: `:x` and `:q!`. A file
+whose RESULT is edited but not written is not taken from either side. A
+hint at the bottom of the list tells what a checked file goes to, the key
+that opens a file and how to answer. A symbolic link is compared and taken as what it points at, and
 `open` refuses it, as editing it would write wherever it points; a file
 under a directory that is a link on one side is neither opened nor taken
 until that link is. Windows has no named pipes to answer through, so there
@@ -388,7 +399,9 @@ A description buffer holds jj's own draft of the description, and that of
 each of several changes under a head of its own, as jj's editor does. `:w`
 describes each change with its text, leaving out what jj's editor would
 leave out, and marks the buffer written once jj took every one; jj's report
-is shown only when it fails. When a description changed since the buffer
+is shown only when it fails. One opened from a view by `describe` then
+closes, as it does once committed, back to what the window showed before;
+one opened otherwise stays. When a description changed since the buffer
 was read, as an agent may change it, `:w` says so and describes nothing. A
 version named by its commit ID, as the version of a divergent change is, is
 replaced by the `:w` that describes it, so `:w` refuses it after that and
@@ -626,8 +639,8 @@ OUTPUT, the file as jj writes it, conflict markers included, to edit,
 between LEFT and RIGHT, the sides of the conflict, read-only, each named in
 its statusline as in the diff editor. `:w` in OUTPUT writes what jj takes
 once the list is written, and goes back to the list, which marks the file
-edited. The list's `take:left` refuses a conflict, whose sides OUTPUT takes
-instead.
+edited. The list has no box for a conflict, and its `toggle`, `take:left` and
+`take:right` refuse one, whose sides OUTPUT takes instead.
 
 OUTPUT takes the type of the file it stands for. Its keys are those of
 RESULT, and take from the conflict of the line, markers and all, whichever
@@ -884,9 +897,10 @@ Changing the repository:
 - `gS` splits the change.
 - `p` and `P` move the selected changes in after or before the change of
   the line (`put:after`, `put:before`).
-- `gb` sets a bookmark, named when asked, to the change.
-- In the diff editor list, `dol` takes the left side of the files of the
-  lines (`take:left`), as it takes the left side of a hunk in a pane.
+- `gb` moves the nearest bookmarks below up to the change (`bookmark`), and
+  `gB` sets one named when asked (`bookmark:set`).
+- In the diff editor list, `x` toggles the box of the file, and `x` in
+  visual mode those of the lines selected (`toggle`).
 - In the diff editor and the merge tool, the pane to edit gets hunks with
   `do` and a letter, and the panes around it put them there with `dp`, as
   Vim's diff mode does, telling which pane a hunk comes from.
@@ -902,22 +916,22 @@ of their own, and every variant, such as `{name}:tab` or
 
 | View | `<CR>` | `<S-CR>` | `g` keys | Changes | `yy` | `YY` |
 | --- | --- | --- | --- | --- | --- | --- |
-| log | show | diff | `gd` `gS` `gb` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
-| show | jump | | `gp` `gc` `gS` `gb` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
+| log | show | diff | `gd` `gS` `gb` `gB` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
+| show | jump | | `gp` `gc` `gS` `gb` `gB` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
 | diff | jump | | | `u` `<C-r>` | | |
 | interdiff | jump | | | `u` `<C-r>` | | |
 | file | annotate | log | `gp` `gc` | `u` `<C-r>` | | |
 | oplog | show | log | | `u` `<C-r>` | yank:operation | |
 | opshow | show | diff | `gd` | `u` `<C-r>` | yank:change | yank:commit |
-| evolog | interdiff | show | `gd` `gS` `gb` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
+| evolog | interdiff | show | `gd` `gS` `gb` `gB` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
 | status | inspect | open | `gf` `gd` | `u` `<C-r>` `cc` | yank:path | |
-| annotate | show | parent | `gf` `gd` `gp` `gc` `gS` `gb` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
-| pick | pick | show | `gd` `gS` `gb` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
+| annotate | show | parent | `gf` `gd` `gp` `gc` `gS` `gb` `gB` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
+| pick | pick | show | `gd` `gS` `gb` `gB` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
 | bookmark | log | show | | `u` `<C-r>` `dd` | yank:bookmark | |
 | workspace | tcd | log | | `u` `<C-r>` | | |
-| conflicts | files | resolve | `gd` `gS` `gb` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
+| conflicts | files | resolve | `gd` `gS` `gb` `gB` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
 | resolve | edit | resolve | `gf` `gd` | `u` `<C-r>` | | |
-| diffedit | open | | | `dol` | | |
+| diffedit | open | | | `x` | | |
 
 `pick` is the choice of parents or children that `parent` and `child` of a
 file or annotate view open. `resolve` is the list of conflicted paths

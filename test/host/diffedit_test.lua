@@ -10,8 +10,14 @@ assert(io.open(config, "w")):close()
 vim.fn.setenv("JJ_CONFIG", config)
 
 local glyphs = require("jin.glyph").PRESETS[require("jin.glyph").DEFAULT_PRESET]
-local HINT = ("<CR> open %s :w apply %s :q cancel"):format(glyphs.dot, glyphs.dot)
+local MERGE_HINT = ("<CR> open %s :w apply %s :q cancel"):format(glyphs.dot, glyphs.dot)
+local HINT = ("[%s] goes to the first change %s "):format(glyphs.checked, glyphs.dot) .. MERGE_HINT
 local EDITED = "  " .. glyphs.edit .. " edited"
+
+---`line` in the box of how much of its change the result takes.
+local function boxed(taken, line)
+  return "[" .. glyphs[taken] .. "] " .. line
+end
 
 ---A workspace whose @, "both", adds a.txt and b.txt.
 local function workspace()
@@ -76,7 +82,7 @@ local function split()
   settle()
   act("split", line_of("both"))
   listed()
-  h.eq({ "A a.txt", "A b.txt", HINT }, h.lines())
+  h.eq({ boxed("checked", "A a.txt"), boxed("checked", "A b.txt"), HINT }, h.lines())
 end
 
 ---The statusline a pane draws, in the window `winid`.
@@ -128,7 +134,7 @@ local function resolving()
   settle()
   act("resolve", line_of("merge"))
   listed()
-  h.eq({ "C f.txt", HINT }, h.lines())
+  h.eq({ "C f.txt", MERGE_HINT }, h.lines())
   return dir
 end
 
@@ -140,7 +146,7 @@ return {
       split()
       act("take:left", line_of("b.txt"))
       settle()
-      h.eq({ "A a.txt", "A b.txt" .. EDITED, HINT }, h.lines())
+      h.eq({ boxed("checked", "A a.txt"), boxed("unchecked", "A b.txt"), HINT }, h.lines())
       h.ex("write")
       h.eventually(function()
         return files("@-") == "a.txt\n" and files("@") == "b.txt\n"
@@ -234,7 +240,7 @@ return {
         return ("%d tab pages, in %s"):format(vim.fn.tabpagenr("$"), vim.fn.bufname())
       end)
       h.eventually(function()
-        return h.lines()[1] == "A a.txt" .. EDITED
+        return h.lines()[1] == boxed("partial", "A a.txt")
       end, function()
         return table.concat(h.lines(), "\n")
       end)

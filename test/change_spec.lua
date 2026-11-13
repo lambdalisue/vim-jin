@@ -324,18 +324,51 @@ describe("more changes", function()
     assert.same({ "parallelize", "kkk", "zzz" }, (run("parallelize", 1, 2)))
   end)
 
-  it("set a bookmark, named when asked, to the change of the line", function()
+  it("tug the bookmarks nearest below the change of the line up to it", function()
+    local argv, host = run("bookmark", 1, 1, function(h)
+      h.results[#h.results + 1] = ok("x")
+    end)
+    assert.same(
+      { "bookmark", "move", "--from", "heads(::kkk- & bookmarks())", "--to", "kkk" },
+      argv
+    )
+    host.finish(ok("", "Moved 1 bookmarks to kkk c1 main\n"))
+    assert.same("Moved 1 bookmarks to kkk c1 main", host.messages[1].text)
+  end)
+
+  it("ask for a bookmark to set when none is below the change of the line to tug", function()
     local argv = run("bookmark", 1, 1, function(h)
+      h.results[#h.results + 1] = ok("")
       h.answers = { "my topic" }
     end)
-    assert.same({ "bookmark", "set", "my topic", "-r", "kkk" }, argv)
+    assert.same({ "bookmark", "set", "my topic", "-r", "kkk", "--allow-backwards" }, argv)
   end)
+
+  it(
+    "set a bookmark, named when asked from the local ones, to the change of the line, backwards too",
+    function()
+      local prompted
+      local argv = run("bookmark:set", 1, 1, function(h)
+        h.results[#h.results + 1] = ok("main\nmy topic\n")
+        h.answers = { "main" }
+        local input = h.input
+        h.input = function(prompt, completion)
+          prompted = completion
+          return input(prompt, completion)
+        end
+      end)
+      assert.same({ "main", "my topic" }, prompted)
+      assert.same({ "bookmark", "set", "main", "-r", "kkk", "--allow-backwards" }, argv)
+    end
+  )
 
   it("set no bookmark when no name is given", function()
     local host, jin = setup()
     local bufnr = log(host, jin)
-    action.run(jin, host, bufnr, "bookmark", 1, 1)
-    assert.equal("log", last(host)[1])
+    host.results[#host.results + 1] = ok("main\n")
+    action.run(jin, host, bufnr, "bookmark:set", 1, 1)
+    assert.equal("bookmark", last(host)[1])
+    assert.equal("list", last(host)[2])
   end)
 
   it("move the working copy to the next or the previous change", function()
