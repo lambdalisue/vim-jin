@@ -41,7 +41,7 @@ return {
     jin.command({ "commit", "-m", text }, { cwd = parsed.root, quiet = true }, function(result)
       -- Left open otherwise, as what it holds was not committed.
       if result.code == 0 and support.mark_saved(host, bufnr, written) then
-        support.leave_commit(host, bufnr)
+        support.leave_description(host, bufnr)
       end
     end)
   end,

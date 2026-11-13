@@ -113,7 +113,11 @@ return {
     local function next_one(i)
       local section = pending[i]
       if not section then
-        support.mark_saved(host, bufnr, written)
+        -- One opened by no view stays, as closing its window would take
+        -- away a window the user made.
+        if support.mark_saved(host, bufnr, written) and support.opened_from_view(host, bufnr) then
+          support.leave_description(host, bufnr)
+        end
         return
       end
       local argv = { "describe" }

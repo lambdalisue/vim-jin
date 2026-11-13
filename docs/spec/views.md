@@ -394,7 +394,9 @@ A description buffer holds jj's own draft of the description, and that of
 each of several changes under a head of its own, as jj's editor does. `:w`
 describes each change with its text, leaving out what jj's editor would
 leave out, and marks the buffer written once jj took every one; jj's report
-is shown only when it fails. When a description changed since the buffer
+is shown only when it fails. One opened from a view by `describe` then
+closes, as it does once committed, back to what the window showed before;
+one opened otherwise stays. When a description changed since the buffer
 was read, as an agent may change it, `:w` says so and describes nothing. A
 version named by its commit ID, as the version of a divergent change is, is
 replaced by the `:w` that describes it, so `:w` refuses it after that and

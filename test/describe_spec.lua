@@ -132,6 +132,8 @@ describe("writing the description buffer", function()
       host.finish({ code = 0, stdout = "", stderr = "Rebased 1 descendant commits\n" })
       assert.is_true(host.saved[bufnr])
       assert.same({}, host.messages)
+      -- Opened by no view, it has nowhere to go back to.
+      assert.same({}, host.left)
     end
   )
 
@@ -301,5 +303,44 @@ describe("the describe action", function()
       name = host.opened[2].name,
       opener = host.opened[2].opener,
     })
+  end)
+
+  ---Describe kkk from a log with `name`, write the description buffer, and
+  ---let jj answer `result`; the buffer is returned with the host.
+  local function describe_from_log(name, result)
+    local host, jin = setup()
+    local from = host.load(LOG)
+    view.read(jin, host, from, LOG)
+    host.finish(ok("tpl\n"))
+    host.finish(ok(m("kkk", "c1", "-") .. "x\n"))
+    -- What jj answers when asked for the latest version of kkk.
+    host.results = { ok("kkk c1\n") }
+    action.run(jin, host, from, name, 1, 1)
+    local bufnr = assert(host.buffer_bufnr(ONE))
+    view.read(jin, host, bufnr, ONE)
+    host.finish(ok("builtin_draft_commit_description\n"))
+    host.finish(ok(m("kkk", "c1", "-", "feat\n") .. "feat\n"))
+    host.contents[ONE] = { "feat: x" }
+    host.results = { ok(record("kkk", "c1", "feat\n")) }
+    view.write(jin, host, bufnr)
+    host.finish(result)
+    return host, bufnr
+  end
+
+  it("goes back to the view it was opened over once described", function()
+    local host, bufnr = describe_from_log("describe", ok(""))
+    assert.same({ { bufnr = bufnr, previous = LOG } }, host.left)
+  end)
+
+  it("closes the window or tab page it was opened in once described", function()
+    for _, name in ipairs({ "describe:split", "describe:vsplit", "describe:tab" }) do
+      local host, bufnr = describe_from_log(name, ok(""))
+      assert.same({ { bufnr = bufnr } }, host.left, name)
+    end
+  end)
+
+  it("stays open when jj refuses to describe, keeping the text", function()
+    local host = describe_from_log("describe", { code = 1, stdout = "", stderr = "Error: x\n" })
+    assert.same({}, host.left)
   end)
 end)

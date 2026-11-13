@@ -477,7 +477,9 @@ A description buffer holds jj's own draft of the description, with its
 lines starting with "JJ:", and that of each of several changes under a
 "JJ: describe {change} -------" line. |:w| hands it to jj, without the
 lines starting with "JJ:" and without everything from "JJ: ignore-rest" on;
-jj's report shows only when it fails. When a description changed since the
+jj's report shows only when it fails. Opened from a view by describe, the
+buffer then closes as it does once committed, and the window shows what it
+showed before; opened otherwise, it stays. When a description changed since the
 buffer was read, as an agent may change it, |:w| says so and changes
 nothing. A version of a divergent change, named by its commit ID, is
 replaced by the |:w| that describes it; describe it again from a view to
