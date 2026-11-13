@@ -28,7 +28,9 @@ end
 local LEFT, RIGHT, OUTPUT = "/tmp/jj-diff/left", "/tmp/jj-diff/right", "/tmp/jj-diff/output"
 local LIST = "jin:///repo;view=diffedit#1"
 local ASK = "\30jin\31/tmp/jin1.fifo\31" .. LEFT .. "\31" .. RIGHT .. "\31" .. OUTPUT
-local HINT = "<CR> open - :w apply - :q cancel"
+local HINT = "[x] goes to the first change - <CR> open - :w apply - :q cancel"
+-- A conflict has no sides to take, so the list of one tells of none.
+local MERGE_HINT = "<CR> open - :w apply - :q cancel"
 
 ---The name of the result pane of `path` in the first session.
 local function result(path)
@@ -117,17 +119,23 @@ describe("the diff editor", function()
     local host, jin = setup()
     local bufnr = asked(host, jin)
     assert.same({ name = LIST, opener = "split", mods = "botright" }, host.opened[1])
-    assert.same({ "M a.txt", "A b.txt", "D c.txt", HINT }, host.rendered[bufnr].lines)
+    assert.same({ "[x] M a.txt", "[x] A b.txt", "[x] D c.txt", HINT }, host.rendered[bufnr].lines)
   end)
 
   it("names in the hint the key mapped to open, or none when nothing is", function()
     local host, jin = setup()
     host.settings.diffedit_disable_default_mappings = "1"
     local bufnr = asked(host, jin)
-    assert.equal(":w apply - :q cancel", host.rendered[bufnr].lines[4])
+    assert.equal(
+      "[x] goes to the first change - :w apply - :q cancel",
+      host.rendered[bufnr].lines[4]
+    )
     host.maps = { { lhs = "go", rhs = "<Plug>(jin-action-open)", mode = "n" } }
     view.read(jin, host, bufnr, LIST)
-    assert.equal("go open - :w apply - :q cancel", host.rendered[bufnr].lines[4])
+    assert.equal(
+      "[x] goes to the first change - go open - :w apply - :q cancel",
+      host.rendered[bufnr].lines[4]
+    )
   end)
 
   it(
@@ -179,10 +187,49 @@ describe("the diff editor", function()
     assert.is_nil(host.fs[OUTPUT .. "/b.txt"])
     assert.equal("c\n", host.fs[OUTPUT .. "/c.txt"])
     assert.equal("A\n", host.fs[RIGHT .. "/a.txt"])
-    assert.same(
-      { "M a.txt  edited", "A b.txt  edited", "D c.txt  edited", HINT },
-      host.rendered[bufnr].lines
-    )
+    assert.same({ "[ ] M a.txt", "[ ] A b.txt", "[ ] D c.txt", HINT }, host.rendered[bufnr].lines)
+  end)
+
+  it("takes the whole change of a file back with take:right", function()
+    local host, jin = setup()
+    local bufnr = asked(host, jin)
+    action.run(jin, host, bufnr, "take:left", 1, 3)
+    action.run(jin, host, bufnr, "take:right", 1, 3)
+    assert.equal("A\n", host.fs[OUTPUT .. "/a.txt"])
+    assert.equal("b\n", host.fs[OUTPUT .. "/b.txt"])
+    assert.is_nil(host.fs[OUTPUT .. "/c.txt"])
+    assert.same({ "[x] M a.txt", "[x] A b.txt", "[x] D c.txt", HINT }, host.rendered[bufnr].lines)
+  end)
+
+  it("marks a file part of whose change goes to the result with [-]", function()
+    local host, jin = setup()
+    local bufnr = asked(host, jin)
+    host.fs[OUTPUT .. "/a.txt"] = "a\nA\n"
+    view.read(jin, host, bufnr, LIST)
+    assert.equal("[-] M a.txt", host.rendered[bufnr].lines[1])
+  end)
+
+  it("toggles a file whole: leaves out one wholly taken, and takes the rest wholly", function()
+    local host, jin = setup()
+    local bufnr = asked(host, jin)
+    host.fs[OUTPUT .. "/b.txt"] = nil
+    host.fs[OUTPUT .. "/c.txt"] = "partly\n"
+    view.read(jin, host, bufnr, LIST)
+    assert.same({ "[x] M a.txt", "[ ] A b.txt", "[-] D c.txt", HINT }, host.rendered[bufnr].lines)
+    action.run(jin, host, bufnr, "toggle", 1, 3)
+    assert.same({ "[ ] M a.txt", "[x] A b.txt", "[x] D c.txt", HINT }, host.rendered[bufnr].lines)
+  end)
+
+  it("tells in the hint what a checked file goes to, as the operation does", function()
+    for _, case in ipairs({
+      { { "split", "-i", "-r", "kkk" }, "[x] goes to the first change" },
+      { { "diffedit", "-r", "kkk" }, "[x] stays in the change" },
+      { { "squash", "-r", "kkk", "-i" }, "[x] is squashed" },
+    }) do
+      local host, jin = setup()
+      local bufnr = asked(host, jin, case[1])
+      assert.equal(case[2], host.rendered[bufnr].lines[4]:match("^(.-) %- "))
+    end
   end)
 
   it("is modified once a file is edited, so that leaving it asks first", function()
@@ -199,10 +246,10 @@ describe("the diff editor", function()
     local host, jin = setup()
     host.executables = { [RIGHT .. "/run.sh"] = true, [OUTPUT .. "/run.sh"] = true }
     local bufnr = ask(host, jin, { [LEFT .. "/run.sh"] = "x\n", [RIGHT .. "/run.sh"] = "x\n" })
-    assert.same({ "M run.sh", HINT }, host.rendered[bufnr].lines)
+    assert.same({ "[x] M run.sh", HINT }, host.rendered[bufnr].lines)
     action.run(jin, host, bufnr, "take:left", 1, 1)
     assert.is_nil(host.executables[OUTPUT .. "/run.sh"])
-    assert.same({ "M run.sh  edited", HINT }, host.rendered[bufnr].lines)
+    assert.same({ "[ ] M run.sh", HINT }, host.rendered[bufnr].lines)
   end)
 
   it("lists a symbolic link pointed elsewhere, or turned into a file, and restores it", function()
@@ -216,7 +263,7 @@ describe("the diff editor", function()
       [RIGHT .. "/kept"] = "k",
     }
     local bufnr = ask(host, jin, { [LEFT .. "/file"] = "x\n", [RIGHT .. "/same"] = "t\n" })
-    assert.same({ "M file", "M moved", "M same", HINT }, host.rendered[bufnr].lines)
+    assert.same({ "[x] M file", "[x] M moved", "[x] M same", HINT }, host.rendered[bufnr].lines)
     action.run(jin, host, bufnr, "take:left", 1, 3)
     assert.equal("x\n", host.fs[OUTPUT .. "/file"])
     assert.is_nil(host.links[OUTPUT .. "/file"])
@@ -229,7 +276,7 @@ describe("the diff editor", function()
     local host, jin = setup()
     host.links = { [RIGHT .. "/d"] = "/outside" }
     local bufnr = ask(host, jin, { [LEFT .. "/d/file"] = "x\n", ["/outside/file"] = "kept\n" })
-    assert.same({ "A d", "D d/file", HINT }, host.rendered[bufnr].lines)
+    assert.same({ "[x] A d", "[x] D d/file", HINT }, host.rendered[bufnr].lines)
     for _, name in ipairs({ "take:left", "open" }) do
       assert.has_error(function()
         action.run(jin, host, bufnr, name, 2, 2)
@@ -246,7 +293,7 @@ describe("the diff editor", function()
     local host, jin = setup()
     local name = "\27[31m..\27[0m/\27[31m..\27[0m/victim"
     local bufnr = ask(host, jin, { [RIGHT .. "/" .. name] = "x\n", ["/tmp/victim"] = "kept\n" })
-    assert.same({ "A ?[31m..?[0m/?[31m..?[0m/victim", HINT }, host.rendered[bufnr].lines)
+    assert.same({ "[x] A ?[31m..?[0m/?[31m..?[0m/victim", HINT }, host.rendered[bufnr].lines)
     action.run(jin, host, bufnr, "take:left", 1, 1)
     assert.is_nil(host.fs[OUTPUT .. "/" .. name])
     assert.equal("kept\n", host.fs["/tmp/victim"])
@@ -378,12 +425,13 @@ describe("the diff editor", function()
     end, "jin: this edit has been answered already")
   end)
 
-  it("maps <CR> to open and dol to take:left, and leaves ZZ and ZQ to Vim", function()
+  it("maps <CR> to open and x to toggle, and leaves ZZ and ZQ to Vim", function()
     local keys = {}
     for _, key in ipairs(action.keys(view.get("diffedit"), false)) do
-      keys[key[1]] = key[2]
+      keys[key[1] .. (key[3] or "")] = key[2]
     end
-    assert.same({ "open", "take:left" }, { keys["<CR>"], keys["dol"] })
+    assert.same({ "open", "toggle", "toggle" }, { keys["<CR>"], keys["x"], keys["xx"] })
+    assert.is_nil(keys.dol)
     assert.is_nil(keys.ZZ)
     assert.is_nil(keys.ZQ)
   end)
@@ -417,7 +465,7 @@ describe("the result pane", function()
     assert.is_true(host.saved[bufnr])
     host.fire_timers()
     assert.same({ { bufnr = bufnr, back = list } }, host.closed_tabs)
-    assert.equal("M a.txt  edited", host.rendered[list].lines[1])
+    assert.equal("[-] M a.txt", host.rendered[list].lines[1])
   end)
 
   it("leaves a removed file removed when emptied, and keeps what is written of it", function()
@@ -621,7 +669,7 @@ describe("the merge tool", function()
   it("lists the conflicted file, opens its sides around the output, and answers on :w", function()
     local host, jin = setup()
     local bufnr = resolving(host, jin)
-    assert.same({ "C a.lua", HINT }, host.rendered[bufnr].lines)
+    assert.same({ "C a.lua", MERGE_HINT }, host.rendered[bufnr].lines)
     action.run(jin, host, bufnr, "open", 1, 1)
     assert.same({
       {
@@ -653,7 +701,7 @@ describe("the merge tool", function()
     assert.is_falsy(host.rendered[bufnr].modified)
     host.fs["/t/output_a.lua"] = "resolved\n"
     view.read(jin, host, bufnr, LIST)
-    assert.same({ "C a.lua  edited", HINT }, host.rendered[bufnr].lines)
+    assert.same({ "C a.lua  edited", MERGE_HINT }, host.rendered[bufnr].lines)
     assert.is_true(host.rendered[bufnr].modified)
   end)
 

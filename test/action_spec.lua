@@ -363,12 +363,10 @@ describe("jin.action.keys", function()
     assert.same({ "delete", "delete" }, { lookup(keys, "dd"), lookup(keys, "d", "x") })
   end)
 
-  it(
-    "takes the left side of whole files in the diff editor list with dol, as a pane does",
-    function()
-      assert.equal("take:left", lookup(action.keys(view.get("diffedit"), false), "dol"))
-    end
-  )
+  it("toggles whole files in the diff editor list with x, as it marks a checkbox", function()
+    local keys = action.keys(view.get("diffedit"), false)
+    assert.same({ "toggle", "toggle" }, { lookup(keys, "x"), lookup(keys, "x", "x") })
+  end)
 
   it(
     "leaves u and CTRL-R to Vim in the diff editor list, where jj waits on what is edited",

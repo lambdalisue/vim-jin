@@ -26,6 +26,7 @@ local M = {}
 ---@field status string M modified, A added, D removed, C conflicted
 ---@field path string
 ---@field edited boolean what jj takes of it is no longer what it was handed
+---@field taken? "all"|"part"|"none" how much of its change the output holds; nil for a conflict
 
 ---Per host: the sessions asked for, by ID, and the last ID given.
 ---@type table<jin.Host, { last: integer, sessions: table<integer, jin.DiffEdit> }>
@@ -69,8 +70,8 @@ end
 
 ---The files that differ between the two sides of `session`, by path, each
 ---with its status: M modified, its content or its executable bit, A added
----on the right, D only on the left; and whether it is edited, its output
----no longer the right side.
+---on the right, D only on the left; whether it is edited, its output no
+---longer the right side; and how much of its change the output takes.
 ---@param host jin.Host
 ---@param session jin.DiffEdit
 ---@return jin.DiffEditFile[]
@@ -98,8 +99,9 @@ function M.files(host, session)
     local right = state(host, session.right .. "/" .. path)
     if left ~= right then
       local status = (not left and "A") or (not right and "D") or "M"
-      local edited = state(host, session.output .. "/" .. path) ~= right
-      files[#files + 1] = { status = status, path = path, edited = edited }
+      local output = state(host, session.output .. "/" .. path)
+      local taken = (output == right and "all") or (output == left and "none") or "part"
+      files[#files + 1] = { status = status, path = path, edited = output ~= right, taken = taken }
     end
   end
   return files

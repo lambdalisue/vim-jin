@@ -323,16 +323,25 @@ actions, mapped unless g:jin_diffedit_disable_default_mappings is set:
 				tab page: BEFORE, the parent, RESULT, the output
 				to edit, and AFTER, the change; BEFORE and AFTER
 				are read-only.
-	take:left	dol	Take the left side of the files of the lines,
+	toggle		x	Leave out the files of the lines whose change
+				goes to the result whole, and take the others
+				whole. `x` in visual mode for the lines selected.
+	take:left		Take the left side of the files of the lines,
 				none of their change.
+	take:right		Take the right side of the files of the lines,
+				all of their change.
+
+Each file is in a box, as jj's built-in diff editor draws it: checked when
+the result takes all of its change, partly when some, empty when none. The
+glyphs are |jin-glyphs| checked, partial and unchecked.
 
 The list answers jj as a buffer is written. |:w| hands jj what the output
 holds, once every RESULT edited is written, and closes the list and its
 panes. Leaving the list otherwise, |:q|, |:bdelete| or closing its window,
 or the editor exiting, leaves the change as it was. While a file is
 edited, the list is 'modified', so leaving it is refused until forced, as
-`:q!` does; |ZZ| and |ZQ| are |:x| and `:q!`. The list marks each file
-edited, and its last line tells the key that opens a file and how to
+`:q!` does; |ZZ| and |ZQ| are |:x| and `:q!`. The last line of the list
+tells what a checked file goes to, the key that opens a file and how to
 answer. A symbolic link is compared and taken as what it points at, and
 never opened; a file under a linked directory waits until that link is
 taken. On Windows, which has no named pipes to answer through, it runs
@@ -546,7 +555,8 @@ These change the repository:
 			after, or before, the change of the line.
 	gb		bookmark
 	gB		bookmark:set
-	dol		take:left, in the diff editor list.
+	x		toggle, in the diff editor list; `x` in visual mode
+			for the lines selected.
 	do{letter}	In the pane to edit of the diff editor and the merge
 			tool, take a hunk from the pane `l` left or `r` right
 			of it, `a` both, `A` both the other way round, `b`
@@ -986,6 +996,13 @@ g:jin_glyphs		A |Dictionary| of glyphs, by the names below, to
 	alert		Before the state of the workspace, and a path
 			left in conflict in the detail panel.
 			U+F421 nf-oct-alert	⚠	!
+	checked		In the box of a file of the diff editor list whose
+			change goes to the result whole.
+			U+F111 nf-fa-circle	●	x
+	partial		In the box of a file part of whose change goes.
+			U+F042 nf-fa-adjust	•	-
+	unchecked	In the box of a file none of whose change goes.
+			a space			a space	a space
 	line		Before the cursor's line, and the label of a line
 			of a diff in the detail panel.
 			U+E0A1 nf-pl-line_number	none	none

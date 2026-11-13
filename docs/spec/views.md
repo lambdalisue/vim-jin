@@ -332,7 +332,13 @@ statusline, or, in Neovim where `g:jin_statusline` leaves the statusline to
 the user, in its winbar, what it is, and RESULT what `:w` makes of it for the command
 that asked: the first change for `split`, the change for `diffedit`, what
 is squashed for `squash:interactive`. `:w` in RESULT writes it, closes the
-tab page and goes back to the list, which marks the file edited.
+tab page and goes back to the list.
+
+Each file of the list is in a box telling how much of its change the output
+takes, as jj's built-in diff editor tells it: checked for all of it, partly
+for some, empty for none. `toggle` leaves out the files of the lines wholly
+taken and takes the others wholly; `take:left` and `take:right` take none or
+all of their change whatever they took.
 
 In RESULT, the keys of Vim's diff mode get a hunk, telling which pane it
 comes from, as a third buffer leaves Vim's own `do` without one: `dol` from
@@ -352,11 +358,10 @@ list and its panes. Leaving the list in any other way, as `:q`, `:bdelete`
 or closing its window, leaves the change as it was, and so does the editor
 exiting, so jj never waits for nobody; while a file is edited, the list is
 modified, so leaving it is refused, as for any buffer holding an edit, until
-forced (`:q!`). `ZZ` and `ZQ` keep their meaning: `:x` and `:q!`. `take:left`
-on a line takes none of the change of the files of the lines, making their
-output the parent's, unless a RESULT of one is edited but not written. A
-hint at the bottom of the list names the key that opens a file and how to
-answer. A symbolic link is compared and taken as what it points at, and
+forced (`:q!`). `ZZ` and `ZQ` keep their meaning: `:x` and `:q!`. A file
+whose RESULT is edited but not written is not taken from either side. A
+hint at the bottom of the list tells what a checked file goes to, the key
+that opens a file and how to answer. A symbolic link is compared and taken as what it points at, and
 `open` refuses it, as editing it would write wherever it points; a file
 under a directory that is a link on one side is neither opened nor taken
 until that link is. Windows has no named pipes to answer through, so there
@@ -634,8 +639,8 @@ OUTPUT, the file as jj writes it, conflict markers included, to edit,
 between LEFT and RIGHT, the sides of the conflict, read-only, each named in
 its statusline as in the diff editor. `:w` in OUTPUT writes what jj takes
 once the list is written, and goes back to the list, which marks the file
-edited. The list's `take:left` refuses a conflict, whose sides OUTPUT takes
-instead.
+edited. The list has no box for a conflict, and its `toggle`, `take:left` and
+`take:right` refuse one, whose sides OUTPUT takes instead.
 
 OUTPUT takes the type of the file it stands for. Its keys are those of
 RESULT, and take from the conflict of the line, markers and all, whichever
@@ -894,8 +899,8 @@ Changing the repository:
   the line (`put:after`, `put:before`).
 - `gb` moves the nearest bookmarks below up to the change (`bookmark`), and
   `gB` sets one named when asked (`bookmark:set`).
-- In the diff editor list, `dol` takes the left side of the files of the
-  lines (`take:left`), as it takes the left side of a hunk in a pane.
+- In the diff editor list, `x` toggles the box of the file, and `x` in
+  visual mode those of the lines selected (`toggle`).
 - In the diff editor and the merge tool, the pane to edit gets hunks with
   `do` and a letter, and the panes around it put them there with `dp`, as
   Vim's diff mode does, telling which pane a hunk comes from.
@@ -926,7 +931,7 @@ of their own, and every variant, such as `{name}:tab` or
 | workspace | tcd | log | | `u` `<C-r>` | | |
 | conflicts | files | resolve | `gd` `gS` `gb` `gB` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
 | resolve | edit | resolve | `gf` `gd` | `u` `<C-r>` | | |
-| diffedit | open | | | `dol` | | |
+| diffedit | open | | | `x` | | |
 
 `pick` is the choice of parents or children that `parent` and `child` of a
 file or annotate view open. `resolve` is the list of conflicted paths
