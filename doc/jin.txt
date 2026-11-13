@@ -439,7 +439,11 @@ again and says so.
 	absorb		Move the parts of the change into the changes below it
 			that last touched those lines.
 	parallelize	Make the changes of the lines siblings.
-	bookmark	Set a bookmark, named when asked, to the change.
+	bookmark	Tug the local bookmarks nearest below the change up
+			to it, without asking; |u| takes them back. With none
+			below, as bookmark:set.
+	bookmark:set	Set a bookmark, named when asked from the local ones,
+			to the change, backwards or sideways too.
 	split		Split the change in two, choosing in the diff editor
 			what goes first.
 	diffedit	Edit the diff of the change in the diff editor.
@@ -539,6 +543,7 @@ These change the repository:
 	p P		put:after, put:before: move the selected changes in
 			after, or before, the change of the line.
 	gb		bookmark
+	gB		bookmark:set
 	dol		take:left, in the diff editor list.
 	do{letter}	In the pane to edit of the diff editor and the merge
 			tool, take a hunk from the pane `l` left or `r` right

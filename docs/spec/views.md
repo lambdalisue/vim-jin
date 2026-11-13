@@ -301,7 +301,13 @@ meanwhile: the view is read again instead, and says so.
 : Make the changes of the lines siblings.
 
 `bookmark`
-: Set a bookmark, named when asked, to the change of the line.
+: Move the local bookmarks nearest below the change of the line up to it,
+  without asking, and say what moved. With none below to move, do what
+  `bookmark:set` does.
+
+`bookmark:set`
+: Set a bookmark, named when asked from the local ones, to the change of
+  the line, even when that moves it backwards or sideways.
 
 `split`
 : Split the change of the line in two, choosing in the diff editor what
@@ -884,7 +890,8 @@ Changing the repository:
 - `gS` splits the change.
 - `p` and `P` move the selected changes in after or before the change of
   the line (`put:after`, `put:before`).
-- `gb` sets a bookmark, named when asked, to the change.
+- `gb` moves the nearest bookmarks below up to the change (`bookmark`), and
+  `gB` sets one named when asked (`bookmark:set`).
 - In the diff editor list, `dol` takes the left side of the files of the
   lines (`take:left`), as it takes the left side of a hunk in a pane.
 - In the diff editor and the merge tool, the pane to edit gets hunks with
@@ -902,20 +909,20 @@ of their own, and every variant, such as `{name}:tab` or
 
 | View | `<CR>` | `<S-CR>` | `g` keys | Changes | `yy` | `YY` |
 | --- | --- | --- | --- | --- | --- | --- |
-| log | show | diff | `gd` `gS` `gb` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
-| show | jump | | `gp` `gc` `gS` `gb` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
+| log | show | diff | `gd` `gS` `gb` `gB` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
+| show | jump | | `gp` `gc` `gS` `gb` `gB` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
 | diff | jump | | | `u` `<C-r>` | | |
 | interdiff | jump | | | `u` `<C-r>` | | |
 | file | annotate | log | `gp` `gc` | `u` `<C-r>` | | |
 | oplog | show | log | | `u` `<C-r>` | yank:operation | |
 | opshow | show | diff | `gd` | `u` `<C-r>` | yank:change | yank:commit |
-| evolog | interdiff | show | `gd` `gS` `gb` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
+| evolog | interdiff | show | `gd` `gS` `gb` `gB` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
 | status | inspect | open | `gf` `gd` | `u` `<C-r>` `cc` | yank:path | |
-| annotate | show | parent | `gf` `gd` `gp` `gc` `gS` `gb` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
-| pick | pick | show | `gd` `gS` `gb` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
+| annotate | show | parent | `gf` `gd` `gp` `gc` `gS` `gb` `gB` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
+| pick | pick | show | `gd` `gS` `gb` `gB` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
 | bookmark | log | show | | `u` `<C-r>` `dd` | yank:bookmark | |
 | workspace | tcd | log | | `u` `<C-r>` | | |
-| conflicts | files | resolve | `gd` `gS` `gb` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
+| conflicts | files | resolve | `gd` `gS` `gb` `gB` | `u` `<C-r>` `dd` `o` `O` `i` `cc` `cw` `J` `p` `P` | yank:change | yank:commit |
 | resolve | edit | resolve | `gf` `gd` | `u` `<C-r>` | | |
 | diffedit | open | | | `dol` | | |
 

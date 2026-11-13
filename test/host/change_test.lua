@@ -41,12 +41,17 @@ end
 ---confirmation, text for an input. The prompts themselves are the editor's.
 local function answer(reply)
   local confirm, input = host.confirm, host.input
+  -- Both go back once either answers, so that the one not asked does not
+  -- answer for a later test.
+  local function restore()
+    host.confirm, host.input = confirm, input
+  end
   host.confirm = function()
-    host.confirm = confirm
+    restore()
     return reply == true
   end
   host.input = function()
-    host.input = input
+    restore()
     return type(reply) == "string" and reply or nil
   end
 end
@@ -404,6 +409,35 @@ return {
           "messages: " .. vim.fn.execute("messages"),
         }, "\n")
       end)
+    end,
+  },
+  {
+    "bookmark tugs the bookmark below the change of the line up to it",
+    function()
+      workspace()
+      h.eq(0, jin.jj({ "bookmark", "create", "topic", "-r", "@-" }).code)
+      h.ex("JinLog")
+      settle()
+      act("bookmark", line_of("second"))
+      h.eventually(function()
+        return jin.jj({ "log", "--no-graph", "-r", "topic", "-T", "description" }).stdout
+          == "second\n"
+      end, "topic was not tugged to second")
+    end,
+  },
+  {
+    "an action's prompt completes from the candidates it is given",
+    function()
+      local input, offered = vim.fn.input, nil
+      vim.fn.input = function(_, _, completion)
+        offered = vim.fn[completion:gsub("^customlist,", "")]("to", "", 0)
+        return "topic"
+      end
+      local ok, typed = pcall(host.input, "bookmark: ", { "main", "topic" })
+      vim.fn.input = input
+      h.truthy(ok, typed)
+      h.eq("topic", typed)
+      h.eq({ "topic" }, host.list(offered))
     end,
   },
   {

@@ -1015,15 +1015,48 @@ function M.change_actions(actions)
       change(ctx, { "parallelize" }, changed(ctx))
     end,
   }
+  ---Set a bookmark, named when asked from the local ones, to `rev`. Naming
+  ---it says where it goes, and `u` takes it back, so it may go backwards
+  ---or sideways without asking.
+  ---@param ctx jin.ActionContext
+  ---@param rev string
+  local function set_bookmark(ctx, rev)
+    local result = M.query(ctx, { "bookmark", "list", "-T", 'name ++ "\\n"' })
+    local names = {}
+    if result and result.code == 0 then
+      for line in result.stdout:gmatch("[^\n]+") do
+        names[#names + 1] = line
+      end
+    end
+    local name = ctx.host.input("bookmark: ", names)
+    if name then
+      change(ctx, { "bookmark", "set", name, "-r", rev, "--allow-backwards" })
+    end
+  end
   actions.bookmark = {
-    desc = "set a bookmark, named when asked, to the change",
+    desc = "tug the nearest bookmarks below the change up to it, or set one named when asked",
     changes = true,
     fn = function(ctx)
       local rev = changed(ctx)[1]
-      local name = ctx.host.input("bookmark: ", "")
-      if name then
-        change(ctx, { "bookmark", "set", name, "-r", rev })
+      local below = "heads(::" .. rev .. "- & bookmarks())"
+      local found = M.query(ctx, { "log", "--no-graph", "-r", below, "-T", '"x"' })
+      if found and found.code == 0 and found.stdout ~= "" then
+        -- Not quiet: what jj says moved is the only sign of which bookmarks
+        -- were tugged.
+        ctx.jin.command(
+          { "bookmark", "move", "--from", below, "--to", rev },
+          { cwd = ctx.meta.parsed.root }
+        )
+      else
+        set_bookmark(ctx, rev)
       end
+    end,
+  }
+  actions["bookmark:set"] = {
+    desc = "set a bookmark, named when asked, to the change, backwards too",
+    changes = true,
+    fn = function(ctx)
+      set_bookmark(ctx, changed(ctx)[1])
     end,
   }
   actions.split = {

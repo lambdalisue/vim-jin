@@ -243,7 +243,11 @@ function M.keymaps(list)
   return maps
 end
 
-function M.input(prompt, completion)
+function M.input(prompt, completion, to_list)
+  if type(completion) == "table" then
+    vim.fn.setbufvar("%", "jin_input_candidates", to_list(completion))
+    completion = "customlist,jin#input#complete"
+  end
   -- input() rejects an empty completion with E180, so none is given then.
   local answer = completion ~= "" and vim.fn.input(prompt, "", completion) or vim.fn.input(prompt)
   if answer == "" then

@@ -182,6 +182,7 @@ local CHANGES = {
   ["put:after"] = { "p" },
   ["put:before"] = { "P" },
   bookmark = { "gb" },
+  ["bookmark:set"] = { "gB" },
   -- The diff editor list's, as dol takes the left side in a pane.
   ["take:left"] = { "dol" },
 }

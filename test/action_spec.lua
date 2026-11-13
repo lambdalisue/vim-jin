@@ -337,6 +337,7 @@ describe("jin.action.keys", function()
       p = "put:after",
       P = "put:before",
       gb = "bookmark",
+      gB = "bookmark:set",
     }, {
       u = lookup(log, "u"),
       ["<C-r>"] = lookup(log, "<C-r>"),
@@ -351,6 +352,7 @@ describe("jin.action.keys", function()
       p = lookup(log, "p"),
       P = lookup(log, "P"),
       gb = lookup(log, "gb"),
+      gB = lookup(log, "gB"),
     })
     assert.same({ "abandon", "squash" }, { lookup(log, "d", "x"), lookup(log, "J", "x") })
     assert.equal("commit", lookup(action.keys(view.get("status"), false), "cc"))
@@ -455,6 +457,7 @@ describe("jin.action.keys", function()
     ["^gc$"] = "gc comments lines out, in Neovim; Vim gives it nothing",
     ["^gS$"] = "Vim gives gS nothing",
     ["^gb$"] = "Vim gives gb nothing",
+    ["^gB$"] = "Vim gives gB nothing",
     ["^x$"] = "x deletes a character",
     ["^X$"] = "X deletes a character",
   }

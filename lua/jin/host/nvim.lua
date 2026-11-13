@@ -11,7 +11,6 @@ local M = {
   open = common.open,
   buffers = common.buffers,
   buffer_name = common.buffer_name,
-  input = common.input,
   confirm = common.confirm,
   yank = common.yank,
   cd = common.cd,
@@ -31,6 +30,10 @@ local M = {
   width = common.width,
   setting = common.setting,
 }
+
+function M.input(prompt, completion)
+  return common.input(prompt, completion, M.to_list)
+end
 
 function M.leave(bufnr, previous)
   common.leave(bufnr, previous, M.list)
